@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * @author Alexander Teshabaev <sasha.tesh@gmail.com>
  */
-class WRIO_License_Page extends WBCR\Factory_Templates_128\Pages\License {
+class WRIO_License_Page extends WBCR\Factory_Templates_134\Pages\License {
 
 	/**
 	 * {@inheritdoc}
@@ -58,9 +58,9 @@ class WRIO_License_Page extends WBCR\Factory_Templates_128\Pages\License {
 
 	/**
 	 * {@inheritdoc}
-	 * @param Wbcr_Factory475_Plugin $plugin
+	 * @param Wbcr_Factory480_Plugin $plugin
 	 */
-	public function __construct( Wbcr_Factory475_Plugin $plugin ) {
+	public function __construct( Wbcr_Factory480_Plugin $plugin ) {
 		$this->menu_title                  = __( 'License', 'robin-image-optimizer' );
 		$this->page_menu_short_description = __( 'Product activation', 'robin-image-optimizer' );
 

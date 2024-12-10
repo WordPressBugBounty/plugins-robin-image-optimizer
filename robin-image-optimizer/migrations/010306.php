@@ -4,7 +4,7 @@
  * Updates for altering the table used to store statistics data.
  * Adds new columns and renames existing ones in order to add support for the new social buttons.
  */
-class WIOUpdate010306 extends Wbcr_Factory475_Update {
+class WIOUpdate010306 extends Wbcr_Factory480_Update {
 
 	/**
 	 * {inherit}
@@ -27,7 +27,7 @@ class WIOUpdate010306 extends Wbcr_Factory475_Update {
 
 		$this->clear_webp_images();
 
-		WBCR\Factory_Templates_128\Helpers::flushPageCache();
+		WBCR\Factory_Templates_134\Helpers::flushPageCache();
 
 		WRIO_Plugin::app()->logger->info( 'Plugin migration was successfull!' );
 	}

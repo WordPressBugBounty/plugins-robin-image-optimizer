@@ -4,7 +4,7 @@
 	 * Updates for altering the table used to store statistics data.
 	 * Adds new columns and renames existing ones in order to add support for the new social buttons.
 	 */
-	class WIOUpdate010402 extends Wbcr_Factory475_Update {
+	class WIOUpdate010402 extends Wbcr_Factory480_Update {
 		
 		/**
 		 * {inherit}

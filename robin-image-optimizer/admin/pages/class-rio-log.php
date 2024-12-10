@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @copyright (c) 2018, Webcraftic
  * @version       1.0
  */
-class WRIO_LogPage extends Wbcr_FactoryLogger142_PageBase {
+class WRIO_LogPage extends Wbcr_FactoryLogger149_PageBase {
 
 	/**
 	 * {@inheritdoc}

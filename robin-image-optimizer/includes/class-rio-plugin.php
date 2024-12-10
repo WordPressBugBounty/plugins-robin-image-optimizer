@@ -11,11 +11,11 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @copyright (c) 19.02.2018, Webcraftic
  * @version       1.0
  */
-class WRIO_Plugin extends Wbcr_Factory475_Plugin {
+class WRIO_Plugin extends Wbcr_Factory480_Plugin {
 
 	/**
 	 * @see self::app()
-	 * @var Wbcr_Factory475_Plugin
+	 * @var Wbcr_Factory480_Plugin
 	 */
 	private static $app;
 
@@ -80,6 +80,10 @@ class WRIO_Plugin extends Wbcr_Factory475_Plugin {
 				// metas were migrated or not
 				require_once WRIO_PLUGIN_DIR . '/admin/ajax/meta-migrations.php';
 			}
+
+			add_action( 'init', function () {
+				$this->registerPages();
+			} );
 		}
 
 		add_action( 'plugins_loaded', [ $this, 'pluginsLoaded' ] );
@@ -94,7 +98,7 @@ class WRIO_Plugin extends Wbcr_Factory475_Plugin {
 	 * Используется для получения настроек плагина, информации о плагине, для доступа к вспомогательным
 	 * классам.
 	 *
-	 * @return \Wbcr_Factory475_Plugin|\WRIO_Plugin
+	 * @return \Wbcr_Factory480_Plugin|\WRIO_Plugin
 	 */
 	public static function app() {
 		return self::$app;
@@ -115,7 +119,7 @@ class WRIO_Plugin extends Wbcr_Factory475_Plugin {
 			require_once WRIO_PLUGIN_DIR . '/admin/boot.php';
 			//require_once( WRIO_PLUGIN_DIR . '/admin/includes/classes/class-rio-nextgen-landing.php' );
 
-			$this->registerPages();
+			//$this->registerPages();
 		}
 
 		if ( wrio_doing_cron() || wrio_doing_rest_api() ) {

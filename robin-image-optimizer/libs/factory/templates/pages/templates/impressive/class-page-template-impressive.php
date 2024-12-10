@@ -1,6 +1,6 @@
 <?php
 
-namespace WBCR\Factory_Templates_128;
+namespace WBCR\Factory_Templates_134;
 
 /**
  * Impressive page themplate class
@@ -17,11 +17,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-if ( ! class_exists( 'WBCR\Factory_Templates_128\Impressive' ) ) {
+if ( ! class_exists( 'WBCR\Factory_Templates_134\Impressive' ) ) {
 	/**
-	 * Class Wbcr_FactoryPages475_ImpressiveThemplate
+	 * Class Wbcr_FactoryPages480_ImpressiveThemplate
 	 */
-	abstract class Impressive extends \Wbcr_FactoryPages475_AdminPage {
+	abstract class Impressive extends \Wbcr_FactoryPages480_AdminPage {
 
 		/**
 		 * Тип страницы:
@@ -115,11 +115,11 @@ if ( ! class_exists( 'WBCR\Factory_Templates_128\Impressive' ) ) {
 		public $page_menu = [];
 
 		/**
-		 * @param \Wbcr_Factory475_Plugin $plugin
+		 * @param \Wbcr_Factory480_Plugin $plugin
 		 */
-		public function __construct( \Wbcr_Factory475_Plugin $plugin ) {
-			$this->menu_icon = FACTORY_TEMPLATES_128_URL . '/pages/templates/impressive/assets/img/webcraftic-plugin-icon.png';
-			//$allow_multisite = apply_filters('wbcr_factory_475_core_admin_allow_multisite', false);
+		public function __construct( \Wbcr_Factory480_Plugin $plugin ) {
+			$this->menu_icon = FACTORY_TEMPLATES_134_URL . '/pages/templates/impressive/assets/img/webcraftic-plugin-icon.png';
+			//$allow_multisite = apply_filters('wbcr_factory_480_core_admin_allow_multisite', false);
 
 			if ( is_multisite() && $this->available_for_multisite && $plugin->isNetworkActive() ) {
 				$this->network     = true;
@@ -129,7 +129,7 @@ if ( ! class_exists( 'WBCR\Factory_Templates_128\Impressive' ) ) {
 
 			parent::__construct( $plugin );
 
-			$this->title_plugin_action_link = __( 'Settings', 'wbcr_factory_pages_475' );
+			$this->title_plugin_action_link = __( 'Settings', 'wbcr_factory_pages_480' );
 
 			$this->setPageMenu();
 		}
@@ -139,7 +139,7 @@ if ( ! class_exists( 'WBCR\Factory_Templates_128\Impressive' ) ) {
 		 *
 		 * @return void
 		 * @since 1.0.0
-		 * @see   \FactoryPages475_AdminPage
+		 * @see   \FactoryPages480_AdminPage
 		 *
 		 */
 		public function assets( $scripts, $styles ) {
@@ -166,7 +166,7 @@ if ( ! class_exists( 'WBCR\Factory_Templates_128\Impressive' ) ) {
 				'holder.more-link'
 			], 'bootstrap' );
 
-			$this->styles->add( FACTORY_TEMPLATES_128_URL . '/pages/templates/impressive/assets/css/impressive.page.template.css' );
+			$this->styles->add( FACTORY_TEMPLATES_134_URL . '/pages/templates/impressive/assets/css/impressive.page.template.css' );
 		}
 
 		/**
@@ -233,8 +233,8 @@ if ( ! class_exists( 'WBCR\Factory_Templates_128\Impressive' ) ) {
 		public function flushCacheAndRulesAction() {
 			check_admin_referer( 'wbcr_factory_' . $this->getResultId() . '_flush_action' );
 
-			if ( class_exists( 'WBCR\Factory_Templates_128\Helpers' ) ) {
-				\WBCR\Factory_Templates_128\Helpers::flushPageCache();
+			if ( class_exists( 'WBCR\Factory_Templates_134\Helpers' ) ) {
+				\WBCR\Factory_Templates_134\Helpers::flushPageCache();
 			}
 
 			/**
@@ -264,7 +264,7 @@ if ( ! class_exists( 'WBCR\Factory_Templates_128\Impressive' ) ) {
 		 */
 		protected function warningNotice() {
 			/*if( WP_CACHE ) {
-				$this->printWarningNotice(__("It seems that a caching/performance plugin is active on this site. Please manually invalidate that plugin's cache after making any changes to the settings below.", 'wbcr_factory_pages_475'));
+				$this->printWarningNotice(__("It seems that a caching/performance plugin is active on this site. Please manually invalidate that plugin's cache after making any changes to the settings below.", 'wbcr_factory_pages_480'));
 			}*/
 			// Метод предназначен для вызова в дочернем классе
 		}
@@ -347,7 +347,7 @@ if ( ! class_exists( 'WBCR\Factory_Templates_128\Impressive' ) ) {
 						$this->plugin->getPluginName() . '_saved' => '1'
 					],
 					'type'       => 'success',
-					'message'    => __( 'The settings have been updated successfully!', 'wbcr_factory_pages_475' ) . ( WP_CACHE ? '<br>' . __( "It seems that a caching/performance plugin is active on this site. Please manually invalidate that plugin's cache after making any changes to the settings below.", 'wbcr_factory_pages_475' ) : '' )
+					'message'    => __( 'The settings have been updated successfully!', 'wbcr_factory_pages_480' ) . ( WP_CACHE ? '<br>' . __( "It seems that a caching/performance plugin is active on this site. Please manually invalidate that plugin's cache after making any changes to the settings below.", 'wbcr_factory_pages_480' ) : '' )
 				]
 			];
 
@@ -614,7 +614,7 @@ if ( ! class_exists( 'WBCR\Factory_Templates_128\Impressive' ) ) {
 					<?php if ( $this->type == 'options' ): ?>
                         <input name="<?php echo $this->plugin->getPluginName() ?>_save_action"
                                class="wbcr-factory-button wbcr-factory-type-save" type="submit"
-                               value="<?php _e( 'Save', 'wbcr_factory_pages_475' ); ?>">
+                               value="<?php _e( 'Save', 'wbcr_factory_pages_480' ); ?>">
 						<?php wp_nonce_field( 'wbcr_factory_' . $this->getResultId() . '_save_action' ); ?>
 					<?php endif; ?>
                 </div>
@@ -676,12 +676,12 @@ if ( ! class_exists( 'WBCR\Factory_Templates_128\Impressive' ) ) {
 		}
 
 		protected function showOptions() {
-			$form = new \Wbcr_FactoryForms475_Form( [
+			$form = new \Wbcr_FactoryForms480_Form( [
 				'scope' => rtrim( $this->plugin->getPrefix(), '_' ),
 				'name'  => $this->getResultId() . "-options"
 			], $this->plugin );
 
-			$form->setProvider( new \Wbcr_FactoryForms475_OptionsValueProvider( $this->plugin ) );
+			$form->setProvider( new \Wbcr_FactoryForms480_OptionsValueProvider( $this->plugin ) );
 
 			$options = $this->getPageOptions();
 
@@ -722,7 +722,7 @@ if ( ! class_exists( 'WBCR\Factory_Templates_128\Impressive' ) ) {
 				check_admin_referer( 'wbcr_factory_' . $this->getResultId() . '_save_action' );
 
 				if ( ! current_user_can( 'administrator' ) && ! current_user_can( $this->capabilitiy ) ) {
-					wp_die( __( 'You do not have permission to edit page.', 'wbcr_factory_pages_475' ) );
+					wp_die( __( 'You do not have permission to edit page.', 'wbcr_factory_pages_480' ) );
 				}
 
 				/**
@@ -750,7 +750,7 @@ if ( ! class_exists( 'WBCR\Factory_Templates_128\Impressive' ) ) {
 
 			?>
             <div id="WBCR" class="wrap">
-                <div class="wbcr-factory-templates-128-impressive-page-template factory-bootstrap-477 factory-fontawesome-000">
+                <div class="wbcr-factory-templates-134-impressive-page-template factory-bootstrap-482 factory-fontawesome-000">
                     <div class="wbcr-factory-options wbcr-factory-options-<?php echo esc_attr( $this->id ) ?>">
                         <div class="wbcr-factory-left-navigation-bar">
 							<?php $this->showPageMenu() ?>
@@ -795,7 +795,7 @@ if ( ! class_exists( 'WBCR\Factory_Templates_128\Impressive' ) ) {
 
 		protected function showPage( $content = null ) { ?>
             <div id="WBCR" class="wrap">
-                <div class="wbcr-factory-templates-128-impressive-page-template factory-bootstrap-477 factory-fontawesome-000">
+                <div class="wbcr-factory-templates-134-impressive-page-template factory-bootstrap-482 factory-fontawesome-000">
                     <div class="wbcr-factory-page wbcr-factory-page-<?php echo $this->id ?>">
 						<?php $this->showHeader(); ?>
                         <div class="wbcr-factory-left-navigation-bar">
@@ -859,7 +859,7 @@ if ( ! class_exists( 'WBCR\Factory_Templates_128\Impressive' ) ) {
 		public function confirmPageTemplate( $data ) {
 			?>
             <div id="WBCR" class="wrap">
-                <div class="wbcr-factory-templates-128-impressive-page-template factory-bootstrap-477 factory-fontawesome-000">
+                <div class="wbcr-factory-templates-134-impressive-page-template factory-bootstrap-482 factory-fontawesome-000">
                     <div id="wbcr-factory-confirm-dialog">
                         <h2><?php echo $data['title'] ?></h2>
                         <p class="wbcr-factory-confirm-description"><?php echo $data['description'] ?></p>

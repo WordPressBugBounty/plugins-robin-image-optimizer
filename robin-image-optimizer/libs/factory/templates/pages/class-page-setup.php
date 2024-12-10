@@ -1,6 +1,6 @@
 <?php
 
-namespace WBCR\Factory_Templates_128\Pages;
+namespace WBCR\Factory_Templates_134\Pages;
 
 // Exit if accessed directly
 if( !defined('ABSPATH') ) {
@@ -10,15 +10,15 @@ if( !defined('ABSPATH') ) {
 /**
  * Класс страницы, которая реализует функции мастера установки.
  *
- * Этот класс унаследован от стандартного шаблона страницы \Wbcr_FactoryPages475_ImpressiveThemplate,
+ * Этот класс унаследован от стандартного шаблона страницы \Wbcr_FactoryPages480_ImpressiveThemplate,
  * поэтому все его инструменты могут быть применены и в этом классе. Но вы должны учитывать, что
  * поведение экшенов страницы было изменено. В данной реализации экшены используется для пагинации шагов.
  *
- * @package WBCR\Factory_Templates_128\Pages
+ * @package WBCR\Factory_Templates_134\Pages
  * @author        Alex Kovalev <alex.kovalevv@gmail.com>, Github: https://github.com/alexkovalevv
  * @since         2.2.2
  */
-class Setup extends \WBCR\Factory_Templates_128\Impressive {
+class Setup extends \WBCR\Factory_Templates_134\Impressive {
 
 	const DEFAULT_STEP = 'step0';
 
@@ -68,20 +68,20 @@ class Setup extends \WBCR\Factory_Templates_128\Impressive {
 	private $steps = [];
 
 	/**
-	 * @param \Wbcr_Factory475_Plugin $plugin
+	 * @param \Wbcr_Factory480_Plugin $plugin
 	 */
-	public function __construct(\Wbcr_Factory475_Plugin $plugin)
+	public function __construct(\Wbcr_Factory480_Plugin $plugin)
 	{
 		$this->id = 'setup';
 
-		$this->menu_title = __('Setup master', 'wbcr_factory_templates_128');
-		$this->page_menu_short_description = __('Setup master', 'wbcr_factory_templates_128');
+		$this->menu_title = __('Setup master', 'wbcr_factory_templates_134');
+		$this->page_menu_short_description = __('Setup master', 'wbcr_factory_templates_134');
 		parent::__construct($plugin);
 	}
 
 	public function getPageTitle()
 	{
-		return __('Setup', 'wbcr_factory_templates_128');
+		return __('Setup', 'wbcr_factory_templates_134');
 	}
 
 	public function get_close_wizard_url()
@@ -135,18 +135,18 @@ class Setup extends \WBCR\Factory_Templates_128\Impressive {
 	/**
 	 * Requests assets (js and css) for the page.
 	 *
-	 * @param \Wbcr_Factory475_ScriptList $scripts
-	 * @param \Wbcr_Factory475_StyleList $styles
+	 * @param \Wbcr_Factory480_ScriptList $scripts
+	 * @param \Wbcr_Factory480_StyleList $styles
 	 *
 	 * @return void
-	 * @see Wbcr_FactoryPages475_AdminPage
+	 * @see Wbcr_FactoryPages480_AdminPage
 	 *
 	 */
 	public function assets($scripts, $styles)
 	{
 		parent::assets($scripts, $styles);
 
-		$this->styles->add(FACTORY_TEMPLATES_128_URL . '/assets/css/page-setup.css');
+		$this->styles->add(FACTORY_TEMPLATES_134_URL . '/assets/css/page-setup.css');
 
 		// Require step assets
 		if( isset($_GET['action']) && false !== strpos($_GET['action'], 'step') && isset($this->steps[$_GET['action']]) ) {
@@ -163,8 +163,8 @@ class Setup extends \WBCR\Factory_Templates_128\Impressive {
 	protected function showPage($content = null)
 	{
 		?>
-		<div class="w-factory-templates-128-setup">
-			<ol class="w-factory-templates-128-setup-steps">
+		<div class="w-factory-templates-134-setup">
+			<ol class="w-factory-templates-134-setup-steps">
 				<?php foreach($this->steps as $step): ?>
 					<?php if( self::DEFAULT_STEP === $step->get_id() ) {
 						continue;
@@ -172,11 +172,11 @@ class Setup extends \WBCR\Factory_Templates_128\Impressive {
 					<li <?php if($this->current_step === $step->get_id()): ?>class="active"<?php endif; ?>><?php echo $step->get_title(); ?></li>
 				<?php endforeach; ?>
 			</ol>
-			<div class="w-factory-templates-128-setup-content">
+			<div class="w-factory-templates-134-setup-content">
 				<?php echo $content; ?>
 			</div>
-			<a class="w-factory-templates-128-setup-footer-links" href="<?php echo esc_url($this->get_close_wizard_url()); ?>">
-				<?php _e('Not now', 'wbcr_factory_templates_128') ?>
+			<a class="w-factory-templates-134-setup-footer-links" href="<?php echo esc_url($this->get_close_wizard_url()); ?>">
+				<?php _e('Not now', 'wbcr_factory_templates_134') ?>
 			</a>
 		</div>
 		<?php

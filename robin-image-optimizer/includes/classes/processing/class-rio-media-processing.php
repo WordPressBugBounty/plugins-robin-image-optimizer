@@ -1,6 +1,6 @@
 <?php
 
-use WBCR\Factory_Processing_110\WP_Background_Process;
+use WBCR\Factory_Processing_113\WP_Background_Process;
 
 // Exit if accessed directly
 if ( ! defined( 'ABSPATH' ) ) {

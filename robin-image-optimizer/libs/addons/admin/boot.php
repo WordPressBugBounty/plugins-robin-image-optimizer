@@ -20,7 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Flush configuration after saving the settings
  *
  * @param WHM_Plugin                               $plugin
- * @param Wbcr_FactoryPages475_ImpressiveThemplate $page
+ * @param Wbcr_FactoryPages480_ImpressiveThemplate $page
  *
  * @return bool
  */

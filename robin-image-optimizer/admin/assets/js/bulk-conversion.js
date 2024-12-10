@@ -223,10 +223,10 @@ jQuery(function ($) {
         throwError: function (error_message) {
             this.stop();
 
-            var noticeId = $.wbcr_factory_templates_128.app.showNotice(error_message, 'danger');
+            var noticeId = $.wbcr_factory_templates_134.app.showNotice(error_message, 'danger');
 
             setTimeout(function () {
-                $.wbcr_factory_templates_128.app.hideNotice(noticeId);
+                $.wbcr_factory_templates_134.app.hideNotice(noticeId);
             }, 10000);
         },
 

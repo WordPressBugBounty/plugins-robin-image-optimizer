@@ -1,6 +1,6 @@
 <?php
 
-use WBCR\Factory_Processing_110;
+use WBCR\Factory_Processing_113;
 
 /**
  * WP-Background Processing
