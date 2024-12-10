@@ -119,6 +119,10 @@ class WRIO_Plugin extends Wbcr_Factory480_Plugin {
 			require_once WRIO_PLUGIN_DIR . '/admin/boot.php';
 			//require_once( WRIO_PLUGIN_DIR . '/admin/includes/classes/class-rio-nextgen-landing.php' );
 
+
+			// Parent page class
+			require_once WRIO_PLUGIN_DIR . '/admin/pages/class-rio-page.php';
+
 			//$this->registerPages();
 		}
 
@@ -183,7 +187,7 @@ class WRIO_Plugin extends Wbcr_Factory480_Plugin {
 		$admin_path = WRIO_PLUGIN_DIR . '/admin/pages/';
 
 		// Parent page class
-		require_once $admin_path . '/class-rio-page.php';
+		//require_once $admin_path . '/class-rio-page.php';
 
 		if ( ! wrio_is_clearfy_license_activate() ) {
 			self::app()->registerPage( 'WRIO_License_Page', $admin_path . '/class-rio-license.php' );

@@ -84,16 +84,18 @@ if ( ! function_exists( 'wrio_premium_load' ) ) {
 			require_once( WRIOP_PLUGIN_DIR . '/includes/classes/webp/class-webp-server.php' );
 			require_once( WRIOP_PLUGIN_DIR . '/admin/boot.php' );
 
-			try {
-				$admin_path = WRIOP_PLUGIN_DIR . '/admin/pages';
-				WRIO_Plugin::app()->registerPage( 'WRIO_StatisticFolders', $admin_path . '/class-rio-statistic-folders-page.php' );
+			add_action( 'init', function () {
+				try {
+					$admin_path = WRIOP_PLUGIN_DIR . '/admin/pages';
+					WRIO_Plugin::app()->registerPage( 'WRIO_StatisticFolders', $admin_path . '/class-rio-statistic-folders-page.php' );
 
-				if ( wrio_is_active_nextgen_gallery() ) {
-					WRIO_Plugin::app()->registerPage( 'WRIO_StatisticNextgenPage', $admin_path . '/class-rio-statistic-nextgen-page.php' );
+					if ( wrio_is_active_nextgen_gallery() ) {
+						WRIO_Plugin::app()->registerPage( 'WRIO_StatisticNextgenPage', $admin_path . '/class-rio-statistic-nextgen-page.php' );
+					}
+				} catch ( Exception $e ) {
+					//nothing
 				}
-			} catch ( Exception $e ) {
-				//nothing
-			}
+			} );
 		}
 	}
 	//add_action( 'plugins_loaded', 'wrio_premium_load', 20 );

@@ -112,6 +112,9 @@ Robin image optimizer PRO has full integration with NextGen Gallery, which helps
 4. Media library
 
 == Changelog ==
+= 1.7.2 (09.12.2024) =
+* Fixed: Fatal error in premium version
+
 = 1.7.1 (09.12.2024) =
 * WordPress 6.7 Compatibility
 * Added: Compatibility with php 8.3
