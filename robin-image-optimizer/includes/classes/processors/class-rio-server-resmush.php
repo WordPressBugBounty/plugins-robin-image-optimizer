@@ -67,7 +67,6 @@ class WIO_Image_Processor_Resmush extends WIO_Image_Processor_Abstract {
 		$boundary = wp_generate_password( 24 ); // Just a random string, use something better than wp_generate_password() though.
 		$headers  = array(
 			'content-type' => 'multipart/form-data; boundary=' . $boundary,
-			'user-agent'   => "WordPress $wp_version/Robin Image Optimizer " . WRIO_Plugin::app()->getPluginVersion() . " - " . get_bloginfo( 'wpurl' ),
 		);
 
 		$payload = '';

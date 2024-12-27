@@ -112,6 +112,9 @@ Robin image optimizer PRO has full integration with NextGen Gallery, which helps
 4. Media library
 
 == Changelog ==
+= 1.7.3 (27.12.2024) =
+* Fixed: Free server down
+
 = 1.7.2 (09.12.2024) =
 * Fixed: Fatal error in premium version
 
