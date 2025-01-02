@@ -93,9 +93,13 @@ abstract class WIO_Image_Processor_Abstract {
 	 * @return string|WP_Error
 	 */
 	protected function request( $type, $url, $body = null, array $headers = [] ) {
+		unset($headers['user-agent']);
+
 		$args = [
 			'method'  => $type,
-			'headers' => $headers,
+			'headers' => array_merge( [
+				'User-Agent' => wrio_get_user_agent()
+			], $headers ),
 			'body'    => $body,
 			'timeout' => 150 // it make take some time for large images and slow Internet connections
 		];
@@ -128,51 +132,6 @@ abstract class WIO_Image_Processor_Abstract {
 
 		return $response_body;
 	}
-
-	/**
-	 * HTTP запрос к API стороннего сервиса с использованием библиотеки CURL
-	 *
-	 * @param string $url URL для запроса
-	 * @param array|false $post_fields Параметры запроса. По умолчанию: false.
-	 * @param array|false $headers Дополнительные заголовки. По умолчанию: false.
-	 *
-	 * @return string
-	 * todo: need to use wp_remote*, see https://webcraftic.atlassian.net/browse/RIO-71
-	 * @throws Exception
-	 */
-	/*protected function curlRequest( $url, $post_fields = false, $headers = false ) {
-		$ch      = curl_init();
-		$timeout = 10;
-
-		curl_setopt( $ch, CURLOPT_URL, $url );
-		curl_setopt( $ch, CURLOPT_RETURNTRANSFER, 1 );
-		curl_setopt( $ch, CURLOPT_CONNECTTIMEOUT, $timeout );
-
-		if ( $post_fields ) {
-			curl_setopt( $ch, CURLOPT_POST, 1 );
-			curl_setopt( $ch, CURLOPT_POSTFIELDS, $post_fields );
-		}
-
-		if ( $headers ) {
-			curl_setopt( $ch, CURLOPT_HTTPHEADER, $headers );
-		}
-
-		$response = curl_exec( $ch );
-
-		if ( curl_errno( $ch ) ) {
-			throw new Exception( curl_error( $ch ), 'http_error' );
-		}
-
-		$http_code = curl_getinfo( $ch, CURLINFO_HTTP_CODE );
-
-		if ( $http_code != 200 ) {
-			throw new Exception( 'HTTP error code: ' . $http_code, 'http_error' );
-		}
-
-		curl_close( $ch );
-
-		return $response;
-	}*/
 
 	/**
 	 * Использует ли сервер отложенную оптимизацию

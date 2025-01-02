@@ -4,7 +4,7 @@
  * Plugin URI: https://robin-image-optimizer.webcraftic.com
  * Description: This is an extension for the plugin Robin image optimizer. Adds additional functions: Converting images to Webp, optimization of arbitrary directories, optimization of the Nextgen gallery.
  * Author: Webcraftic <wordpress.webraftic@gmail.com>
- * Version: 1.0.7
+ * Version: 1.0.8
  * Text Domain: robin-image-optimizer
  * Domain Path: /languages/ Author
  * URI: https://robin-image-optimizer.webcraftic.com
@@ -28,7 +28,7 @@ if ( ! function_exists( 'wrio_premium_load' ) ) {
 		define( 'WRIOP_PLUGIN_ACTIVE', true );
 
 		// Устанавливаем контстанту, что плагин уже используется
-		define( 'WRIOP_PLUGIN_VERSION', '1.0.7' );
+		define( 'WRIOP_PLUGIN_VERSION', '1.0.8' );
 
 		// Директория плагина
 		define( 'WRIOP_PLUGIN_DIR', dirname( __FILE__ ) );
@@ -95,7 +95,7 @@ if ( ! function_exists( 'wrio_premium_load' ) ) {
 				} catch ( Exception $e ) {
 					//nothing
 				}
-			} );
+			});
 		}
 	}
 	//add_action( 'plugins_loaded', 'wrio_premium_load', 20 );

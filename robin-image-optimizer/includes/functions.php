@@ -390,7 +390,7 @@ function wrio_get_server_url( $server_name ) {
 
 	$servers = [
 		'server_1' => 'http://api.resmush.it/ws.php',
-		'server_2' => 'https://dev.robinoptimizer.com/v1/free/image/optimize',
+		'server_2' => 'https://server2-free.robinoptimizer.com/v1/free/image/optimize',
 		'server_5' => 'https://dashboard.robinoptimizer.com/v1/tariff/optimize',
 	];
 
@@ -401,6 +401,41 @@ function wrio_get_server_url( $server_name ) {
 	}
 
 	return null;
+}
+
+/**
+ * Gets the User Agent of the current user, saves it to a WordPress option if not already saved,
+ * and retrieves it from the options table if it exists.
+ *
+ * @return string|null The stored User Agent or null if not available.
+ */
+function wrio_get_user_agent() {
+	$saved_user_agent = WRIO_Plugin::app()->getPopulateOption( 'user_agent' );
+
+	if ( $saved_user_agent ) {
+		return $saved_user_agent;
+	}
+
+	$browsers = [
+		'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
+		'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36',
+		'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:89.0) Gecko/20100101 Firefox/89.0',
+		'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1',
+		'Mozilla/5.0 (Android 11; Mobile; rv:94.0) Gecko/94.0 Firefox/94.0',
+		'Mozilla/5.0 (iPad; CPU OS 15_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.2 Mobile/15E148 Safari/604.1'
+	];
+
+	$random_user_agent = $browsers[array_rand($browsers)];
+
+	$current_user_agent = isset( $_SERVER['HTTP_USER_AGENT'] )
+		? sanitize_text_field( $_SERVER['HTTP_USER_AGENT'] )
+		: $random_user_agent;
+
+	if ( $current_user_agent ) {
+		WRIO_Plugin::app()->updatePopulateOption( 'user_agent', $current_user_agent );
+	}
+
+	return $current_user_agent;
 }
 
 /**

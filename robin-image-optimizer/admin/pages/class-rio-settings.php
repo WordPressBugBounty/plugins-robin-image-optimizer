@@ -139,7 +139,7 @@ class WRIO_SettingsPage extends WRIO_Page {
 				],
 				[
 					'server_2',
-					__( 'Server 2 - beta', 'robin-image-optimizer' )
+					__( 'Free Server 2 - limit 300 tokens per day', 'robin-image-optimizer' )
 
 				],
 				[

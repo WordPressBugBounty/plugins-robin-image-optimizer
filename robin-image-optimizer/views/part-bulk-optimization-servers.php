@@ -3,7 +3,7 @@
 defined( 'ABSPATH' ) || die( 'Cheatin’ uh?' );
 
 /**
- * @var array                           $data
+ * @var array $data
  * @var WRIO_Page $page
  */
 ?>
@@ -16,15 +16,16 @@ defined( 'ABSPATH' ) || die( 'Cheatin’ uh?' );
 		<?php
 		$server = WRIO_Plugin::app()->getPopulateOption( 'image_optimization_server', 'server_1' );
 		?>
-        <select id="wrio-change-optimization-server" class="factory-dropdown factory-from-control-dropdown form-control">
+        <select id="wrio-change-optimization-server"
+                class="factory-dropdown factory-from-control-dropdown form-control">
             <option value="server_1" <?php selected( $server, 'server_1' ); ?>>
-				<?php echo __( 'Server 1 - image size limit up to 5 MB', 'robin-image-optimizer' ); ?>
+				<?php echo __( 'Free Server 1 - image size limit up to 5 MB', 'robin-image-optimizer' ); ?>
             </option>
             <option value="server_2" <?php selected( $server, 'server_2' ); ?>>
-				<?php echo __( 'Server 2 - beta', 'robin-image-optimizer' ); ?>
+				<?php echo __( 'Free Server 2 - limit 300 tokens per day', 'robin-image-optimizer' ); ?>
             </option>
             <option value="server_5" <?php selected( $server, 'server_5' ); ?>>
-		        <?php echo __( 'Premium - no limits', 'robin-image-optimizer' ); ?>
+				<?php echo __( 'Premium - no limits', 'robin-image-optimizer' ); ?>
             </option>
         </select>
         <div class="wrio-server-status-wrap">
@@ -38,7 +39,7 @@ defined( 'ABSPATH' ) || die( 'Cheatin’ uh?' );
                   title="<?= __( 'The all images are limited, including thumbnails', 'robin-image-optimizer' ); ?>"> </span>
         </div>
         <div class="wrio-premium-user-update-wrap"
-             style="<?php echo in_array( $server, [ 'server_1', 'server_2' ] ) ? 'display:none;' : '' ?>">
+             style="<?php echo in_array( $server, [ 'server_1' ] ) ? 'display:none;' : '' ?>">
             <span><strong><?php _e( 'Next credits update', 'robin-image-optimizer' ) ?>:</strong></span>
             <span class="wrio-premium-user-update wrio-premium-user-update-check-proccess" data-server="<?= $server ?>"
                   data-toggle="tooltip"

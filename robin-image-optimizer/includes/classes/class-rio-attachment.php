@@ -786,12 +786,16 @@ class WIO_Attachment {
 	 */
 	protected function remoteDownloadImage($url)
 	{
+		$user_agent = wrio_get_user_agent();
 
 		if( !function_exists('curl_version') ) {
 			$context_options = [
 				"ssl" => [
 					"verify_peer" => false,
 					"verify_peer_name" => false,
+				],
+				"http" => [
+					"header" => "User-Agent: " . $user_agent
 				],
 			];
 
@@ -812,6 +816,7 @@ class WIO_Attachment {
 		curl_setopt($ch, CURLOPT_URL, $url);
 		curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
 		curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
+		curl_setopt($ch, CURLOPT_USERAGENT, $user_agent);
 
 		$image_body = curl_exec($ch);
 		$http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);

@@ -491,12 +491,14 @@ class WRIO_Bulk_Optimization {
 		$return_data = [ 'server_name' => $server_name ];
 
 		$server_url = wrio_get_server_url( $server_name );
-		$headers    = [];
+		$headers    = [
+			'User-Agent' => wrio_get_user_agent()
+		];
 
 		$method = 'POST';
 
 		if ( $server_name == 'server_2' ) {
-			$api_url                  = "https://dev.robinoptimizer.com/v1/free/license/check";
+			$api_url                  = "https://server2-free.robinoptimizer.com/v1/free/license/check";
 			$method                   = 'GET';
 			$host                     = get_option( 'siteurl' );
 			$headers['Authorization'] = 'Bearer ' . base64_encode( $host );
@@ -552,7 +554,7 @@ class WRIO_Bulk_Optimization {
 		}
 
 		if ( $optimization_server == 'server_2' ) {
-			$api_url                  = "https://dev.robinoptimizer.com/v1/free/license/remaining";
+			$api_url                  = "https://server2-free.robinoptimizer.com/v1/free/license/remaining";
 			$host                     = get_option( 'siteurl' );
 			$headers['Authorization'] = 'Bearer ' . base64_encode( $host );
 		} elseif ( $optimization_server == 'server_5' ) {
@@ -603,7 +605,7 @@ class WRIO_Bulk_Optimization {
 
 		$output = [ 'balance' => $current_quota ];
 
-		if ( $optimization_server == 'server_5' ) {
+		if ( $optimization_server == 'server_2' || $optimization_server == 'server_5' ) {
 			$reset_at           = (int) $data->response->reset_at;
 			$reset_at           += (int) get_option( 'gmt_offset', 0 );
 			$output['reset_at'] = date( 'd-m-Y H:i', $reset_at );
@@ -679,5 +681,4 @@ class WRIO_Bulk_Optimization {
 			'total' => $result_total >= 0 ? $result_total : 0,
 		] );
 	}
-
 }

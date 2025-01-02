@@ -121,15 +121,17 @@ jQuery(function ($) {
             userBalance.addClass('wrio-premium-user-balance-check-proccess');
             userBalance.text('');
 
-            if ("server_5" === data['server_name']) {
+            if ("server_2" === data['server_name'] || "server_5" === data['server_name']) {
                 balanceResetAt.addClass('wrio-premium-user-update-check-proccess');
                 balanceResetAt.text('');
             }
 
             $.post(ajaxurl, data, function (response) {
                 console.log(response);
+
                 userBalance.removeClass('wrio-premium-user-balance-check-proccess');
-                if ("server_5" === data['server_name']) {
+
+                if ("server_2" === data['server_name'] || "server_5" === data['server_name']) {
                     balanceResetAt.removeClass('wrio-premium-user-update-check-proccess');
                 }
 
@@ -142,12 +144,13 @@ jQuery(function ($) {
                     }
 
                     userBalance.text('error');
-                    if ("server_5" === data['server_name']) {
+                    if ("server_2" === data['server_name'] || "server_5" === data['server_name']) {
                         balanceResetAt.text('error');
                     }
                 } else {
                     userBalance.text(response.data.balance);
-                    if ("server_5" === data['server_name']) {
+
+                    if ("server_2" === data['server_name'] || "server_5" === data['server_name']) {
                         balanceResetAt.text(response.data.reset_at);
                     }
                 }
