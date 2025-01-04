@@ -18,7 +18,7 @@ class WIO_Image_Processor_Resmush extends WIO_Image_Processor_Abstract {
 	/**
 	 * @var string
 	 */
-	protected $api_url = 'http://api.resmush.it/ws.php';
+	protected $api_url = 'http://api.resmush.it/';
 
 	/**
 	 * @var string Имя сервера
@@ -66,8 +66,7 @@ class WIO_Image_Processor_Resmush extends WIO_Image_Processor_Abstract {
 
 		$boundary = wp_generate_password( 24 ); // Just a random string, use something better than wp_generate_password() though.
 		$headers  = array(
-			'content-type' => 'multipart/form-data; boundary=' . $boundary,
-			'user-agent'   => "WordPress $wp_version/Robin Image Optimizer " . WRIO_Plugin::app()->getPluginVersion() . " - " . get_bloginfo( 'wpurl' ),
+			'content-type' => 'multipart/form-data; boundary=' . $boundary
 		);
 
 		$payload = '';
@@ -146,5 +145,14 @@ class WIO_Image_Processor_Resmush extends WIO_Image_Processor_Abstract {
             default:
                 return 100;
         }
+	}
+
+	/**
+	 * Проверяет, существует ли ограничение на квоту.
+	 *
+	 * @return bool Возвращает true, если ограничения.
+	 */
+	public function has_quota_limit() {
+		return false;
 	}
 }

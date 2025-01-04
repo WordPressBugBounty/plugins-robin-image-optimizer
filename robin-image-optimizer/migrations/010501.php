@@ -1,5 +1,10 @@
 <?php
 
+// Exit if accessed directly
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 /**
  * Updates for altering the table used to store statistics data.
  * Adds new columns and renames existing ones in order to add support for the new social buttons.
@@ -16,7 +21,7 @@ class WIOUpdate010501 extends Wbcr_Factory480_Update {
 		$old_dir = $this->get_old_dir();
 		$new_dir = WRIO_Plugin::app()->logger->get_base_dir();
 
-		$files = array_diff( scandir( $old_dir ), array( '..', '.' ) );
+		$files = array_diff( scandir( $old_dir ), [ '..', '.' ] );
 		foreach ( $files as $file ) {
 			@copy( $old_dir . $file, $new_dir . $file );
 		}

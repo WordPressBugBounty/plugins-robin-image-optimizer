@@ -1,5 +1,10 @@
 <?php #comp-page builds: premium
 
+// Exit if accessed directly
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 /**
  * Updates for altering the table used to store statistics data.
  * Adds new columns and renames existing ones in order to add support for the new social buttons.
@@ -35,9 +40,9 @@ class WIOUpdate010309 extends Wbcr_Factory480_Update {
 	/**
 	 * Get previous plugin version
 	 *
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
-	 * @since  1.3.9
 	 * @return number
+	 * @since  1.3.9
+	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 */
 	public function get_plugin_version_in_db() {
 		if ( WRIO_Plugin::app()->isNetworkActive() ) {

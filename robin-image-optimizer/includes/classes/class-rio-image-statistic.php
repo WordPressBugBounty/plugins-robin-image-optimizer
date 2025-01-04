@@ -180,11 +180,8 @@ class WRIO_Image_Statistic {
 		}
 
 		$processor = WIO_OptimizationTools::getImageProcessor();
-		$processor->checkLimits( false );
-		$usage     = (int) WRIO_Plugin::app()->getPopulateOption( $processor->getUsageOptionName(), 0 );
-		$remaining = $processor->iamokay() - $usage;
 
-		return [
+		$data = 	[
 			'original'            => $total_images,
 			'optimized'           => $optimized_count,
 			'converted'           => $webp_optimized_count,
@@ -197,10 +194,15 @@ class WRIO_Image_Statistic {
 			'webp_optimized_size' => $webp_optimized_size,
 			'original_size'       => $original_size,
 			'save_size_percent'   => $percent_diff,
-			'credits'             => $remaining,
 			'error'               => $error_count,
 			'webp_error'          => $webp_error_count,
 		];
+
+		if($processor->has_quota_limit()) {
+			$data['quota_limit'] = $processor->get_quota_limit();
+		}
+
+		return $data;
 	}
 
 	/**

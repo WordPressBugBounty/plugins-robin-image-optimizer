@@ -6,9 +6,12 @@ defined( 'ABSPATH' ) || die( 'Cheatin’ uh?' );
  * @var array $data
  * @var WRIO_Page $page
  */
+
+$s = '';
 ?>
-<div class="wio-columns wio-page-total">
-    <strong><?php _e( 'Total number of images to optimize', 'robin-image-optimizer' ); ?></strong>
-    <span class="wio-num" id="wio-total-num" data-toggle="tooltip"
-          title="<?= __( 'The total number of images in the media library of this site, including thumbnails that are selected in the plugin settings', 'robin-image-optimizer' ) ?>"></span>
+
+<div class="wio-stat-totals">
+	<?php _e('Total found:', 'robin-image-optimizer'); ?> <span id="wio-stat-totals__totals" class="wio-stat-totals__counter wio-stat-totals__loading">0</span>
+	<?php _e('Originals:', 'robin-image-optimizer'); ?> <span id="wio-stat-totals__originals" class="wio-stat-totals__counter wio-stat-totals__loading">0</span>
+	<?php _e('Thumbnails:', 'robin-image-optimizer'); ?> <span id="wio-stat-totals__thumbnails" class="wio-stat-totals__counter wio-stat-totals__loading">0</span>
 </div>

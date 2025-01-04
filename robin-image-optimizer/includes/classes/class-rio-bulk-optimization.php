@@ -8,11 +8,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Класс для AJAX массовой оптимизации
+ * Class WRIO_Bulk_Optimization
  *
- * @author        Artem Prikhodko <webtemyk@yandex.ru>
- * @copyright (c) 2021, Webcraftic
- * @version       1.0
+ * Handles bulk optimization operations and processes related to media attachments,
+ * thumbnails, and other optimization tasks within the WordPress environment.
+ *
+ * @author  Alex Kovalev <alex.kovalevv@gmail.com> <Tg:@alex>
  */
 class WRIO_Bulk_Optimization {
 
@@ -46,8 +47,133 @@ class WRIO_Bulk_Optimization {
 		add_action( 'wp_ajax_wbcr-rio-check-servers-status', [ $this, 'check_servers_status' ] );
 		add_action( 'wp_ajax_wbcr-rio-check-user-balance', [ $this, 'check_user_balance' ] );
 
+		//add_action( 'wp_ajax_wbcr-rio-calculate-total-images', [ $this, 'calculate_total_images' ] );
 		add_action( 'wp_ajax_wbcr-rio-calculate-total-images', [ $this, 'calculate_total_images' ] );
+		add_action( 'wp_ajax_wbcr-rio-calculate-total-attachments', [ $this, 'calculate_total_attachments' ] );
+		add_action( 'wp_ajax_wbcr-rio-calculate-total-thumbs', [ $this, 'calculate_total_thumbs' ] );
+	}
 
+	/**
+	 * Calculates the total number of attachments that meet specified criteria.
+	 * Retrieves the total count of attachment posts with allowed formats, excluding duplicates
+	 * if WPML is active, and sends the result as a JSON response.
+	 * Includes nonce verification and checks user permissions.
+	 *
+	 * @return void Outputs JSON response with the total count of attachments.
+	 */
+	public function calculate_total_attachments() {
+		check_ajax_referer( 'bulk_optimization' );
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( - 1 );
+		}
+
+		global $wpdb;
+
+		WRIO_Plugin::app()->deletePopulateOption('wrio_partial_total_count');
+
+		$allowed_formats_sql = wrio_get_allowed_formats( true );
+
+		$sql = "SELECT COUNT(posts.ID) AS total_attachments
+				FROM {$wpdb->posts} as posts
+			 WHERE post_type = 'attachment' 
+				AND post_status = 'inherit'
+				AND post_mime_type IN ( {$allowed_formats_sql} )";
+
+		// Если используется плагин WPML, исключаем дублирующие изображения
+		if ( defined( 'WPML_PLUGIN_FILE' ) ) {
+			$sql .= " AND NOT EXISTS 
+				(SELECT trnsl.element_id FROM {$wpdb->prefix}icl_translations as trnsl 
+				  WHERE trnsl.element_id = posts.ID 
+				    AND trnsl.element_type = 'post_attachment' 
+				    AND source_language_code IS NOT NULL
+			  )";
+		}
+
+		$total_attachments = $wpdb->get_var( $sql );
+
+		wp_send_json_success( [
+			'found_attachments' => (int) $total_attachments,
+		] );
+	}
+
+	/**
+	 * Calculates the total number of attachment thumbnails that match specified criteria.
+	 * Processes a batch of attachments, counting the allowed thumbnail sizes, and updates
+	 * the total count in the database. Handles AJAX requests, including user permissions
+	 * and nonce verification.
+	 *
+	 * @return void Outputs JSON response with the total count of thumbnails and processing status.
+	 */
+	public function calculate_total_thumbs() {
+		check_ajax_referer('bulk_optimization');
+
+		if (!current_user_can('manage_options')) {
+			wp_die(-1);
+		}
+
+		global $wpdb;
+
+		$offset = (int) WRIO_Plugin::app()->request->post('offset', 0);
+		$limit = (int) WRIO_Plugin::app()->request->post('limit', 200);
+
+		$allowed_formats_sql = wrio_get_allowed_formats(true);
+		$allowed_sizes = explode(',', WRIO_Plugin::app()->getPopulateOption('allowed_sizes_thumbnail', ''));
+
+		$query = $wpdb->prepare("
+	        SELECT posts.ID
+	        FROM {$wpdb->posts} as posts
+	        WHERE post_type = 'attachment'
+	            AND post_status = 'inherit'
+	            AND post_mime_type IN ({$allowed_formats_sql})
+	        LIMIT %d OFFSET %d
+	    ", $limit, $offset);
+
+		// Учитываем WPML (исключение дубликатов)
+		if (defined('WPML_PLUGIN_FILE')) {
+			$query = str_replace('WHERE post_type =', "WHERE NOT EXISTS (
+            SELECT icl.element_id 
+            FROM {$wpdb->prefix}icl_translations as icl 
+            WHERE icl.element_id = posts.ID 
+            AND icl.element_type = 'post_attachment'
+            AND source_language_code IS NOT NULL
+        ) AND post_type =", $query);
+		}
+
+		$attachments = $wpdb->get_results($query);
+		$total_count = (int) WRIO_Plugin::app()->getPopulateOption('wrio_partial_total_count', 0);
+
+		$current_batch_count = 0;
+
+		foreach ($attachments as $attachment) {
+			$meta = wp_get_attachment_metadata($attachment->ID);
+			if ($meta && isset($meta['sizes'])) {
+				foreach ($meta['sizes'] as $size_key => $size_value) {
+					if (in_array($size_key, $allowed_sizes)) {
+						$current_batch_count++;
+					}
+				}
+			}
+		}
+
+		$total_count += $current_batch_count;
+		WRIO_Plugin::app()->updatePopulateOption('wrio_partial_total_count', $total_count);
+
+		// Если больше данных для обработки нет — завершаем и сохраняем в кеш
+		if (count($attachments) < $limit) {
+			WRIO_Plugin::app()->deletePopulateOption('wrio_partial_total_count');
+
+			wp_send_json_success([
+				'found_thumbs' => $total_count,
+				'done' => true,
+			]);
+		}
+
+		wp_send_json_success([
+			'found_thumbs' => $total_count,
+			'done' => false,
+			'next_offset' => $offset + $limit,
+		]);
 	}
 
 	public function cron_start() {
@@ -492,12 +618,15 @@ class WRIO_Bulk_Optimization {
 
 		$server_url = wrio_get_server_url( $server_name );
 		$headers    = [
-			'User-Agent' => wrio_get_user_agent()
+			//'user-agent' => wrio_get_user_agent(),
+			'User-Agent' => ''
 		];
 
 		$method = 'POST';
 
-		if ( $server_name == 'server_2' ) {
+		if ( $server_name == 'server_1' ) {
+			$api_url = "http://api.resmush.it/?qlty=80";
+		} else if ( $server_name == 'server_2' ) {
 			$api_url                  = "https://server2-free.robinoptimizer.com/v1/free/license/check";
 			$method                   = 'GET';
 			$host                     = get_option( 'siteurl' );
@@ -513,7 +642,10 @@ class WRIO_Bulk_Optimization {
 
 		$request = wp_remote_request( $api_url, [
 			'method'  => $method,
-			'headers' => $headers
+			'headers' => $headers,
+			'body'    => [
+				'files' => ''
+			]
 		] );
 
 		if ( is_wp_error( $request ) ) {
@@ -540,17 +672,11 @@ class WRIO_Bulk_Optimization {
 			wp_die( - 1 );
 		}
 
-		$optimization_server = $server_name = WRIO_Plugin::app()->request->post( 'server_name' );
-		if ( $optimization_server !== 'server_5' && $optimization_server !== 'server_2' ) {
-			$processor = WIO_OptimizationTools::getImageProcessor();
+		$optimization_server = WRIO_Plugin::app()->request->post( 'server_name' );
+		$processor           = WIO_OptimizationTools::getImageProcessor( $optimization_server );
 
-			$processor->checkLimits( false );
-
-			$usage     = (int) WRIO_Plugin::app()->getPopulateOption( $processor->getUsageOptionName(), 0 );
-			$remaining = $processor->iamokay() - $usage;
-			wp_send_json_success( [
-				'balance' => $remaining,
-			] );
+		if ( ! $processor->has_quota_limit() ) {
+			wp_send_json_error( [ 'error' => __( 'The server has no quota restrictions!', 'robin-image-optimizer' ) ] );
 		}
 
 		if ( $optimization_server == 'server_2' ) {
@@ -561,8 +687,9 @@ class WRIO_Bulk_Optimization {
 			$api_url                  = 'https://dashboard.robinoptimizer.com/v1/license/remaining';
 			$headers['Authorization'] = 'Bearer ' . base64_encode( wrio_get_license_key() );
 			$headers['PluginId']      = wrio_get_freemius_plugin_id();
+		} else {
+			$api_url = $processor->get_api_url();
 		}
-
 
 		$request = wp_remote_request( $api_url, [
 			'method'  => 'GET',
@@ -601,7 +728,7 @@ class WRIO_Bulk_Optimization {
 		}
 
 		$current_quota = (int) $data->response->quota;
-		WRIO_Plugin::app()->app()->updateOption( 'current_quota', $current_quota );
+		$processor->set_quota_limit( $current_quota );
 
 		$output = [ 'balance' => $current_quota ];
 
@@ -614,7 +741,7 @@ class WRIO_Bulk_Optimization {
 		wp_send_json_success( $output );
 	}
 
-	public function calculate_total_images() {
+	/*public function calculate_total_images() {
 		check_ajax_referer( 'bulk_optimization' );
 
 		if ( ! current_user_can( 'manage_options' ) ) {
@@ -622,8 +749,8 @@ class WRIO_Bulk_Optimization {
 		}
 
 		global $wpdb;
-		$db_table = RIO_Process_Queue::table_name();
-		$sql = $wpdb->prepare( "SELECT *	FROM {$db_table}					
+		$db_table         = RIO_Process_Queue::table_name();
+		$sql              = $wpdb->prepare( "SELECT *	FROM {$db_table}					
 					WHERE item_type = 'attachment' AND result_status IN (%s, %s)
 					ORDER BY id DESC;", RIO_Process_Queue::STATUS_SUCCESS, RIO_Process_Queue::STATUS_ERROR );
 		$optimized_images = $wpdb->get_results( $sql, ARRAY_A );
@@ -638,14 +765,14 @@ class WRIO_Bulk_Optimization {
 
 		$allowed_formats_sql = wrio_get_allowed_formats( true );
 
-		$sql  = "SELECT posts.ID
+		$sql = "SELECT posts.ID
 					FROM {$wpdb->posts} as posts
 				 WHERE post_type = 'attachment' 
 					AND post_status = 'inherit'
 					AND post_mime_type IN ( {$allowed_formats_sql} )";
 
 		// If you use a WPML plugin, you need to exclude duplicate images
-		if(defined( 'WPML_PLUGIN_FILE' )) {
+		if ( defined( 'WPML_PLUGIN_FILE' ) ) {
 			$sql .= " AND NOT EXISTS 
 					(SELECT trnsl.element_id FROM {$wpdb->prefix}icl_translations as trnsl 
 					  WHERE trnsl.element_id=posts.ID 
@@ -680,5 +807,5 @@ class WRIO_Bulk_Optimization {
 		wp_send_json_success( [
 			'total' => $result_total >= 0 ? $result_total : 0,
 		] );
-	}
+	}*/
 }

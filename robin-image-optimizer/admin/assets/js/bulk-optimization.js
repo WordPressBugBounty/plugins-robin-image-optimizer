@@ -40,7 +40,7 @@ jQuery(function ($) {
 
             this.registerEvents();
             this.checkServerStatus();
-            this.calculateTotalImages();
+            //this.calculateTotalImages();
             this.checkPremiumUserBalance();
 
         },
@@ -118,22 +118,20 @@ jQuery(function ($) {
 
             data['server_name'] = $('#wrio-change-optimization-server').val();
 
+            if (!["server_2", "server_5"].includes(data['server_name'])) {
+                return
+            }
+
             userBalance.addClass('wrio-premium-user-balance-check-proccess');
             userBalance.text('');
 
-            if ("server_2" === data['server_name'] || "server_5" === data['server_name']) {
-                balanceResetAt.addClass('wrio-premium-user-update-check-proccess');
-                balanceResetAt.text('');
-            }
+            balanceResetAt.addClass('wrio-premium-user-update-check-proccess');
+            balanceResetAt.text('');
 
             $.post(ajaxurl, data, function (response) {
-                console.log(response);
 
                 userBalance.removeClass('wrio-premium-user-balance-check-proccess');
-
-                if ("server_2" === data['server_name'] || "server_5" === data['server_name']) {
-                    balanceResetAt.removeClass('wrio-premium-user-update-check-proccess');
-                }
+                balanceResetAt.removeClass('wrio-premium-user-update-check-proccess');
 
                 if (!response || !response.data || !response.success) {
                     console.log('[Error]: Response error');
@@ -144,15 +142,10 @@ jQuery(function ($) {
                     }
 
                     userBalance.text('error');
-                    if ("server_2" === data['server_name'] || "server_5" === data['server_name']) {
-                        balanceResetAt.text('error');
-                    }
+                    balanceResetAt.text('error');
                 } else {
-                    userBalance.text(response.data.balance);
-
-                    if ("server_2" === data['server_name'] || "server_5" === data['server_name']) {
-                        balanceResetAt.text(response.data.reset_at);
-                    }
+                    userBalance.text(response.data?.balance);
+                    balanceResetAt.text(response.data?.reset_at);
                 }
             }).fail(function (xhr, status, error) {
                 console.log(xhr);
@@ -469,6 +462,8 @@ jQuery(function ($) {
                     return;
                 }
 
+                console.log(response);
+
                 if (!response || !response.success) {
                     console.log('[Error]: Failed ajax request (Try to optimize images).');
                     console.log(response);
@@ -603,9 +598,8 @@ jQuery(function ($) {
         $('#wio-optimized-num').text(statistic.optimized);
         $('#wio-error-num').text(statistic.error);
 
-        var credits = $('.wrio-premium-user-balance');
-        if (credits.attr('data-server') !== "server_5") {
-            credits.text(statistic.credits);
+        if(statistic.quota_limit) {
+            $('.wrio-premium-user-balance').text(statistic.quota_limit);
         }
 
         if ($('.wrio-statistic-nav li.active').length) {

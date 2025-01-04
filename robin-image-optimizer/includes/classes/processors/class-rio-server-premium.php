@@ -149,7 +149,9 @@ class WIO_Image_Processor_Premium extends WIO_Image_Processor_Abstract {
             return new WP_Error('http_request_failed', sprintf("Server responded an %s status", $response_code));
         }
 
-        WRIO_Plugin::app()->updateOption('current_quota', (int) $data->response->quota);
+		if ( ! empty( $data->response->quota ) ) {
+			$this->set_quota_limit( $data->response->quota );
+		}
 
         return [
             'optimized_img_url' => $data->response->dest,
@@ -191,5 +193,14 @@ class WIO_Image_Processor_Premium extends WIO_Image_Processor_Abstract {
             default:
                 return 100;
         }
+	}
+
+	/**
+	 * Проверяет, существует ли ограничение на квоту.
+	 *
+	 * @return bool Возвращает true, если ограничения.
+	 */
+	public function has_quota_limit() {
+		return true;
 	}
 }

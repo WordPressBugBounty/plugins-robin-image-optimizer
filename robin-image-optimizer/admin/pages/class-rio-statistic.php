@@ -140,6 +140,9 @@ class WRIO_StatisticPage extends WRIO_Page {
 				'jquery',
 				'wrio-modals',
 		] );
+
+		$this->scripts->add( WRIO_PLUGIN_URL . '/admin/assets/js/calculate-attachments.js' );
+
 		if ( wrio_is_license_activate() ) {
 			$this->scripts->add( WRIO_PLUGIN_URL . '/admin/assets/js/bulk-conversion.js', [
 					'jquery',
@@ -215,7 +218,9 @@ class WRIO_StatisticPage extends WRIO_Page {
 			$this->view->print_template( 'part-bulk-optimization-servers', $template_data, $this );
 
 			// Total
-			$this->view->print_template( 'part-bulk-optimization-total', $template_data, $this );
+			$this->view->print_template( 'part-bulk-optimization-total', array_merge( $template_data, [
+				'stats' => $statistics->get(),
+			] ), $this );
 
 			// Statistic
 			$this->view->print_template( 'part-bulk-optimization-statistic', array_merge( $template_data, [

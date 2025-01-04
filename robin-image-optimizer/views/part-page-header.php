@@ -3,7 +3,7 @@
 defined( 'ABSPATH' ) || die( 'Cheatin’ uh?' );
 
 /**
- * @var array                           $data
+ * @var array $data
  * @var WRIO_Page $page
  */
 ?>

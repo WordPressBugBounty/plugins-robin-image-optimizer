@@ -38,14 +38,14 @@ if ( isset( $data['scope'] ) ) {
 				<ul class="wio-doughnut-legend">
 					<li>
 						<span style="background-color:#d6d6d6"></span>
-						<?php _e( 'Unoptimized', 'robin-image-optimizer' ); ?>-
+						<?php _e( 'Unoptimized originals', 'robin-image-optimizer' ); ?>-
 						<span class="wio-num" id="wio-unoptimized-num">
                                 <?php echo esc_attr( $data['stats']['unoptimized'] ); ?>
                             </span>
 					</li>
 					<li>
 						<span style="background-color:#8bc34a"></span>
-						<?php _e( 'Optimized', 'robin-image-optimizer' ); ?>-
+						<?php _e( 'Optimized originals', 'robin-image-optimizer' ); ?>-
 						<span class="wio-num" id="wio-optimized-num">
                                  <?php echo esc_attr( $data['stats']['optimized'] ); ?>
                             </span>
@@ -86,7 +86,7 @@ if ( isset( $data['scope'] ) ) {
                         <?php echo esc_attr( $data['stats']['save_size_percent'] ); ?>%
                     </span>
 					<span class="wio-text">
-						<?php _e( "that's the size you saved <br>by using Image Optimizer", 'robin-image-optimizer' ); ?>
+						<?php _e( "that's the size you saved <br>by using Robin Image Optimizer", 'robin-image-optimizer' ); ?>
 					</span>
 				</p>
 			</div>

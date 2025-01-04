@@ -17,6 +17,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 abstract class WIO_Image_Processor_Abstract {
 
 	/**
+	 * @var string Имя сервера
+	 */
+	protected $server_name;
+
+	/**
 	 * Оптимизация изображения
 	 *
 	 * @param array $params {
@@ -50,36 +55,40 @@ abstract class WIO_Image_Processor_Abstract {
 	abstract function quality( $quality );
 
 	/**
-	 * @param bool $increment
+	 * Проверка наличия ограничения на квоту
 	 *
-	 * @return bool
+	 * @return bool Возвращает true, если существует ограничение на квоту, иначе false
 	 */
-	public function checkLimits( $increment = true ) {
-		if ( ! $this->howareyou() ) {
-			return true;
-		}
+	abstract public function has_quota_limit();
 
-		$current_time = time();
-		$flush_time   = (int) WRIO_Plugin::app()->getPopulateOption( $this->getNextFlushOptionName(), $current_time );
-		if ( $current_time >= $flush_time ) {
-			WRIO_Plugin::app()->updatePopulateOption( $this->getNextFlushOptionName(), $current_time + 86400 * 30 );
-			WRIO_Plugin::app()->updatePopulateOption( $this->getUsageOptionName(), 0 );
-		}
+	/**
+	 * Возвращает URL API сервера
+	 *
+	 * @return string
+	 */
+	public function get_api_url() {
+		return wrio_get_server_url( $this->server_name );
+	}
 
-		$usage = (int) WRIO_Plugin::app()->getPopulateOption( $this->getUsageOptionName(), 0 );
-		$m     = base64_decode( str_rot13( str_replace( '___', '=', strrev( "______Drug2ogSJn" ) ) ) );
-		if ( $usage >= $this->$m() ) {
-			WRIO_Plugin::app()->logger->error( sprintf( "[%s] The image limit is used up", get_class( $this ) ) );
+	/**
+	 * Установка лимита квоты
+	 *
+	 * @param mixed $value Новое значение лимита квоты
+	 *
+	 * @return void
+	 */
+	public function set_quota_limit( $value ) {
+		WRIO_Plugin::app()->updatePopulateOption( $this->server_name . '_quota_limit', (int) $value );
+	}
 
-			return false;
-		}
 
-		if ( $increment ) {
-			$usage ++;
-			WRIO_Plugin::app()->updatePopulateOption( $this->getUsageOptionName(), $usage );
-		}
-
-		return true;
+	/**
+	 * Получает лимит квоты для текущего сервера.
+	 *
+	 * @return int Лимит квоты, установленный для сервера. Если лимит не задан, возвращается 0.
+	 */
+	public function get_quota_limit() {
+		return WRIO_Plugin::app()->getPopulateOption( $this->server_name . '_quota_limit', 0 );
 	}
 
 	/**
@@ -93,12 +102,11 @@ abstract class WIO_Image_Processor_Abstract {
 	 * @return string|WP_Error
 	 */
 	protected function request( $type, $url, $body = null, array $headers = [] ) {
-		unset($headers['user-agent']);
 
 		$args = [
 			'method'  => $type,
 			'headers' => array_merge( [
-				'User-Agent' => wrio_get_user_agent()
+				'User-Agent' => ''
 			], $headers ),
 			'body'    => $body,
 			'timeout' => 150 // it make take some time for large images and slow Internet connections
@@ -164,33 +172,5 @@ abstract class WIO_Image_Processor_Abstract {
 	 */
 	public function validateDeferredData( $optimized_data ) {
 		return false;
-	}
-
-	/**
-	 * @return bool
-	 */
-	public function howareyou() {
-		return (bool) ( base64_decode( "MQ==" ) );
-	}
-
-	/**
-	 * @return int
-	 */
-	public function iamokay() {
-		return (int) ( base64_decode( "MzAw" ) );
-	}
-
-	/**
-	 * @return string
-	 */
-	public function getUsageOptionName() {
-		return 'image_optimize_all_usage';
-	}
-
-	/**
-	 * @return string
-	 */
-	public function getNextFlushOptionName() {
-		return 'image_optimize_flush_usage';
 	}
 }

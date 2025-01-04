@@ -14,7 +14,8 @@ defined( 'ABSPATH' ) || die( 'Cheatin’ uh?' );
             </p>
             <ul>
                 <li>
-                    <label for="wrio-error-log-options-checkbox-frontend"><input type="checkbox" id="wrio-error-log-options-checkbox-frontend" name="wrio_keep_error_log_on_frontend" class="wrio-error-log-options-checkbox" value="1"<?php checked( $data['keep_error_log_on_frontend'] ) ?>>
+                    <label for="wrio-error-log-options-checkbox-frontend">
+                        <input type="checkbox" id="wrio-error-log-options-checkbox-frontend" name="wrio_keep_error_log_on_frontend" class="wrio-error-log-options-checkbox" value="1"<?php checked( $data['keep_error_log_on_frontend'] ) ?>>
 						<?php _e( 'Keep an error log on frontend', 'robin-image-optimizer' ) ?>
                     </label>
                     <p class="wrio-webp-options-info">
