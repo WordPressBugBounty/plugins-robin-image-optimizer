@@ -112,6 +112,10 @@ Robin image optimizer PRO has full integration with NextGen Gallery, which helps
 4. Media library
 
 == Changelog ==
+= 1.8.3 (06.01.2025) =
+Removed: Server 1 has been removed because it is no longer available
+Updated: Increased limit for server 2, now you have 1000 tokens available for image optimization per day
+
 = 1.8.2 (04.01.2025) =
 * Fixed: Improvements to statistics, in previous versions there was a confusing calculation of the total number of images for optimization
 * Fixed: Server stability
@@ -121,7 +125,7 @@ Robin image optimizer PRO has full integration with NextGen Gallery, which helps
 * Added: Security bugs fixed
 
 = 1.7.4 (28.12.2024) =
-* Added: A new free server with a daily quota of 300 tokens
+* Added: A new free server with a daily quota of 1000 tokens
 
 = 1.7.3 (27.12.2024) =
 * Fixed: Free server down

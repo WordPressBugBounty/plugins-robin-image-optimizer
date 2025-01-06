@@ -185,7 +185,7 @@ class WIO_Attachment {
 		$error .= $char . sprintf('Should be resized? %s', ($this->isNeedResize() ? 'Yes' : 'No')) . $nl;
 		$error .= $char . sprintf('Original size: %sx%s', $this->attachment_meta['width'], $this->attachment_meta['height']) . $nl;
 		$error .= $char . sprintf('Relative path: %s', $this->attachment_meta['file']) . $nl;
-		$error .= $char . sprintf('Server used: %s', WRIO_Plugin::app()->getPopulateOption('image_optimization_server', 'server_1')) . $nl;
+		$error .= $char . sprintf('Server used: %s', WRIO_Plugin::app()->getPopulateOption('image_optimization_server', 'server_2')) . $nl;
 
 		if( !empty($this->attachment_meta['sizes']) ) {
 			$error .= $char . ' Additional sizes:' . $nl;

@@ -25,7 +25,7 @@ class WIO_Activation extends Wbcr_Factory480_Activator {
 	public function activate() {
 		WRIO_Plugin::app()->logger->info( 'Parent plugin start installation!' );
 
-		WRIO_Plugin::app()->updatePopulateOption( 'image_optimization_server', 'server_1' );
+		WRIO_Plugin::app()->updatePopulateOption( 'image_optimization_server', 'server_2' );
 		WRIO_Plugin::app()->updatePopulateOption( 'backup_origin_images', 1 );
 		WRIO_Plugin::app()->updatePopulateOption( 'save_exif_data', 1 );
 

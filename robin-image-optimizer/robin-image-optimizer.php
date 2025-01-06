@@ -4,7 +4,7 @@
  * Plugin URI: https://robinoptimizer.com
  * Description: Optimize images without losing quality, speed up your website load, improve SEO and save money on server and CDN bandwidth.
  * Author: Creative Motion <info@cm-wp.com>
- * Version: 1.8.2
+ * Version: 1.8.3
  * Text Domain: robin-image-optimizer
  * Domain Path: /languages/
  * Author URI: https://cm-wp.com

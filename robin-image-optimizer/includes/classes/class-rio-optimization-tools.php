@@ -38,9 +38,9 @@ class WIO_OptimizationTools {
 	 * @return WIO_Image_Processor_Abstract
 	 */
 	public static function getImageProcessor( $name = null ) {
-		$server = $name ?? WRIO_Plugin::app()->getPopulateOption( 'image_optimization_server', 'server_1' );
+		$server = $name ?? WRIO_Plugin::app()->getPopulateOption( 'image_optimization_server', 'server_2' );
 
-		$processor = self::$processors[$server] ?? self::$processors['server_1'];
+		$processor = self::$processors[$server] ?? self::$processors['server_2'];
 
 		require_once WRIO_PLUGIN_DIR . $processor['file'];
 

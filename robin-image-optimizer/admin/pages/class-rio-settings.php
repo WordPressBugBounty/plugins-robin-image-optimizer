@@ -132,14 +132,14 @@ class WRIO_SettingsPage extends WRIO_Page {
 			'name'    => 'image_optimization_server',
 			'title'   => __( 'Optimization server', 'robin-image-optimizer' ),
 			'data'    => [
-				[
+				/*[
 					'server_1',
 					__( 'Server 1 - image size limit up to 5 MB', 'robin-image-optimizer' ),
 
-				],
+				],*/
 				[
 					'server_2',
-					__( 'Free Server 2 - limit 300 tokens per day', 'robin-image-optimizer' )
+					__( 'Free Server 2 - limit 1000 tokens per day', 'robin-image-optimizer' )
 
 				],
 				[
@@ -149,7 +149,7 @@ class WRIO_SettingsPage extends WRIO_Page {
 			],
 			'layout'  => [ 'hint-type' => 'icon', 'hint-icon-color' => 'grey' ],
 			'hint'    => __( 'We use several free servers for image optimization and can’t fully guarantee their stable performance. The server can be not available in some countries due to the political reasons. There is a solution: if one of the servers is not available or can’t optimize the image, you can try to switch to the alternative server. Each server has individual limitations for image weight and optimization level. By default, you have the best server with minimum limitations.', 'robin-image-optimizer' ),
-			'default' => 'server_1',
+			'default' => 'server_2',
 		];
 
 		// Радио переключатель

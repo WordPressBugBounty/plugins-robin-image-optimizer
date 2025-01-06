@@ -31,7 +31,7 @@ class WIOUpdate010402 extends Wbcr_Factory480_Update {
 		WRIO_Plugin::app()->logger->info( sprintf( $init_log_message, '1.4.2' ) );
 
 		if ( 'server_4' === WRIO_Plugin::app()->getOption( 'image_optimization_server' ) ) {
-			WRIO_Plugin::app()->updateOption( 'image_optimization_server', 'server_1' );
+			WRIO_Plugin::app()->updateOption( 'image_optimization_server', 'server_2' );
 		}
 
 		WRIO_Plugin::app()->logger->info( 'Plugin migration was successfull!' );

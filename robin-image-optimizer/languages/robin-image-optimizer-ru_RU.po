@@ -353,7 +353,7 @@ msgid "Creative Motion <info@cm-wp.com>"
 msgstr "Creative Motion <info@cm-wp.com>"
 
 #: views/part-bulk-optimization-servers.php:35
-msgid "Credits"
+msgid "Tokens"
 msgstr "Квота"
 
 #: admin/pages/class-rio-settings.php:110
