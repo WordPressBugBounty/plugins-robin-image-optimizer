@@ -22,7 +22,7 @@ defined( 'ABSPATH' ) || die( 'Cheatin’ uh?' );
 				<?php /*echo __( 'Free Server 1 - image size limit up to 5 MB', 'robin-image-optimizer' ); */?>
             </option>-->
             <option value="server_2" <?php selected( $server, 'server_2' ); ?>>
-				<?php echo __( 'Free Server 2 - limit 1000 tokens per day', 'robin-image-optimizer' ); ?>
+				<?php echo __( 'Free Server 2 - limit 1000 tokens per day, max 10MB', 'robin-image-optimizer' ); ?>
             </option>
             <option value="server_5" <?php selected( $server, 'server_5' ); ?>>
 				<?php echo __( 'Premium - no limits', 'robin-image-optimizer' ); ?>
@@ -40,7 +40,7 @@ defined( 'ABSPATH' ) || die( 'Cheatin’ uh?' );
         </div>
         <div class="wrio-premium-user-update-wrap"
              style="<?php echo in_array( $server, [ 'server_1' ] ) ? 'display:none;' : '' ?>">
-            <span><strong><?php _e( 'Next credits update', 'robin-image-optimizer' ) ?>:</strong></span>
+            <span><strong><?php _e( 'Next tokens update', 'robin-image-optimizer' ) ?>:</strong></span>
             <span class="wrio-premium-user-update wrio-premium-user-update-check-proccess" data-server="<?= $server ?>"
                   data-toggle="tooltip"
                   title="<?= __( 'Date when the limit is topped up', 'robin-image-optimizer' ) ?>"></span>

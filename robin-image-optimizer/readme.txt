@@ -112,6 +112,10 @@ Robin image optimizer PRO has full integration with NextGen Gallery, which helps
 4. Media library
 
 == Changelog ==
+= 1.8.4 (11.01.2025) =
+Set handle 413 server error as upload size limit exceeded 10MB for free server.
+Fixed: 429 server error caused by exceeding server request limits for free server.
+
 = 1.8.3 (06.01.2025) =
 Removed: Server 1 has been removed because it is no longer available
 Updated: Increased limit for server 2, now you have 1000 tokens available for image optimization per day

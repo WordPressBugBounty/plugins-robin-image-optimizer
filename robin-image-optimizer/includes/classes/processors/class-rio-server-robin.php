@@ -70,6 +70,14 @@ class WIO_Image_Processor_Robin extends WIO_Image_Processor_Abstract {
 
 		WRIO_Plugin::app()->logger->info( sprintf( "Preparing to upload a file (%s) to a remote server (%s).", $settings['image_path'], $this->server_name ) );
 
+		$max_size_in_bytes = 10 * 1024 * 1024; // 10MB
+		if ( filesize( $file ) > $max_size_in_bytes ) {
+			$error_message = "Image exceeds the maximum allowed size of 10MB! Enable the 'Resizing large images' option to reduce the image size or switch to a premium server without limitations.";
+			WRIO_Plugin::app()->logger->error( $error_message );
+
+			return new WP_Error( 'image_size_limit_exceeded', $error_message );
+		}
+
 		$boundary = wp_generate_password( 24 ); // Just a random string, use something better than wp_generate_password() though.
 		$host     = get_option( 'siteurl' );
 		$headers  = [
@@ -112,12 +120,15 @@ class WIO_Image_Processor_Robin extends WIO_Image_Processor_Abstract {
 		] );
 
 		if ( is_wp_error( $response ) ) {
+			$ss = $response->get_error_code();
+
 			WRIO_Plugin::app()->logger->error( sprintf( '%s returned error (%s).', $error_message, $response->get_error_message() ) );
 
 			return $response;
 		}
 
 		$response_code = wp_remote_retrieve_response_code( $response );
+
 		if ( $response_code !== 200 ) {
 			WRIO_Plugin::app()->logger->error( sprintf( '%s, responded Http error (%s)', $error_message, $response_code ) );
 
@@ -126,6 +137,7 @@ class WIO_Image_Processor_Robin extends WIO_Image_Processor_Abstract {
 
 		$response_text = wp_remote_retrieve_body( $response );
 		$data          = @json_decode( $response_text );
+
 		if ( ! isset( $data->status ) ) {
 			WRIO_Plugin::app()->logger->error( sprintf( '%s responded an empty request body.', $error_message ) );
 

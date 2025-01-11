@@ -70,7 +70,7 @@ class WRIO_Bulk_Optimization {
 
 		global $wpdb;
 
-		WRIO_Plugin::app()->deletePopulateOption('wrio_partial_total_count');
+		WRIO_Plugin::app()->deletePopulateOption( 'wrio_partial_total_count' );
 
 		$allowed_formats_sql = wrio_get_allowed_formats( true );
 
@@ -106,74 +106,74 @@ class WRIO_Bulk_Optimization {
 	 * @return void Outputs JSON response with the total count of thumbnails and processing status.
 	 */
 	public function calculate_total_thumbs() {
-		check_ajax_referer('bulk_optimization');
+		check_ajax_referer( 'bulk_optimization' );
 
-		if (!current_user_can('manage_options')) {
-			wp_die(-1);
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( - 1 );
 		}
 
 		global $wpdb;
 
-		$offset = (int) WRIO_Plugin::app()->request->post('offset', 0);
-		$limit = (int) WRIO_Plugin::app()->request->post('limit', 200);
+		$offset = (int) WRIO_Plugin::app()->request->post( 'offset', 0 );
+		$limit  = (int) WRIO_Plugin::app()->request->post( 'limit', 200 );
 
-		$allowed_formats_sql = wrio_get_allowed_formats(true);
-		$allowed_sizes = explode(',', WRIO_Plugin::app()->getPopulateOption('allowed_sizes_thumbnail', ''));
+		$allowed_formats_sql = wrio_get_allowed_formats( true );
+		$allowed_sizes       = explode( ',', WRIO_Plugin::app()->getPopulateOption( 'allowed_sizes_thumbnail', '' ) );
 
-		$query = $wpdb->prepare("
+		$query = $wpdb->prepare( "
 	        SELECT posts.ID
 	        FROM {$wpdb->posts} as posts
 	        WHERE post_type = 'attachment'
 	            AND post_status = 'inherit'
 	            AND post_mime_type IN ({$allowed_formats_sql})
 	        LIMIT %d OFFSET %d
-	    ", $limit, $offset);
+	    ", $limit, $offset );
 
 		// Учитываем WPML (исключение дубликатов)
-		if (defined('WPML_PLUGIN_FILE')) {
-			$query = str_replace('WHERE post_type =', "WHERE NOT EXISTS (
+		if ( defined( 'WPML_PLUGIN_FILE' ) ) {
+			$query = str_replace( 'WHERE post_type =', "WHERE NOT EXISTS (
             SELECT icl.element_id 
             FROM {$wpdb->prefix}icl_translations as icl 
             WHERE icl.element_id = posts.ID 
             AND icl.element_type = 'post_attachment'
             AND source_language_code IS NOT NULL
-        ) AND post_type =", $query);
+        ) AND post_type =", $query );
 		}
 
-		$attachments = $wpdb->get_results($query);
-		$total_count = (int) WRIO_Plugin::app()->getPopulateOption('wrio_partial_total_count', 0);
+		$attachments = $wpdb->get_results( $query );
+		$total_count = (int) WRIO_Plugin::app()->getPopulateOption( 'wrio_partial_total_count', 0 );
 
 		$current_batch_count = 0;
 
-		foreach ($attachments as $attachment) {
-			$meta = wp_get_attachment_metadata($attachment->ID);
-			if ($meta && isset($meta['sizes'])) {
-				foreach ($meta['sizes'] as $size_key => $size_value) {
-					if (in_array($size_key, $allowed_sizes)) {
-						$current_batch_count++;
+		foreach ( $attachments as $attachment ) {
+			$meta = wp_get_attachment_metadata( $attachment->ID );
+			if ( $meta && isset( $meta['sizes'] ) ) {
+				foreach ( $meta['sizes'] as $size_key => $size_value ) {
+					if ( in_array( $size_key, $allowed_sizes ) ) {
+						$current_batch_count ++;
 					}
 				}
 			}
 		}
 
 		$total_count += $current_batch_count;
-		WRIO_Plugin::app()->updatePopulateOption('wrio_partial_total_count', $total_count);
+		WRIO_Plugin::app()->updatePopulateOption( 'wrio_partial_total_count', $total_count );
 
 		// Если больше данных для обработки нет — завершаем и сохраняем в кеш
-		if (count($attachments) < $limit) {
-			WRIO_Plugin::app()->deletePopulateOption('wrio_partial_total_count');
+		if ( count( $attachments ) < $limit ) {
+			WRIO_Plugin::app()->deletePopulateOption( 'wrio_partial_total_count' );
 
-			wp_send_json_success([
+			wp_send_json_success( [
 				'found_thumbs' => $total_count,
-				'done' => true,
-			]);
+				'done'         => true,
+			] );
 		}
 
-		wp_send_json_success([
+		wp_send_json_success( [
 			'found_thumbs' => $total_count,
-			'done' => false,
-			'next_offset' => $offset + $limit,
-		]);
+			'done'         => false,
+			'next_offset'  => $offset + $limit,
+		] );
 	}
 
 	public function cron_start() {
@@ -660,6 +660,12 @@ class WRIO_Bulk_Optimization {
 		if ( $response_code != 200 ) {
 			$return_data['error'] = 'Server response ' . $response_code;
 			wp_send_json_error( $return_data );
+		}
+
+		$data = json_decode( wp_remote_retrieve_body( $request ) );
+
+		if ( isset( $data->response->server_load ) ) {
+			$return_data = [ 'server_load' => $data->response->server_load ];
 		}
 
 		wp_send_json_success( $return_data );
