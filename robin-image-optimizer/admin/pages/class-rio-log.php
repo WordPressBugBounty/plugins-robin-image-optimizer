@@ -7,12 +7,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Класс отвечает за работу страницы логов.
  *
- * @author        Eugene Jokerov <jokerov@gmail.com>
- * @author        Alexander Teshabaev <sasha.tesh@gmail.com>
- * @copyright (c) 2018, Webcraftic
  * @version       1.0
  */
-class WRIO_LogPage extends Wbcr_FactoryLogger149_PageBase {
+class WRIO_LogPage extends Wbcr_FactoryLogger359_PageBase {
 
 	/**
 	 * {@inheritdoc}
@@ -20,9 +17,18 @@ class WRIO_LogPage extends Wbcr_FactoryLogger149_PageBase {
 	public $id = 'rio_logs'; // Уникальный идентификатор страницы
 
 	/**
-	 * {@inheritdoc}
+	 * Hide bottom sidebar - only show on Settings page
+	 *
+	 * @var bool
 	 */
-	public $page_parent_page = null;
+	public $show_bottom_sidebar = false;
+
+	/**
+	 * {@inheritdoc}
+	 *
+	 * @var string
+	 */
+	public $page_parent_page = 'rio_general';
 
 	/**
 	 * {@inheritdoc}
@@ -35,20 +41,45 @@ class WRIO_LogPage extends Wbcr_FactoryLogger149_PageBase {
 	public $clearfy_collaboration = false;
 
 	/**
-	 * {@inheritdoc}
+	 *
+	 * Whether to show the right sidebar in options.
+	 *
+	 * @var bool
 	 */
 	public $show_right_sidebar_in_options = true;
 
 	/**
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
+	 * Menu target for WordPress admin submenu.
+	 *
+	 * @var string
+	 */
+	public $menu_target = 'rio_general-robin-image-optimizer';
+
+	/**
+	 * Use admin.php as base URL instead of menu_target.
+	 *
+	 * @var bool
+	 */
+	public $custom_target = true;
+
+	/**
+	 * The page is internal and should not be displayed in the menu.
+	 *
+	 * @var bool
+	 */
+	public $internal = false;
+
+	/**
+	 * View instance for rendering templates.
+	 *
 	 * @since  1.3.0
 	 * @var WRIO_Views
 	 */
 	protected $view;
 
 	/**
-	 * Подменяем пространство имен для меню плагина, если активирован плагин Clearfy
-	 * Меню текущего плагина будет добавлено в общее меню Clearfy
+	 * Подменяем пространство имен для меню плагина, если активирован плагин
+	 * Меню текущего плагина будет добавлено в общее меню
 	 *
 	 * @return string
 	 */
@@ -59,7 +90,7 @@ class WRIO_LogPage extends Wbcr_FactoryLogger149_PageBase {
 			return 'wbcr_clearfy';
 		}
 
-		return $this->plugin->getPluginName();
+		return 'robin-image-optimizer';
 	}
 
 	/**
@@ -74,7 +105,7 @@ class WRIO_LogPage extends Wbcr_FactoryLogger149_PageBase {
 			if ( WRIO_Plugin::app()->isNetworkActive() && WCL_Plugin::app()->isNetworkActive() ) {
 				$this->clearfy_collaboration = true;
 			}
-		} else if ( defined( 'WCL_PLUGIN_ACTIVE' ) ) {
+		} elseif ( defined( 'WCL_PLUGIN_ACTIVE' ) ) {
 			$this->clearfy_collaboration = true;
 		}
 

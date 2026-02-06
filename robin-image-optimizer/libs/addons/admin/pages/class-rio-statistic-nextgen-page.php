@@ -7,8 +7,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Класс отвечает за работу страницы статистики
  *
- * @author        Eugene Jokerov <jokerov@gmail.com>
- * @copyright (c) 2018, Webcraftic
  * @version       1.0
  */
 class WRIO_StatisticNextgenPage extends WRIO_StatisticPage {
@@ -27,6 +25,18 @@ class WRIO_StatisticNextgenPage extends WRIO_StatisticPage {
 	 * {@inheritdoc}
 	 */
 	public $internal = true;
+
+	/**
+	 * @var string
+	 */
+	public $menu_target = null;
+
+	/**
+	 * Use admin.php as base URL instead of menu_target.
+	 *
+	 * @var bool
+	 */
+	public $custom_target = true;
 
 	/**
 	 * none - to hide page from plugin menu
@@ -69,8 +79,8 @@ class WRIO_StatisticNextgenPage extends WRIO_StatisticPage {
 	}
 
 	/**
-	 * Подменяем простраинство имен для меню плагина, если активирован плагин Clearfy
-	 * Меню текущего плагина будет добавлено в общее меню Clearfy
+	 * Подменяем простраинство имен для меню плагина, если активирован плагин
+	 * Меню текущего плагина будет добавлено в общее меню
 	 *
 	 * @return string
 	 */
@@ -81,7 +91,7 @@ class WRIO_StatisticNextgenPage extends WRIO_StatisticPage {
 			return 'wbcr_clearfy';
 		}
 
-		return $this->plugin->getPluginName();
+		return 'robin-image-optimizer';
 	}
 
 	/**
@@ -92,7 +102,6 @@ class WRIO_StatisticNextgenPage extends WRIO_StatisticPage {
 	}
 
 	/**
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 * @since  1.3.0
 	 * @return object|\WRIO_Image_Statistic
 	 */

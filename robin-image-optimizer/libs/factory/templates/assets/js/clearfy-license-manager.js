@@ -3,8 +3,6 @@
  * Его основная роль отправка ajax запросов на проверку, активацию, деактивацию лицензии
  * и вывод уведомлений об ошибка или успешно выполнении проверок.
  *
- * @author Alex Kovalev <alex.kovalevv@gmail.com>, Github: https://github.com/alexkovalevv
- * @copyright (c) 05.10.2018, Webcraftic
  * @version 1.1
  * @since 1.4.0
  */
@@ -20,7 +18,7 @@ jQuery(function($) {
 			licenseAction = $(this).data('action');
 
 		for( i = 0; i < allNotices.length; i++ ) {
-			$.wbcr_factory_templates_134.app.hideNotice(allNotices[i]);
+			$.wbcr_factory_templates_759.app.hideNotice(allNotices[i]);
 		}
 
 		$('.wcl-control-btn').hide();
@@ -53,7 +51,7 @@ jQuery(function($) {
 
 					if( response.data ) {
 						console.log(response.data.error_message);
-						noticeId = $.wbcr_factory_templates_134.app.showNotice('Error: [' + response.data.error_message + ']', 'danger');
+						noticeId = $.wbcr_factory_templates_759.app.showNotice('Error: [' + response.data.error_message + ']', 'danger');
 						allNotices.push(noticeId);
 					} else {
 						console.log(response);
@@ -63,7 +61,7 @@ jQuery(function($) {
 				}
 
 				if( response.data && response.data.message ) {
-					noticeId = $.wbcr_factory_templates_134.app.showNotice(response.data.message, 'success');
+					noticeId = $.wbcr_factory_templates_759.app.showNotice(response.data.message, 'success');
 					allNotices.push(noticeId);
 
 					// todo: доработать генерацию формы, вместо перезагрузки страницы
@@ -80,7 +78,7 @@ jQuery(function($) {
 				console.log(xhr.responseText);
 				console.log(thrownError);
 
-				var noticeId = $.wbcr_factory_templates_134.app.showNotice('Error: [' + thrownError + '] Status: [' + xhr.status + '] Error massage: [' + xhr.responseText + ']', 'danger');
+				var noticeId = $.wbcr_factory_templates_759.app.showNotice('Error: [' + thrownError + '] Status: [' + xhr.status + '] Error massage: [' + xhr.responseText + ']', 'danger');
 
 				allNotices.push(noticeId);
 			}

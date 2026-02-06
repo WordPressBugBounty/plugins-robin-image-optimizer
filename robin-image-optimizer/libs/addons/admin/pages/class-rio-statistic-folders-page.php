@@ -7,8 +7,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Класс отвечает за работу страницы статистики
  *
- * @author        Eugene Jokerov <jokerov@gmail.com>
- * @copyright (c) 2018, Webcraftic
  * @version       1.0
  */
 class WRIO_StatisticFolders extends WRIO_StatisticPage {
@@ -34,6 +32,13 @@ class WRIO_StatisticFolders extends WRIO_StatisticPage {
 	public $menu_target = null;
 
 	/**
+	 * Use admin.php as base URL instead of menu_target.
+	 *
+	 * @var bool
+	 */
+	public $custom_target = true;
+
+	/**
 	 * @var string
 	 */
 	public $page_menu_dashicon = 'dashicons-images-alt';
@@ -50,7 +55,6 @@ class WRIO_StatisticFolders extends WRIO_StatisticPage {
 
 
 	/**
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 * @since  1.0
 	 * @var WRIO_Views
 	 */
@@ -81,8 +85,8 @@ class WRIO_StatisticFolders extends WRIO_StatisticPage {
 	}
 
 	/**
-	 * Подменяем простраинство имен для меню плагина, если активирован плагин Clearfy
-	 * Меню текущего плагина будет добавлено в общее меню Clearfy
+	 * Подменяем простраинство имен для меню плагина, если активирован плагин
+	 * Меню текущего плагина будет добавлено в общее меню
 	 *
 	 * @return string
 	 */
@@ -93,7 +97,7 @@ class WRIO_StatisticFolders extends WRIO_StatisticPage {
 			return 'wbcr_clearfy';
 		}
 
-		return $this->plugin->getPluginName();
+		return 'robin-image-optimizer';
 	}
 
 	/**
@@ -117,62 +121,82 @@ class WRIO_StatisticFolders extends WRIO_StatisticPage {
 
 		$template_data = [
 			'is_premium' => $is_premium,
-			'scope'      => $this->scope
+			'scope'      => $this->scope,
 		];
 
-		//do_action( 'wbcr/rio/multisite_current_blog' );
+		// do_action( 'wbcr/rio/multisite_current_blog' );
 
 		// Page header
-		$this->parent_view->print_template( 'part-page-header', [
-			'title'       => __( 'Image optimization dashboard', 'robin-image-optimizer' ),
-			'description' => __( 'Monitor image optimization statistics and run on demand or scheduled optimization.', 'robin-image-optimizer' )
-		], $this );
+		$this->parent_view->print_template(
+			'part-page-header',
+			[
+				'title'       => __( 'Image optimization dashboard', 'robin-image-optimizer' ),
+				'description' => __( 'Monitor image optimization statistics and run on demand or scheduled optimization.', 'robin-image-optimizer' ),
+			],
+			$this
+		);
 
 		// Page tabs
 		$this->parent_view->print_template( 'part-bulk-optimization-tabs', $template_data, $this );
 
 		?>
-        <div class="wbcr-factory-page-group-body" style="padding:0; border-top: 1px solid #d4d4d4;">
+		<div class="wbcr-factory-page-group-body" style="padding:0; border-top: 1px solid #d4d4d4;">
 			<?php
 			// Servers
 			$this->parent_view->print_template( 'part-bulk-optimization-servers', $template_data, $this );
 
 			// Statistic
-			$this->parent_view->print_template( 'part-bulk-optimization-statistic', array_merge( $template_data, [
-				'stats' => $statistics->get()
-			] ), $this );
+			$this->parent_view->print_template(
+				'part-bulk-optimization-statistic',
+				array_merge(
+					$template_data,
+					[
+						'stats' => $statistics->get(),
+					]
+				),
+				$this
+			);
 
 			// Folders table
 			$this->view->print_template( 'part-bulk-optimization-table-folders', $template_data, $this );
 
 			// Optimization log
-			$this->parent_view->print_template( 'part-bulk-optimization-log', array_merge( $template_data, [
-				'process_log' => $statistics->get_last_optimized_images()
-			] ), $this );
+			$this->parent_view->print_template(
+				'part-bulk-optimization-log',
+				array_merge(
+					$template_data,
+					[
+						'process_log' => $statistics->get_last_optimized_images(),
+					]
+				),
+				$this
+			);
 			?>
-        </div>
-        <script type="text/html" id="wrio-tmpl-bulk-optimization">
+		</div>
+		<script type="text/html" id="wrio-tmpl-bulk-optimization">
 			<?php $this->parent_view->print_template( 'modal-bulk-optimization' ); ?>
-        </script>
-        <script type="text/html" id="wrio-tmpl-select-custom-folders">
+		</script>
+		<script type="text/html" id="wrio-tmpl-select-custom-folders">
 			<?php $this->view->print_template( 'modal-select-custom-folders' ); ?>
-        </script>
+		</script>
 		<?php
-		//do_action( 'wbcr/rio/multisite_restore_blog' );
+		// do_action( 'wbcr/rio/multisite_restore_blog' );
 	}
 
 	protected function get_i18n() {
 		$i18n = parent::get_i18n();
 
 		$i18n['modal_cf_title'] = __( 'Select custom folder', 'robin-image-optimizer' );
-		//$i18n['modal_cf_description']   = __( 'Select a directory for optimization. All nested images and folders will be optimized recursively.', 'robin-image-optimizer' );
-		$i18n['button_select']         = __( 'Select', 'robin-image-optimizer' );
-		$i18n['button_cancel']         = __( 'Cancel', 'robin-image-optimizer' );
-		$i18n['button_remove']         = __( 'Remove', 'robin-image-optimizer' );
-		$i18n['alert_remove_folder']   = __( 'Exclude directory from optimization?', 'robin-image-optimizer' );
-		$i18n['found_images']          = __( 'Selected directory is being indexed. Found %d images.', 'robin-image-optimizer' );
-		$i18n['scan_complete']         = __( 'Indexing complete. Directory successfully added and ready for optimization.', 'robin-image-optimizer' );
-		$i18n['compressed_in_folder']  = __( 'Compressed %d of %s<br>images', 'robin-image-optimizer' );
+		// $i18n['modal_cf_description']   = __( 'Select a directory for optimization. All nested images and folders will be optimized recursively.', 'robin-image-optimizer' );
+		$i18n['button_select']       = __( 'Select', 'robin-image-optimizer' );
+		$i18n['button_cancel']       = __( 'Cancel', 'robin-image-optimizer' );
+		$i18n['button_remove']       = __( 'Remove', 'robin-image-optimizer' );
+		$i18n['alert_remove_folder'] = __( 'Exclude directory from optimization?', 'robin-image-optimizer' );
+		// translators: %d is the number of images found
+		$i18n['found_images']  = __( 'Selected directory is being indexed. Found %d images.', 'robin-image-optimizer' );
+		$i18n['scan_complete'] = __( 'Indexing complete. Directory successfully added and ready for optimization.', 'robin-image-optimizer' );
+		// translators: %1$d is the number of compressed images, %2$s is the total number of images
+		$i18n['compressed_in_folder']  = __( 'Compressed %1$d of %2$s<br>images', 'robin-image-optimizer' );
 		$i18n['optimization_complete'] = __( 'All images from custom folders are optimized.', 'robin-image-optimizer' );
 
 		return $i18n;

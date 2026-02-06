@@ -1,30 +1,26 @@
 <?php
 
-namespace WBCR\Factory_Templates_134;
+namespace WBCR\Factory_Templates_759;
 
 // Exit if accessed directly
-if( !defined('ABSPATH') ) {
+if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
 /**
  * Configurate clearfy plugins
  *
- * @author        Alex Kovalev <alex.kovalevv@gmail.com>, Github: https://github.com/alexkovalevv
  * @since         1.0.0
  * @package       clearfy
- * @copyright (c) 2018, Webcraftic Ltd
- *
  */
 abstract class Configurate {
 
 	protected $plugin;
 
 	/**
-	 * @param \Wbcr_Factory480_Plugin $plugin
+	 * @param \Wbcr_Factory600_Plugin $plugin
 	 */
-	public function __construct(\Wbcr_Factory480_Plugin $plugin)
-	{
+	public function __construct( \Wbcr_Factory600_Plugin $plugin ) {
 		$this->plugin = $plugin;
 		$this->registerActionsAndFilters();
 	}
@@ -44,9 +40,8 @@ abstract class Configurate {
 	 *
 	 * @return mixed|void
 	 */
-	public function getPopulateOption($option_name, $default = false)
-	{
-		return $this->plugin->getPopulateOption($option_name, $default);
+	public function getPopulateOption( $option_name, $default = false ) {
+		return $this->plugin->getPopulateOption( $option_name, $default );
 	}
 
 	/**
@@ -57,9 +52,8 @@ abstract class Configurate {
 	 *
 	 * @return mixed|void
 	 */
-	public function getOption($option_name, $default = false)
-	{
-		return $this->plugin->getOption($option_name, $default);
+	public function getOption( $option_name, $default = false ) {
+		return $this->plugin->getOption( $option_name, $default );
 	}
 
 	/**
@@ -70,9 +64,8 @@ abstract class Configurate {
 	 *
 	 * @return mixed|void
 	 */
-	public function getNetworkOption($option_name, $default = false)
-	{
-		return $this->plugin->getNetworkOption($option_name, $default);
+	public function getNetworkOption( $option_name, $default = false ) {
+		return $this->plugin->getNetworkOption( $option_name, $default );
 	}
 
 	/**
@@ -81,9 +74,8 @@ abstract class Configurate {
 	 *
 	 * @return bool
 	 */
-	public function updatePopulateOption($option_name, $value)
-	{
-		$this->plugin->updatePopulateOption($option_name, $value);
+	public function updatePopulateOption( $option_name, $value ) {
+		$this->plugin->updatePopulateOption( $option_name, $value );
 	}
 
 	/**
@@ -92,9 +84,8 @@ abstract class Configurate {
 	 *
 	 * @return bool
 	 */
-	public function updateNetworkOption($option_name, $value)
-	{
-		$this->plugin->updateNetworkOption($option_name, $value);
+	public function updateNetworkOption( $option_name, $value ) {
+		$this->plugin->updateNetworkOption( $option_name, $value );
 	}
 
 	/**
@@ -103,9 +94,8 @@ abstract class Configurate {
 	 *
 	 * @return bool
 	 */
-	public function updateOption($option_name, $value)
-	{
-		$this->plugin->updateOption($option_name, $value);
+	public function updateOption( $option_name, $value ) {
+		$this->plugin->updateOption( $option_name, $value );
 	}
 
 	/**
@@ -113,9 +103,8 @@ abstract class Configurate {
 	 *
 	 * @return bool
 	 */
-	public function deletePopulateOption($option_name)
-	{
-		$this->plugin->deletePopulateOption($option_name);
+	public function deletePopulateOption( $option_name ) {
+		$this->plugin->deletePopulateOption( $option_name );
 	}
 
 	/**
@@ -123,8 +112,7 @@ abstract class Configurate {
 	 *
 	 * @return bool
 	 */
-	public function deleteOption($option_name)
-	{
-		$this->plugin->deleteOption($option_name);
+	public function deleteOption( $option_name ) {
+		$this->plugin->deleteOption( $option_name );
 	}
 }

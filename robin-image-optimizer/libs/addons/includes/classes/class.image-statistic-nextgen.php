@@ -8,8 +8,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Класс для работы со статистическими данными по оптимизации изображений
  *
- * @author        Eugene Jokerov <jokerov@gmail.com>
- * @copyright (c) 2018, Webcraftic
  * @version       1.0
  */
 class WRIO_Image_Statistic_Nextgen extends WRIO_Image_Statistic {
@@ -19,7 +17,7 @@ class WRIO_Image_Statistic_Nextgen extends WRIO_Image_Statistic {
 	 *
 	 * @since  1.3.0
 	 * @access protected
-	 * @var    object
+	 * @var    static
 	 */
 	protected static $_instance;
 
@@ -133,35 +131,41 @@ class WRIO_Image_Statistic_Nextgen extends WRIO_Image_Statistic {
 	}
 
 	/**
-	 * Возвращает результат последних оптимизаций изображений
+	 * Returns the result of the last optimized images.
 	 *
-	 * @param int $limit лимит
+	 * @param int $limit Limit.
 	 *
-	 * @return array {
-	 *     Параметры
-	 * @type string $id id
-	 * @type string $file_name Имя файла
-	 * @type string $url URL
-	 * @type string $thumbnail_url URL превьюшки
-	 * @type string $original_size Размер до оптимизации
-	 * @type string $optimized_size Размер после оптимизации
-	 * @type string $webp_size webP размер
-	 * @type string $original_saving На сколько процентов изменился главный файл
-	 * @type string $thumbnails_count Сколько превьюшек оптимизировано
-	 * @type string $total_saving Процент оптимизации главного файла и превьюшек
-	 * }
+	 * @return array<int, array{
+	 *     id: int|string,
+	 *     file_name: string,
+	 *     url: string,
+	 *     thumbnail_url: string,
+	 *     original_size: string,
+	 *     optimized_size: string,
+	 *     webp_size?: string,
+	 *     original_saving: string,
+	 *     thumbnails_count: int,
+	 *     total_saving: string,
+	 *     type?: string,
+	 *     error_msg?: string
+	 * }>
 	 */
 	public function get_last_optimized_images( $limit = 100 ) {
 		global $wpdb;
 		$logs             = [];
 		$db_table         = RIO_Process_Queue::table_name();
-		$sql              = $wpdb->prepare( "SELECT t1.*,t2.filename as file_name, t3.path as gallery_path
+		$sql              = $wpdb->prepare(
+			"SELECT t1.*,t2.filename as file_name, t3.path as gallery_path
 					FROM {$db_table} as t1 
 					LEFT JOIN {$wpdb->prefix}ngg_pictures as t2 ON t1.object_id = t2.pid
 					LEFT JOIN {$wpdb->prefix}ngg_gallery as t3 ON t2.galleryid = t3.gid 
 					WHERE t1.item_type = 'nextgen' AND t1.result_status IN (%s, %s)
 					ORDER BY id DESC
-					LIMIT %d ;", RIO_Process_Queue::STATUS_SUCCESS, RIO_Process_Queue::STATUS_ERROR, $limit );
+					LIMIT %d ;",
+			RIO_Process_Queue::STATUS_SUCCESS,
+			RIO_Process_Queue::STATUS_ERROR,
+			$limit
+		);
 		$optimized_images = $wpdb->get_results( $sql );
 
 		if ( empty( $optimized_images ) ) {
@@ -215,23 +219,25 @@ class WRIO_Image_Statistic_Nextgen extends WRIO_Image_Statistic {
 				$total_saving = ( $row->original_size - $row->final_size ) * 100 / $row->original_size;
 			}
 
-			$image_url     = home_url( trailingslashit( $row->gallery_path ) . $row->file_name );
-			$thumbnail_url = home_url( trailingslashit( $row->gallery_path ) . 'thumbs/thumbs_' . $row->file_name );
+			$image_url     = site_url( trailingslashit( $row->gallery_path ) . $row->file_name );
+			$thumbnail_url = site_url( trailingslashit( $row->gallery_path ) . 'thumbs/thumbs-' . $row->file_name );
 
-			$logs[] = array_merge( $log, [
-				'id'               => $row->id,
-				'url'              => $image_url,
-				'thumbnail_url'    => $thumbnail_url,
-				'file_name'        => preg_replace( '/^.+[\\\\\\/]/', '', $main_file ),
-				'original_size'    => size_format( $row->original_size, 2 ),
-				'optimized_size'   => size_format( $row->final_size, 2 ),
-				'original_saving'  => round( $main_saving ) . '%',
-				'thumbnails_count' => 1,
-				'total_saving'     => round( $total_saving ) . '%',
-			] );
+			$logs[] = array_merge(
+				$log,
+				[
+					'id'               => $row->id,
+					'url'              => $image_url,
+					'thumbnail_url'    => $thumbnail_url,
+					'file_name'        => preg_replace( '/^.+[\\\\\\/]/', '', $main_file ),
+					'original_size'    => size_format( $row->original_size, 2 ),
+					'optimized_size'   => size_format( $row->final_size, 2 ),
+					'original_saving'  => round( $main_saving ) . '%',
+					'thumbnails_count' => 1,
+					'total_saving'     => round( $total_saving ) . '%',
+				]
+			);
 		}
 
 		return $logs;
 	}
-
 }

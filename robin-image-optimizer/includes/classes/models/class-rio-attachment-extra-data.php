@@ -10,18 +10,17 @@ if ( ! defined( 'ABSPATH' ) ) {
  * property in RIO_Process_Queue.
  *
  * @see RIO_Process_Queue::$extra_data for further information
- *
- * @author Alexander Teshabaev <sasha.tesh@gmail.com>
  */
 class RIO_Attachment_Extra_Data extends RIO_Base_Extra_Data {
 
-	protected $error = null;
-	protected $error_msg = null;
-	protected $thumbnails_count = null;
-	protected $original_main_size = null;
-	protected $main_optimized_data = null;
+	protected $error                     = null;
+	protected $error_msg                 = null;
+	protected $thumbnails_count          = null;
+	protected $original_main_size        = null;
+	protected $main_optimized_data       = null;
 	protected $thumbnails_optimized_data = null;
-	protected $webp_main_size = null;
+	protected $webp_main_size            = null;
+	protected $avif_main_size            = null;
 
 	public function get_error() {
 		return $this->error;
@@ -56,7 +55,7 @@ class RIO_Attachment_Extra_Data extends RIO_Base_Extra_Data {
 	}
 
 	public function get_main_optimized_data() {
-		return (array)$this->main_optimized_data;
+		return (array) $this->main_optimized_data;
 	}
 
 	public function set_main_optimized_data( $main_optimized_data ) {
@@ -64,7 +63,7 @@ class RIO_Attachment_Extra_Data extends RIO_Base_Extra_Data {
 	}
 
 	public function get_thumbnails_optimized_data() {
-		return (array)$this->thumbnails_optimized_data;
+		return (array) $this->thumbnails_optimized_data;
 	}
 
 	public function set_thumbnails_optimized_data( $thumbnails_optimized_data ) {
@@ -77,5 +76,13 @@ class RIO_Attachment_Extra_Data extends RIO_Base_Extra_Data {
 
 	public function set_webp_main_size( $webp_main_size ) {
 		$this->webp_main_size = $webp_main_size;
+	}
+
+	public function get_avif_main_size() {
+		return $this->avif_main_size;
+	}
+
+	public function set_avif_main_size( $avif_main_size ) {
+		$this->avif_main_size = $avif_main_size;
 	}
 }

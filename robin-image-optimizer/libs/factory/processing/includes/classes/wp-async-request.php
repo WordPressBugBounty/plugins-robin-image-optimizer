@@ -1,6 +1,6 @@
 <?php
 
-namespace WBCR\Factory_Processing_113;
+namespace WBCR\Factory_Processing_759;
 
 use WP_Error;
 
@@ -53,7 +53,7 @@ abstract class WP_Async_Request {
 	 * @var array
 	 * @access protected
 	 */
-	protected $data = array();
+	protected $data = [];
 
 	/**
 	 * Initiate new async request
@@ -61,8 +61,8 @@ abstract class WP_Async_Request {
 	public function __construct() {
 		$this->identifier = $this->prefix . '_' . str_replace( '-', '_', $this->action );
 
-		add_action( 'wp_ajax_' . $this->identifier, array( $this, 'maybe_handle' ) );
-		add_action( 'wp_ajax_nopriv_' . $this->identifier, array( $this, 'maybe_handle' ) );
+		add_action( 'wp_ajax_' . $this->identifier, [ $this, 'maybe_handle' ] );
+		add_action( 'wp_ajax_nopriv_' . $this->identifier, [ $this, 'maybe_handle' ] );
 	}
 
 	/**
@@ -100,11 +100,11 @@ abstract class WP_Async_Request {
 			return $this->query_args;
 		}
 
-		$args = array(
+		$args = [
 			'action' => $this->identifier,
 			'scope'  => $this->scope,
 			'nonce'  => wp_create_nonce( $this->identifier ),
-		);
+		];
 
 		/**
 		 * Filters the post arguments used during an async request.
@@ -144,13 +144,13 @@ abstract class WP_Async_Request {
 			return $this->post_args;
 		}
 
-		$args = array(
+		$args = [
 			'timeout'   => 0.01,
 			'blocking'  => false,
 			'body'      => $this->data,
 			'cookies'   => $_COOKIE,
 			'sslverify' => apply_filters( 'https_local_ssl_verify', false ),
-		);
+		];
 
 		/**
 		 * Filters the post arguments used during an async request.
@@ -183,5 +183,4 @@ abstract class WP_Async_Request {
 	 * during the async request.
 	 */
 	abstract protected function handle();
-
 }

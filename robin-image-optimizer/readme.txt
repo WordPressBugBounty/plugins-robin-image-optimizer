@@ -1,41 +1,148 @@
-=== Robin image optimizer — save money on image compression  ===
-Tags: image, optimizer, image optimization, resmush.it, smush, jpg, png, gif, optimization, compression, Compress, Images, Pictures, Reduce Image Size
-Contributors: webcraftic, creativemotion
+=== Robin Image Optimizer – Unlimited Image Optimization & WebP Converter  ===
+Tags: webp converter, unlimited image optimization, image optimization, compress images, image optimier
+Contributors: themeisle
 Requires at least: 5.6
-Tested up to: 6.7
+Tested up to: 6.9
 Requires PHP: 7.3
-Stable tag: trunk
+Stable tag: 2.0.3
 License: GPLv2
 
-Automatic image optimization without any quality loss. No limitations. The best Wordpress image optimization plugin allows optimizing any amount of images for free!
+Unlimited automatic image optimization for WordPress. Compress images, convert to WebP, and improve site speed without losing image quality.
 
 == Description ==
 
-### Need professional support? ###
-[Get starting FREE support](http://forum.webcraftic.com/forums/robin-image-optimizer.18/ "Get starting free support")
-[Get starting PREMIUM support](https://webcraftic.com/premium-support/ "Get starting premium support")
+🚀 Make Your Website Faster by Reducing Image Weight
 
-Make your website faster by reducing the weight of images. Our Wordpress image optimizer plugin can cease image weights on 80% without any loss of quality.
+Robin Image Optimizer is a WordPress image optimization plugin that can reduce image file size by up to 80% without visible quality loss. It helps speed up your site by compressing images, converting them to modern formats, and optimizing both new and existing images automatically.
 
-Robin image optimizer is a smart and advanced image optimizer that really stands out among other Wordpress plugins. Robin image optimizer is a Wordpress free image optimizer plugin with zero limitations in terms of number of images and optimization quality. The only thing that you may stumble across is the image weight, which shouldn’t exceed 5 MB.
+Robin Image Optimizer is a smart and advanced free image optimization plugin for WordPress, built with no limits on the number of images, no API keys, and no external CDN dependency. It works locally inside WordPress and supports automatic image optimization, bulk image optimization, and WebP conversion.
 
-### What’s the purpose of image optimization? ###
+Robin is built for site owners who want free image optimization, unlimited WebP conversion, and a simple, local solution that works directly inside WordPress.
 
-The lighter the weight of the image – the faster your page loads. With the constant growth of mobile users, increases the necessity in mobile websites optimization. If you don’t want to get many rejections and lose money due to the poor ad performances, we’d recommend you to start with image optimization.
+### At a Glance
 
-###  Why should we use Robin image optimizer for image optimization? ###
+📌 Unlimited image optimization (no limits)
+📌 Automatic optimization on image upload
+📌 Bulk optimization for existing media
+📌 WebP conversion (JPG, PNG, GIF)
+📌 Runs locally inside WordPress
+📌 No API keys, no external CDN
 
-*  The first and the most significant difference from the counterparts: our plugin is absolutely free and has the same features as paid products.
-*  This Wordpress image optimizer doesn't have any limits or restrictions in image optimization.
-*  Automatic optimization using Cron. You don't need to wait til optimization is completed; the plugin will be optimizing couple of images every several minutes in the background.
-*  Manual mass-optimization. Press the button and wait til your images are optimized
-*  Image backup. Before optimization starts, all images are being stored in original quality. Then, when optimization is over, you can restore lost images or re-optimize them in another quality.
-*  You can choose compression mode (normal, regular, high). Compression mode influences image weight and quality. The higher the compression, the worse is the quality and the smaller is the weight.
-*  Image optimization on boot.
-*  Reducing pre-optimization image weight by changing image size.
-*  Detailed statistics on optimized images
+### Quick Links
 
-### WP CLI commands ([PRO](https://robinoptimizer.com/pricing/ "PRO version")) ###
+📘 [Documentation](https://docs.themeisle.com/collection/2413-robin-image-optimizer) – Complete setup and configuration guide
+
+💬 [Support Forum](https://wordpress.org/support/plugin/robin-image-optimizer/) – Community help and expert support
+
+⭐ [Go Pro](https://robinoptimizer.com/upgrade/?utm_source=wordpressorg&utm_medium=readme&utm_campaign=robin_quicklinks) – Unlock advanced features and priority support
+
+### What Robin Does
+
+Robin improves WordPress performance by optimizing images throughout your entire workflow. Images are optimized automatically when they’re uploaded, and existing images in your media library can be optimized in bulk. This reduces manual work and keeps your site fast as it grows.
+
+By compressing images and converting them to modern formats like WebP, Robin helps reduce overall page size. This results in faster load times, better performance metrics, and a smoother user experience, especially on mobile devices and image-heavy pages.
+
+With Robin, you can:
+
+- Automatically optimize images on upload
+
+- Bulk optimize existing images in the media library
+
+- Convert images to modern formats like WebP and AVIF in [PRO](https://robinoptimizer.com/upgrade/?utm_source=wordpressorg&utm_medium=readme&utm_campaign=whatrobindoes)
+
+- Reduce image weight and overall page size
+
+- Improve loading speed and PageSpeed audits
+
+- Run everything locally without API keys or CDN dependencies
+
+This makes Robin a reliable choice for bloggers, content websites, and performance-focused WordPress sites.
+
+### Why Image Optimization Matters
+
+⚡ The lighter the image, the faster your page loads.
+
+Images are often the most significant contributor to page size on WordPress websites. As mobile usage continues to grow, image optimization has become essential for delivering fast, responsive experiences.
+
+Unoptimized images can lead to:
+
+- Slower page loads
+
+- Higher bounce rates
+
+- Poor ad and conversion performance
+
+- Lower engagement on mobile devices
+
+Image optimization reduces image file size while preserving visual quality, helping pages load faster without sacrificing quality.
+
+### How Robin Optimizes Images
+
+Robin analyzes each image and applies compression based on the selected optimization mode. Optimization happens automatically and safely, without blocking the WordPress admin interface or requiring manual intervention.
+
+#### ⚙️ Automatic Image Optimization
+
+Images are optimized automatically as soon as they are uploaded to WordPress. No manual steps are required, and the optimization process runs quietly in the background.
+This ensures that all new images added to your site are optimized by default, without interrupting your workflow.
+
+#### 📦 Bulk Image Optimization
+
+Robin supports manual bulk optimization for images that already exist in the media library. With a single action, you can start optimizing previously uploaded images.
+The optimization process runs in batches, making it suitable for large media libraries with thousands of images. This is especially useful for existing WordPress sites that want to reduce page size and improve performance without re-uploading content.
+
+#### 🎚️ Compression Modes
+
+Robin provides multiple compression modes so you can choose how aggressively images are optimized.
+
+- **Lossless compression:** Reduces image file size without any visible or measurable quality loss. Ideal for logos, illustrations, and high-fidelity images.
+
+- **Lossy compression:** Applies stronger compression while keeping quality changes minimal and usually unnoticeable. A great default for most WordPress sites.
+
+- **High compression:** Uses more aggressive optimization techniques to achieve maximum file size reduction. Best for performance-focused and image-heavy pages.
+
+- **PageSpeed compression ([Pro](https://robinoptimizer.com/upgrade/?utm_source=wordpressorg&utm_medium=readme&utm_campaign=compressionmode)):** Applies optimization settings tuned specifically for improving PageSpeed and performance audits.
+
+- **Custom compression:** Allows you to define your own quality level for full control over optimization behavior.
+
+#### 🖼️ Modern Image Formats: WebP & AVIF
+
+Robin converts supported image formats such as JPG, PNG, and GIF into WebP, a modern image format that produces smaller files while maintaining visual quality. WebP images are generated automatically when images are uploaded or optimized in bulk.
+
+Optimized WebP images are served automatically to browsers that support them. When a browser does not support WebP, Robin safely falls back to the original image format to ensure full compatibility across devices.
+
+WebP conversion is available in the free version of Robin with no limits on the number of images. Images are converted automatically and served in the best format supported by each browser.
+
+Robin free supports:
+
+- JPG to WebP conversion
+- PNG to WebP conversion
+- GIF to WebP conversion
+
+Other common image formats used in WordPress are also supported, with automatic fallback to ensure compatibility across all browsers and devices.
+
+🏆 [Robin Pro](https://robinoptimizer.com/upgrade/?utm_source=wordpressorg&utm_medium=readme&utm_campaign=modernformat) adds support for AVIF, a next-generation image format that can deliver even smaller file sizes than WebP in many cases. Safe fallbacks are applied automatically.
+
+#### 💾 Image Backup and Restore
+Before optimizing any image, Robin stores a backup of the original file. You can restore original images at any time or re-optimize them using different compression settings. This makes it safe to experiment with optimization modes without the risk of permanent changes.
+
+#### 🧾 Strip EXIF data
+Robin allows you to choose whether EXIF metadata should be removed or preserved during image optimization. Removing EXIF metadata helps reduce image file size and improves privacy. Keeping EXIF metadata is useful for photography portfolios or workflows that rely on image data.
+
+#### 🔄 Background Image Optimization ([PRO](https://robinoptimizer.com/upgrade/?utm_source=wordpressorg&utm_medium=readme&utm_campaign=bgimageoptimization))
+Robin supports background image optimization, allowing images to be processed gradually over time without blocking the WordPress admin interface. Background optimization uses scheduled processing to continuously optimize images, preventing timeouts and performance issues when working with large image libraries or frequent uploads.
+
+#### 📁 Custom Folder Optimization ([PRO](https://robinoptimizer.com/upgrade/?utm_source=wordpressorg&utm_medium=readme&utm_campaign=customfolder))
+Robin can optimize images stored outside the WordPress Media Library, including images located in custom folders such as theme directories and plugin assets.
+
+This is useful for:
+
+- Custom WordPress themes
+- Plugins with bundled image assets
+- Performance-focused sites using custom directories
+- Advanced or custom-built WordPress setups
+
+#### WP CLI commands ([PRO](https://robinoptimizer.com/upgrade/?utm_source=wordpressorg&utm_medium=readme&utm_campaign=wpcli))
+
 #### Commands ####
 * wp robin optimize <scope>
 * wp robin stop <scope>
@@ -46,27 +153,58 @@ The lighter the weight of the image – the faster your page loads. With the con
 * custom-folders
 * nextgen
 
-#### RECOMMENDED SEPARATE MODULES ####
-We invite you to check out a few other related free plugins that our team has also produced that you may find especially useful:
+### Use Cases
 
-* [Clearfy – WordPress optimization plugin](https://wordpress.org/plugins/clearfy/)
-* [Disable updates, Disable automatic updates, Updates manager](https://wordpress.org/plugins/webcraftic-updates-manager/)
-* [Cyrlitera – transliteration of links and file names](https://wordpress.org/plugins/cyrlitera/)
-* [Cyr-to-lat reloaded – transliteration of links and file names](https://wordpress.org/plugins/cyr-and-lat/ "Cyr-to-lat reloaded")
-* [Disable admin notices individually](https://wordpress.org/plugins/disable-admin-notices/ "Disable admin notices individually")
-* [WordPress Assets manager, dequeue scripts, dequeue styles](https://wordpress.org/plugins/gonzales/  "WordPress Assets manager, dequeue scripts, dequeue styles")
-* [Hide login page](https://wordpress.org/plugins/hide-login-page/ "Hide login page")
+Robin Image Optimizer fits naturally into a wide range of WordPress workflows, from small blogs to performance-focused websites.
 
-#### Thanks the authors of plugins ####
-We used some useful functions from plugins **Imagify Image Optimizer**, **Smush Image Compression and Optimization**, **EWWW Image Optimizer**, **reSmush.it Image Optimizer**, **ShortPixel Image Optimizer**.
+#### 📝 Blogs & Content Websites
+Perfect for bloggers and content creators who upload images regularly and want automatic image optimization without manual work. Images are optimized on upload, keeping pages fast as content grows.
 
-== Translations ==
+#### 🖼️ Image-Heavy Pages & Media-Rich Sites
+Ideal for galleries, portfolios, landing pages, and visual storytelling sites where images contribute heavily to page weight. Bulk optimization and higher compression modes help significantly reduce page size.
 
-* English - default, always included
-* Russian [Artem Prikhodko](https://temyk.ru)
-* Italian [Gianluca Molina](http://www.webepc.it "WebePc")
+#### ⚡ Performance-Focused WordPress Sites
+Great for site owners focused on speed, Core Web Vitals, and PageSpeed audits. Optimized images and modern formats like WebP help improve loading performance across desktop and mobile.
 
-If you want to help with the translation, please contact me through this site or through the contacts inside the plugin.
+#### 🏗️ Existing WordPress Websites
+Useful for established sites with large media libraries. Previously uploaded images can be optimized in bulk without re-uploading or rebuilding content.
+
+#### 🌍 Sites Without a CDN
+A reliable solution for websites that don’t use a CDN. All image optimization and WebP conversion happen locally inside WordPress, with no external services or API keys required.
+
+#### 🧩 Custom Themes & Advanced Setups
+Suitable for custom WordPress themes and advanced setups where images live outside the Media Library. Custom folder optimization allows full-site image optimization beyond standard uploads.
+
+### What Users Say About Robin
+
+★★★★★ 
+**Excellent plugin**
+
+“I use Robin on all my WordPress sites. It’s easy to set up, effective, and really helps reduce loading times.”
+
+★★★★★ 
+**Great plugin**
+“A free image optimization plugin without image limits? Really impressive.”
+
+★★★★★ 
+**Don’t waste time on others**
+“This has to be the best free optimizer I’ve tried. Fast, simple, and very efficient.”
+
+★★★★★ 
+**Great plugin. Nice work**
+“Saves a lot of time and reduces disk space usage.”
+
+★★★★★ 
+**Thank you Robin Hood**
+“I tried many other image compression options — this one works best.”
+
+### Support
+
+Need help? Open a new thread in the [Support Forum](https://wordpress.org/support/plugin/robin-image-optimizer/), and we’ll be happy to assist.
+
+### 📘 Documentation
+
+Discover how to make the most of Robin with our detailed and user-friendly [documentation](https://docs.themeisle.com/collection/2413-robin-image-optimizer).
 
 == Installation ==
 
@@ -75,18 +213,18 @@ If you want to help with the translation, please contact me through this site or
 3. All your new pictures will be automatically optimized !
 
 == Frequently Asked Questions ==
-= Why is this plugin free and how long it will be this way? =
 
-Our Wordpress plugin to optimize images uses API of this free service: https://resmush.it, So as long as these guys allow free image optimization, our plugin will remain free. Still, we have several ideas of how to make optimization free and planning to implement them in our plugin.
+= Why is this plugin free and how long it will be this way? =
+Robin Image Optimizer offers a generous free version that includes unlimited image optimization and WebP conversion. We plan to keep the free version available long term, while advanced features are offered as part of [Robin Pro](https://robinoptimizer.com/upgrade/?utm_source=wordpressorg&utm_medium=readme&utm_campaign=faq).
 
 = Are there any limits for image optimization? =
-There are no limits for image optimization in our plugin. The only thing we have is a kind of a restriction of image weight – it should be greater than 5 MB. But our plugin can reduce pre-optimization image weight, so you’ll be able to optimize almost all images you have.
+No. Robin allows unlimited image optimization with no limits on the number of images you can optimize. You can optimize both new uploads and existing images in your Media Library.
 
 = What image formats do you support? =
 Robin image optimizer can optimize jpg, png and gif (both animated or not).
 
 = Do you remove EXIF images data? =
-EXIF-data is removed by default. However, you can keep it by disabling the feature.
+By default, EXIF data is removed to reduce file size and improve performance. You can choose to keep EXIF data by disabling this option in the plugin settings.
 
 = Do you remove source images? =
 No. Robin image optimizer replaces images with their optimized analogues. The backup option stores source images and allows restoring them in one click.
@@ -94,217 +232,36 @@ No. Robin image optimizer replaces images with their optimized analogues. The ba
 = Can I re-optimize images in another mode? =
 Yes. By enabling the backup feature in the plugin, you can re-optimize any image using another compression mode.
 
-= Does plugin support WebP format? =
-Yes, use modern image formats, such as WebP. Robin image optimizer PRO automatically creates WebP copies of your original images.
+= Does the plugin support WebP images? =
+Yes. Robin supports unlimited automatic WebP conversion in the free version.
 
-Browsers with the WebP format support will display WebP images. Other browsers will replace such images with JPG, PNP, GIF, BMP, etc.
-[Learn more about PRO version](https://robinoptimizer.com/features/ "Learn more about PRO version")
+Images are converted to WebP automatically and the best supported format is served for each browser. When WebP is not supported, the original image format is used to ensure compatibility.
 
-= Plugin has integration with Nextgen gallery? =
-Robin image optimizer PRO has full integration with NextGen Gallery, which helps to use all the plugin features.
-[Learn more about PRO version](https://robinoptimizer.com/features/ "Learn more about PRO version")
+= Does the plugin support AVIF images? =
+Yes. AVIF support is available in Robin Pro.
+
+AVIF is a next-generation image format that can deliver even smaller file sizes than WebP while maintaining high image quality. Robin automatically handles compatibility by serving the best format supported by each browser. [Learn more about the Pro version](https://robinoptimizer.com/upgrade?utm_source=wordpressorg&utm_medium=readme&utm_campaign=faq)
 
 == Screenshots ==
 
-1. The simple interface
-2. Optimization log
-3. Settings page
-4. Media library
+1. Media Library Optimization
+2. Image Optimization Dashboard
+3. Auto WebP Conversion Settings
+4. Compression Modes
+5. Resize Large Images & Scheduled Optimization
 
 == Changelog ==
-= 1.8.4 (11.01.2025) =
-Set handle 413 server error as upload size limit exceeded 10MB for free server.
-Fixed: 429 server error caused by exceeding server request limits for free server.
 
-= 1.8.3 (06.01.2025) =
-Removed: Server 1 has been removed because it is no longer available
-Updated: Increased limit for server 2, now you have 1000 tokens available for image optimization per day
+#####   Version 2.0.3 (2026-01-23)
 
-= 1.8.2 (04.01.2025) =
-* Fixed: Improvements to statistics, in previous versions there was a confusing calculation of the total number of images for optimization
-* Fixed: Server stability
+### Bug fixes
 
-= 1.8.1 (03.01.2025) =
-* Added: New fast free server added
-* Added: Security bugs fixed
+- Update dependencies.
+- Fixed compatibility with other products.
+- Fixed display for optimization log metrics.
+- Enhanced security.
 
-= 1.7.4 (28.12.2024) =
-* Added: A new free server with a daily quota of 1000 tokens
 
-= 1.7.3 (27.12.2024) =
-* Fixed: Free server down
 
-= 1.7.2 (09.12.2024) =
-* Fixed: Fatal error in premium version
 
-= 1.7.1 (09.12.2024) =
-* WordPress 6.7 Compatibility
-* Added: Compatibility with php 8.3
-* Fixed: Security issue
-
-= 1.7.0 (17.07.2024) =
-* WordPress 6.6 Compatibility
-* Fixed: Minor bugs
-
-= 1.6.6 (23.11.2023) =
-* WordPress 6.4 Compatibility
-* Added: Compatibility with php 8.2
-
-= 1.6.5 (27.05.2023) =
-* WordPress 6.2 Compatibility
-* Added: Compatibility with php 8.1
-* Fixed: Minor bugs.
-
-= 1.5.8 =
-* Fix for image optimization
-
-= 1.5.7 =
-* WordPress 6.0 Compatibility
-
-= 1.5.6 =
-* Errors fixes
-
-= 1.5.5 =
-* Update modules and compatibility WP 5.8
-* Statistic fixes
-
-= 1.5.4 =
-* Added: Separate conversion of the media library to WebP (PRO)
-* Fixed: Cancel background processing
-
-= 1.5.3 =
-* Fixed: Error on frontend
-
-= 1.5.2 =
-* Fixed: WP 4.8 compatibility
-
-= 1.5.1 =
-* Added: Background image optimization on upload
-* Added: New logging system
-* Added: Output of the total number of images for optimization
-* Added: Russian translate
-* Added: (PRO) New optimization method: in the background.(This method works much faster, but it is still in beta and disabled by default. You can enable it in the settings.)
-* Added: (PRO) WP CLI commands
-* Deleted: Lazy Load options
-* Minor interface changes
-
-= 1.5.0 =
-* Added: Subscribe form
-* Fixed: Potential rest api registration error
-* Added: Support for the WP Retina 2x plugin
-* Added: Badge with the date of the next quota update
-
-= 1.4.6 =
-* Added: Lazy Load option for images
-
-= 1.4.5 =
-* Fixed: jQuery.fn.load() and other bugs after update to Wordpress 5.5
-
-= 1.4.4 =
-* Fixed: Problem with choosing an optimization server on WordPress 5.5
-* Added: Optimization mode for Google PageSpeed [PRO]
-
-= 1.4.3 =
-* Fixed: Unable to change the server if it is unavailable after selection.
-* Added: Added filter `wbcr/rio/backup/backup_dir` for changing the backup directory.
-* Added: Restriction of free servers (at the request of administrators of free servers)
-* Changed PRO feature: WebP conversion is not possible without using a premium server
-* Added: Ability to optimize files of selected formats (JPEG, PNG, GIF)
-* Added: Ability to choose the order of image optimization: starting with new images or starting with old ones
-
-= 1.4.2 (21.01.2020) =
-* Fixed: Сompatible with Clearfy 1.6.3.
-* Fixed: PHP error "Class 'Wbcr_FactoryClearfy_Compatibility' not found".
-* Fixed: Minor bugs.
-* Removed: Server 4 beta.
-* Added: Premium server.
-
-= 1.4.1 (24.12.2019) =
-* Fixed: Some bugs
-* Added: Сompatible with Wordpress 5.3
-
-= 1.4.0 =
-* Fixed: Php warning (Declaration of WRIO_Image_Statistic_Folders)
-
-= 1.3.91 =
-* Fixed: Plugin pages loaded for a very long time.
-* Fixed: Bugs with error logging.
-* Fixed: Error warnings have become more understandable.
-* Fixed: Мigration bugs with cache plugins.
-* Fixed: Bulk optimization stopped if an error occurred during image optimization.
-
-= 1.3.7 =
-* Fixed: Minor errors
-
-= 1.3.6 =
-* Fixed: PHP Error: Illegal mix of collations.
-* Fixed: Error 500 when trying to migrate.
-* Fixed: Context class not found error.
-* Fixed: PHP Fatal error: Class ‘WRIO_StatisticPage’ not found.
-* Fixed: Auto optimization on upload. Error in Gutenberg.
-* Fixed: Bug when restoring backup. Also increase the recovery quota for backup.
-* Added: Compatibility with Wordpress 5.2.x
-* Updated: Improved error logging.
-
-= 1.3.5 =
-Fixed: On sites with php version 5.6 and below there was a syntax error.
-Fixed: Broken links to support service.
-Fixed: If site had a lot of images 15,000 and higher, bulk optimization page was loaded slow.
-
-= 1.3.4 =
-* Added: Compatibility with Wordpress 5.1.x
-* Added: Required php version 5.4
-* Added: Last optimization log. You can view latest optimized images, as well as monitor errors when optimizing images.
-* Added: New server optimization (Server 4). The server is free, at the moment it is in beta mode.
-* Added: Custom quality values. You can set your own image optimization quality settings.
-* Added: Resize images in height and width. Previously, plugin automatically resized largest image side.
-* Added: Select the optimization mode. Before you start optimizing, you will see a modal window, which will offer you 2 modes of optimization (scheduled and manual).
-* Added: Improved error debug. Now you can learn more about all the errors in optimizing images using the powerful debug log.
-* Added: Server rating. Now you can easily choose a server to optimize images based on its rating.
-* Added PRO feature: WebP Conversion. Use modern image formats, such as WebP. Robin image optimizer PRO automatically creates WebP copies of your original images. Browsers with the WebP format support will display WebP images. Other browsers will replace such images with JPG, PNP, GIF, BMP, etc.
-* Added PRO feature: NextGEN Gallery Integrations. Do you use a popular plugin to create galleries? Robin image optimizer PRO has full integration with NextGen Gallery, which helps to use all the plugin features.
-* Added PRO feature: Compress any Image in any Directory. Optimize images of themes and plugins! Robin image optimizer PRO can optimize images in any directory. If the themes & plugins developers don’t optimize their products Robin will fix it!
-
-= 1.1.4 =
-* Fixed: Added compatibility with ithemes sync
-
-= 1.1.3 =
-* Fixed: Compatibility with W3 total cache
-* Fixed: Compatibility with External Media without Import
-
-= 1.1.2 =
-* Fixed: Some bugs
-* Fixed: Removed limit on image resizing
-* Fixed: Update core framework
-* Added: New free server
-* Added: Servers status, you can select available servers to optimize images
-* Added: Added compatibility with the plugin Clearfy
-* Preparing plugin for multisite support
-
-= 1.0.8 =
-* Added: Ability to re-optimize images with errors.
-* Fixed: Some bugs
-* Added: An alternative server for image optimization. Now you can select an alternative optimization server if the current server is unavailable.
-* Fixed: Problems with translations
-
-= 1.0.7
-* Fixed: Images are saved in a size 0 bytes
-* Fixed: Trying to backup file with empty filename
-* Fixed: Curl replacement for file_get_contents
-* Fixed: Statistics
-
-= 1.0.6 =
-* Fixed: fixed bar progress styles
-* Fixed: changed the link to the reviews page
-
-= 1.0.5 =
-* Fixed: corrected image size calculations for individual optimization
-
-= 1.0.4 =
-* Fixed: update core framework
-
-= 1.0.3 =
-* Fixed: small bugs
-
-= 1.0.0 =
-* Release
+[See changelog for all versions](https://store.themeisle.com/changelog/Robin%20Image%20Optimizer).

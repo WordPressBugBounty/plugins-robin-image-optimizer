@@ -9,9 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Class WRIO_Nextgen_Extra_Data is a  DTO model for `nextgen` post type used for `extra_data`
  * property in RIO_Process_Queue.
  *
- * @author Alexander Teshabaev <sasha.tesh@gmail.com>
  * @see    RIO_Process_Queue::$extra_data for further information
- *
  */
 class WRIO_Nextgen_Extra_Data extends RIO_Base_Extra_Data {
 
@@ -204,7 +202,7 @@ class WRIO_Nextgen_Extra_Data extends RIO_Base_Extra_Data {
 		$basename = wp_basename( $this->image_relative_path );
 		$dir      = dirname( $this->image_relative_path );
 
-		return $dir . '/thumbs/thumbs_' . $basename;
+		return $dir . '/thumbs/thumbs-' . $basename;
 	}
 
 	/**

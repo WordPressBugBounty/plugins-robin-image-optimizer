@@ -2,9 +2,6 @@
 /**
  * Factory Function Library
  *
- * @author        Alex Kovalev <alex.kovalevv@gmail.com>, repo: https://github.com/alexkovalevv
- * @author        Webcraftic <wordpress.webraftic@gmail.com>, site: https://webcraftic.com
- *
  * @package       factory-core
  * @since         1.0.0
  */
@@ -19,9 +16,9 @@ if ( ! function_exists( 'get_user_locale' ) ) {
 		$user = false;
 		if ( 0 === $user_id && function_exists( 'wp_get_current_user' ) ) {
 			$user = wp_get_current_user();
-		} else if ( $user_id instanceof WP_User ) {
+		} elseif ( $user_id instanceof WP_User ) {
 			$user = $user_id;
-		} else if ( $user_id && is_numeric( $user_id ) ) {
+		} elseif ( $user_id && is_numeric( $user_id ) ) {
 			$user = get_user_by( 'id', $user_id );
 		}
 
@@ -53,17 +50,16 @@ if ( ! function_exists( 'get_user_locale' ) ) {
  * @param string $message       Optional. A message regarding the change.
  *
  * @return mixed
- * @see   wbcr_factory_480_deprecated_hook()
- *
+ * @see   wbcr_factory_600_deprecated_hook()
  */
-function wbcr_factory_480_apply_filters_deprecated( $tag, $args, $version, $replacement = false, $message = null ) {
+function wbcr_factory_600_apply_filters_deprecated( $tag, $args, $version, $replacement = false, $message = null ) {
 	if ( function_exists( 'apply_filters_deprecated' ) ) {
 		return apply_filters_deprecated( $tag, $args, $version, $replacement, $message );
 	}
 	if ( ! has_filter( $tag ) ) {
 		return $args[0];
 	}
-	wbcr_factory_480_deprecated_hook( $tag, $version, $replacement, $message );
+	wbcr_factory_600_deprecated_hook( $tag, $version, $replacement, $message );
 
 	return apply_filters_ref_array( $tag, $args );
 }
@@ -87,9 +83,8 @@ function wbcr_factory_480_apply_filters_deprecated( $tag, $args, $version, $repl
  *
  * @return void
  * @see   _deprecated_hook()
- *
  */
-function wbcr_factory_480_do_action_deprecated( $tag, $args, $version, $replacement = false, $message = null ) {
+function wbcr_factory_600_do_action_deprecated( $tag, $args, $version, $replacement = false, $message = null ) {
 	if ( function_exists( 'do_action_deprecated' ) ) {
 		do_action_deprecated( $tag, $args, $version, $replacement, $message );
 
@@ -98,14 +93,14 @@ function wbcr_factory_480_do_action_deprecated( $tag, $args, $version, $replacem
 	if ( ! has_action( $tag ) ) {
 		return;
 	}
-	wbcr_factory_480_deprecated_hook( $tag, $version, $replacement, $message );
+	wbcr_factory_600_deprecated_hook( $tag, $version, $replacement, $message );
 	do_action_ref_array( $tag, $args );
 }
 
 /**
  * Marks a deprecated action or filter hook as deprecated and throws a notice.
  *
- * Use the 'wbcr_factory_480_deprecated_hook_run' action to get the backtrace describing where the
+ * Use the 'wbcr_factory_600_deprecated_hook_run' action to get the backtrace describing where the
  * deprecated hook was called.
  *
  * Default behavior is to trigger a user error if WP_DEBUG is true.
@@ -123,7 +118,7 @@ function wbcr_factory_480_do_action_deprecated( $tag, $args, $version, $replacem
  * @param string $replacement   Optional. The hook that should have been used.
  * @param string $message       Optional. A message regarding the change.
  */
-function wbcr_factory_480_deprecated_hook( $hook, $version, $replacement = null, $message = null ) {
+function wbcr_factory_600_deprecated_hook( $hook, $version, $replacement = null, $message = null ) {
 	/**
 	 * Fires when a deprecated hook is called.
 	 *
@@ -147,9 +142,11 @@ function wbcr_factory_480_deprecated_hook( $hook, $version, $replacement = null,
 	if ( WP_DEBUG && apply_filters( 'deprecated_hook_trigger_error', true ) ) {
 		$message = empty( $message ) ? '' : ' ' . $message;
 		if ( ! is_null( $replacement ) ) {
-			trigger_error( sprintf( __( '%1$s is <strong>deprecated</strong> since version %2$s! Use %3$s instead.' ), $hook, $version, $replacement ) . $message );
+			// translators: %1$s is the hook name, %2$s is the version, %3$s is the replacement hook
+			trigger_error( sprintf( __( '%1$s is deprecated since version %2$s! Use %3$s instead.', 'robin-image-optimizer' ), $hook, $version, $replacement ) . $message );
 		} else {
-			trigger_error( sprintf( __( '%1$s is <strong>deprecated</strong> since version %2$s with no alternative available.' ), $hook, $version ) . $message );
+			// translators: %1$s is the hook name, %2$s is the version
+			trigger_error( sprintf( __( '%1$s is deprecated since version %2$s with no alternative available.', 'robin-image-optimizer' ), $hook, $version ) . $message );
 		}
 	}
 }
@@ -174,7 +171,7 @@ if ( ! function_exists( '_sanitize_text_fields' ) ) {
 		$filtered = trim( $filtered );
 
 		$found = false;
-		while( preg_match( '/%[a-f0-9]{2}/i', $filtered, $match ) ) {
+		while ( preg_match( '/%[a-f0-9]{2}/i', $filtered, $match ) ) {
 			$filtered = str_replace( $match[0], '', $filtered );
 			$found    = true;
 		}

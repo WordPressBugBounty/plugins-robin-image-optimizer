@@ -1,6 +1,6 @@
 <?php
 
-use WBCR\Factory_Processing_113\WP_Background_Process;
+use WBCR\Factory_Processing_759\WP_Background_Process;
 
 // Exit if accessed directly
 if ( ! defined( 'ABSPATH' ) ) {
@@ -10,8 +10,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Класс для работы оптимизации в фоне
  *
- * @author        Artem Prikhodko <webtemyk@yandex.ru>
- * @copyright (c) 2021, Webcraftic
  * @version       1.0
  */
 class WRIO_Media_Processing_Webp extends WRIO_Processing {
@@ -22,13 +20,36 @@ class WRIO_Media_Processing_Webp extends WRIO_Processing {
 	protected $action = 'convert_process';
 
 	/**
+	 * @var string Format type (webp or avif)
+	 */
+	protected $format = 'webp';
+
+	/**
+	 * Constructor
+	 *
+	 * @param string $scope Processing scope
+	 */
+	public function __construct( $scope ) {
+		parent::__construct( $scope );
+
+		// Extract format from scope (e.g., 'media-library_webp' -> 'webp')
+		if ( $this->scope && strpos( $this->scope, '_' ) !== false ) {
+			$parts            = explode( '_', $this->scope );
+			$extracted_format = end( $parts );
+			if ( in_array( $extracted_format, [ 'webp', 'avif' ], true ) ) {
+				$this->format = $extracted_format;
+			}
+		}
+	}
+
+	/**
 	 * @return int Count of pushed queue
 	 */
 	public function push_items() {
 		$attachment_ids = [];
-		if ( $this->scope === 'media-library_webp' ) {
+		if ( strpos( $this->scope, 'media-library_' ) === 0 ) {
 			$media_library  = WRIO_Media_Library::get_instance();
-			$attachment_ids = $media_library->getUnconvertedImages();
+			$attachment_ids = $media_library->getUnconvertedImages( $this->format );
 		}
 
 		foreach ( $attachment_ids as $attachment_id ) {
@@ -47,15 +68,14 @@ class WRIO_Media_Processing_Webp extends WRIO_Processing {
 	 */
 	protected function task( $image ) {
 		if ( $image ) {
-			WRIO_Plugin::app()->logger->info( sprintf( "Start convert attachment: %s", $image ) );
+			WRIO_Plugin::app()->logger->info( sprintf( 'Start convert attachment #%s to %s', $image, $this->format ) );
 
-			if ( $this->scope === 'media-library_webp' ) {
+			if ( strpos( $this->scope, 'media-library_' ) === 0 ) {
 				$media_library = WRIO_Media_Library::get_instance();
-				//$result        = $media_library->optimizeAttachment( $image );
-				$media_library->webpConvertAttachment( $image );
+				$media_library->webpConvertAttachment( $image, $this->format );
 			}
 
-			WRIO_Plugin::app()->logger->info( sprintf( "End convert attachment: %s", $image ) );
+			WRIO_Plugin::app()->logger->info( sprintf( 'End convert attachment #%s to %s', $image, $this->format ) );
 		}
 
 		return false;
@@ -63,11 +83,14 @@ class WRIO_Media_Processing_Webp extends WRIO_Processing {
 
 	/**
 	 * Fire after complete handle
+	 *
+	 * @return void
 	 */
 	protected function handle_after_complete() {
-		$scope = $this->scope . "_webp";
-		WRIO_Plugin::app()->updatePopulateOption( "{$scope}_process_running", false );
+		WRIO_Plugin::app()->updatePopulateOption( "{$this->scope}_process_running", false );
 
+		WRIO_Plugin::app()->logger->info(
+			sprintf( '%s conversion background process completed for scope: %s', strtoupper( $this->format ), $this->scope )
+		);
 	}
-
 }

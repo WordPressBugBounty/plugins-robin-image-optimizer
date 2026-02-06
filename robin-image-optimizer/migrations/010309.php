@@ -9,12 +9,11 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Updates for altering the table used to store statistics data.
  * Adds new columns and renames existing ones in order to add support for the new social buttons.
  */
-class WIOUpdate010309 extends Wbcr_Factory480_Update {
+class WIOUpdate010309 extends Wbcr_Factory600_Update {
 
 	/**
 	 * {inherit}
 	 *
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 * @since  1.3.9
 	 */
 	public function install() {
@@ -32,7 +31,7 @@ class WIOUpdate010309 extends Wbcr_Factory480_Update {
 
 		$this->add_indexes_in_db();
 
-		WBCR\Factory_Templates_134\Helpers::flushPageCache();
+		WBCR\Factory_Templates_759\Helpers::flushPageCache();
 
 		WRIO_Plugin::app()->logger->info( 'Plugin migration was successfull!' );
 	}
@@ -42,7 +41,6 @@ class WIOUpdate010309 extends Wbcr_Factory480_Update {
 	 *
 	 * @return number
 	 * @since  1.3.9
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 */
 	public function get_plugin_version_in_db() {
 		if ( WRIO_Plugin::app()->isNetworkActive() ) {
@@ -56,7 +54,6 @@ class WIOUpdate010309 extends Wbcr_Factory480_Update {
 	 * In older plugin relises, the option 'plugin_activated' did not exist. Therefore,
 	 * if during migration it still does not exist, you need to add option with the current timestamp.
 	 *
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 * @since  1.3.9
 	 */
 	public function update_plugin_activation_time() {
@@ -80,7 +77,6 @@ class WIOUpdate010309 extends Wbcr_Factory480_Update {
 	/**
 	 * Get previous plugin version
 	 *
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 * @since  1.3.9
 	 */
 	public function add_indexes_in_db() {

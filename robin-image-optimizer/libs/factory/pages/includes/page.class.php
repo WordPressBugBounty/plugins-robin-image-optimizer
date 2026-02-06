@@ -2,11 +2,8 @@
 /**
  * Admin page class
  *
- * @author        Alex Kovalev <alex.kovalevv@gmail.com>
  * @since         1.0.0
  * @package       factory-core
- * @copyright (c) 2018, Webcraftic Ltd
- *
  */
 
 // Exit if accessed directly
@@ -14,9 +11,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-if ( ! class_exists( 'Wbcr_FactoryPages480_Page' ) ) {
+if ( ! class_exists( 'Wbcr_FactoryPages600_Page' ) ) {
 
-	class Wbcr_FactoryPages480_Page {
+	class Wbcr_FactoryPages600_Page {
 
 
 		/**
@@ -30,7 +27,7 @@ if ( ! class_exists( 'Wbcr_FactoryPages480_Page' ) ) {
 		 * Чтобы не было конфликтов с другими плагинами, используйте префиксы.
 		 *
 		 * @since 1.0.0
-		 * @see   FactoryPages480_AdminPage
+		 * @see   FactoryPages600_AdminPage
 		 *
 		 * @var string
 		 */
@@ -39,7 +36,7 @@ if ( ! class_exists( 'Wbcr_FactoryPages480_Page' ) ) {
 		/**
 		 * Current Factory Plugin.
 		 *
-		 * @var Wbcr_Factory480_Plugin
+		 * @var Wbcr_Factory600_Plugin
 		 */
 		public $plugin;
 		protected $scripts;
@@ -51,14 +48,14 @@ if ( ! class_exists( 'Wbcr_FactoryPages480_Page' ) ) {
 		 */
 		public $result;
 
-		//private $default_actions = array();
+		// private $default_actions = array();
 
 		/**
-		 * @param Wbcr_Factory480_Plugin $plugin
+		 * @param Wbcr_Factory600_Plugin $plugin
 		 *
 		 * @throws Exception
 		 */
-		public function __construct( Wbcr_Factory480_Plugin $plugin ) {
+		public function __construct( Wbcr_Factory600_Plugin $plugin ) {
 			$this->plugin = $plugin;
 
 			if ( $plugin ) {
@@ -68,7 +65,8 @@ if ( ! class_exists( 'Wbcr_FactoryPages480_Page' ) ) {
 			}
 		}
 
-		/*public function __call($name, $arguments) {
+		/*
+		public function __call($name, $arguments) {
 
 
 			if(!empty($custom_action)) {
@@ -114,7 +112,8 @@ if ( ! class_exists( 'Wbcr_FactoryPages480_Page' ) ) {
 
 			if ( ! method_exists( $this, $actionFunction ) ) {
 				// todo: продумать и доработать выполнение произвольных и глобальных дейтсвия для всех страниц
-				/*$custom_actions = apply_filters('wbcr/factory_pages_480/custom_actions', array(), $raw_action_name);
+				/*
+				$custom_actions = apply_filters('wbcr/factory_pages_600/custom_actions', array(), $raw_action_name);
 
 				if(isset($custom_actions[$raw_action_name])) {
 					$custom_actions[$raw_action_name]();
@@ -122,7 +121,7 @@ if ( ! class_exists( 'Wbcr_FactoryPages480_Page' ) ) {
 					return;
 				} else {*/
 				$actionFunction = 'indexAction';
-				//}
+				// }
 			}
 
 			call_user_func_array( [ $this, $actionFunction ], [] );

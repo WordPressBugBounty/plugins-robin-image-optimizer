@@ -2,9 +2,6 @@
 /**
  * The file contains a class to manage script assets.
  *
- * @author        Alex Kovalev <alex.kovalevv@gmail.com>, repo: https://github.com/alexkovalevv
- * @author        Webcraftic <wordpress.webraftic@gmail.com>, site: https://webcraftic.com
- *
  * @package       factory-core
  * @since         1.0.0
  */
@@ -20,10 +17,10 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * @since 1.0.0
  */
-class Wbcr_Factory480_ScriptList extends Wbcr_Factory480_AssetsList {
+class Wbcr_Factory600_ScriptList extends Wbcr_Factory600_AssetsList {
 
 	public $localize_data = [];
-	public $use_ajax = false;
+	public $use_ajax      = false;
 
 	/**
 	 * Adds new items to the collection (default place).
@@ -84,14 +81,14 @@ class Wbcr_Factory480_ScriptList extends Wbcr_Factory480_AssetsList {
 	 *
 	 * @param string $source
 	 */
-	public function connect( $source = 'wordpress' ) {
+	public function connect( $source = 'WordPress' ) {
 
 		// register all global required scripts
 		if ( ! empty( $this->required[ $source ] ) ) {
 			foreach ( $this->required[ $source ] as $script ) {
-				if ( 'wordpress' === $source ) {
+				if ( 'WordPress' === $source ) {
 					wp_enqueue_script( $script );
-				} else if ( 'bootstrap' === $source ) {
+				} elseif ( 'bootstrap' === $source ) {
 					$this->plugin->bootstrap->enqueueScript( $script );
 				}
 			}
@@ -147,9 +144,9 @@ class Wbcr_Factory480_ScriptList extends Wbcr_Factory480_AssetsList {
 	 * Регистрирует глобальную JS переменную с пользовательскими данными
 	 *
 	 * @param string $varname
-	 * @param array $data
+	 * @param array  $data
 	 *
-	 * @return Wbcr_Factory480_ScriptList $this
+	 * @return Wbcr_Factory600_ScriptList $this
 	 */
 	public function localize( $varname, $data ) {
 		$bindTo = count( $this->all ) == 0 ? null : end( $this->all );
@@ -158,10 +155,9 @@ class Wbcr_Factory480_ScriptList extends Wbcr_Factory480_AssetsList {
 			return $this;
 		}
 
-		$handle  = ! empty( $bindTo['handle'] ) ? $bindTo['handle'] : $bindTo['file_url'];
+		$handle                         = ! empty( $bindTo['handle'] ) ? $bindTo['handle'] : $bindTo['file_url'];
 		$this->localize_data[ $handle ] = [ $varname, $data ];
 
 		return $this;
 	}
 }
-

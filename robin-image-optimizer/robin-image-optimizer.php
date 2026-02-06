@@ -3,13 +3,15 @@
  * Plugin Name: Robin image optimizer
  * Plugin URI: https://robinoptimizer.com
  * Description: Optimize images without losing quality, speed up your website load, improve SEO and save money on server and CDN bandwidth.
- * Author: Creative Motion <info@cm-wp.com>
- * Version: 1.8.4
+ * Author: Themeisle <contact@themeisle.com>
+ * Version: 2.0.3
  * Text Domain: robin-image-optimizer
  * Domain Path: /languages/
- * Author URI: https://cm-wp.com
- * Framework Version: FACTORY_480_VERSION
+ * Author URI: https://themeisle.com
+ * Framework Version: FACTORY_600_VERSION
  * Requires at least: 5.6
+ * WordPress Available:  yes
+ * Requires License:    yes
  * Requires PHP: 7.4
  */
 
@@ -22,11 +24,11 @@ if ( ! defined( 'ABSPATH' ) ) {
  * -----------------------------------------------------------------------------
  * CHECK REQUIREMENTS
  * Check compatibility with php and wp version of the user's site. As well as checking
- * compatibility with other plugins from Webcraftic.
+ * compatibility with other plugins.
  * -----------------------------------------------------------------------------
  */
 
-require_once dirname( __FILE__ ) . '/libs/factory/core/includes/class-factory-requirements.php';
+require_once __DIR__ . '/libs/factory/core/includes/class-factory-requirements.php';
 
 // @formatter:off
 $plugin_info = [
@@ -87,23 +89,28 @@ $plugin_info = [
 
 	// FRAMEWORK MODULES
 	'load_factory_modules' => [
-		[ 'libs/factory/bootstrap', 'factory_bootstrap_482', 'admin' ],
-		[ 'libs/factory/forms', 'factory_forms_480', 'admin' ],
-		[ 'libs/factory/pages', 'factory_pages_480', 'admin' ],
-		[ 'libs/factory/templates', 'factory_templates_134', 'all' ],
-		[ 'libs/factory/logger', 'factory_logger_149', 'all' ],
-		[ 'libs/factory/freemius', 'factory_freemius_170', 'all' ],
-		[ 'libs/factory/adverts', 'factory_adverts_159', 'admin' ],
-		[ 'libs/factory/processing', 'factory_processing_113', 'all' ],
+		[ 'libs/factory/bootstrap', 'factory_bootstrap_500', 'admin' ],
+		[ 'libs/factory/forms', 'factory_forms_600', 'admin' ],
+		[ 'libs/factory/pages', 'factory_pages_600', 'admin' ],
+		[ 'libs/factory/templates', 'factory_templates_759', 'all' ],
+		[ 'libs/factory/logger', 'factory_logger_359', 'all' ],
+		[ 'libs/factory/freemius', 'factory_freemius_rio_600', 'all' ],
+		[ 'libs/factory/processing', 'factory_processing_759', 'all' ],
 	],
 ];
 
-$wrio_compatibility = new Wbcr_Factory480_Requirements( __FILE__, array_merge( $plugin_info, [
-	'plugin_already_activate'          => defined( 'WRIO_PLUGIN_ACTIVE' ),
-	'required_php_version'             => '7.0',
-	'required_wp_version'              => '4.8.0',
-	'required_clearfy_check_component' => false,
-] ) );
+$wrio_compatibility = new Wbcr_Factory600_Requirements(
+	__FILE__,
+	array_merge(
+		$plugin_info,
+		[
+			'plugin_already_activate'          => defined( 'WRIO_PLUGIN_ACTIVE' ),
+			'required_php_version'             => '7.0',
+			'required_wp_version'              => '4.8.0',
+			'required_clearfy_check_component' => false,
+		]
+	)
+);
 
 /**
  * If the plugin is compatible, then it will continue its work, otherwise it will be stopped,
@@ -127,14 +134,13 @@ if ( ! $wrio_compatibility->check() ) {
  */
 define( 'WRIO_PLUGIN_ACTIVE', true );
 
-// todo: remove after few releases. For compatibility with Clearfy
 define( 'WIO_PLUGIN_ACTIVE', true );
 
 // Plugin version
 define( 'WRIO_PLUGIN_VERSION', $wrio_compatibility->get_plugin_version() );
 
 // Директория плагина
-define( 'WRIO_PLUGIN_DIR', dirname( __FILE__ ) );
+define( 'WRIO_PLUGIN_DIR', __DIR__ );
 
 // Относительный путь к плагину
 define( 'WRIO_PLUGIN_BASE', plugin_basename( __FILE__ ) );
@@ -142,8 +148,7 @@ define( 'WRIO_PLUGIN_BASE', plugin_basename( __FILE__ ) );
 // Ссылка к директории плагина
 define( 'WRIO_PLUGIN_URL', plugins_url( '', __FILE__ ) );
 
-
-
+define( 'WRIO_PLUGIN_FILE', __FILE__ );
 /**
  * -----------------------------------------------------------------------------
  * PLUGIN INIT
@@ -152,12 +157,19 @@ define( 'WRIO_PLUGIN_URL', plugins_url( '', __FILE__ ) );
 
 require_once WRIO_PLUGIN_DIR . '/libs/factory/core/boot.php';
 require_once WRIO_PLUGIN_DIR . '/includes/class-rio-plugin.php';
-
 try {
-	new WRIO_Plugin( __FILE__, array_merge( $plugin_info, [
-		'plugin_version'     => WRIO_PLUGIN_VERSION,
-		'plugin_text_domain' => $wrio_compatibility->get_text_domain(),
-	] ) );
+
+	require_once WRIO_PLUGIN_DIR . '/vendor/autoload.php';
+	new WRIO_Plugin(
+		__FILE__,
+		array_merge(
+			$plugin_info,
+			[
+				'plugin_version'     => WRIO_PLUGIN_VERSION,
+				'plugin_text_domain' => $wrio_compatibility->get_text_domain(),
+			]
+		)
+	);
 } catch ( Exception $e ) {
 	// Plugin wasn't initialized due to an error
 	define( 'WRIO_PLUGIN_THROW_ERROR', true );

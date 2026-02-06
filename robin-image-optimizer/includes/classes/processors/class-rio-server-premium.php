@@ -6,9 +6,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Класс для оптимизации изображений через API сервиса Resmush.
- *
- * @author        Alexander Kovalev <alex.kovalevv@gmail.com>
- * @copyright (c) 2018, Webcraftic
  */
 class WIO_Image_Processor_Premium extends WIO_Image_Processor_Abstract {
 
@@ -32,12 +29,11 @@ class WIO_Image_Processor_Premium extends WIO_Image_Processor_Abstract {
 		$this->api_url = wrio_get_server_url( $this->server_name );
 	}
 
-	public function howareyou()
-    {
-        return false;
-    }
+	public function howareyou() {
+		return false;
+	}
 
-    /**
+	/**
 	 * Оптимизация изображения
 	 *
 	 * @param array $params   входные параметры оптимизации изображения
@@ -53,19 +49,26 @@ class WIO_Image_Processor_Premium extends WIO_Image_Processor_Abstract {
 	 */
 	public function process( $settings ) {
 
-		$settings = wp_parse_args( $settings, [
-			'image_url' => '',
-			'quality'   => 100,
-			'save_exif' => false,
-		] );
+		$settings = wp_parse_args(
+			$settings,
+			[
+				'image_url' => '',
+				'quality'   => 100,
+				'save_exif' => false,
+			]
+		);
 
 		$query_args = [
 			'quality'     => $settings['quality'],
-			'progressive' => true
+			'progressive' => true,
 		];
 
 		if ( $settings['save_exif'] ) {
 			$query_args['strip-exif'] = true;
+		}
+
+		if ( ! empty( $settings['image_url'] ) ) {
+			$query_args['image_url'] = esc_url_raw( $settings['image_url'] );
 		}
 
 		$file = wp_normalize_path( $settings['image_path'] );
@@ -74,13 +77,15 @@ class WIO_Image_Processor_Premium extends WIO_Image_Processor_Abstract {
 			return new WP_Error( 'http_request_failed', sprintf( "File %s isn't exists.", $file ) );
 		}
 
-		WRIO_Plugin::app()->logger->info( sprintf( "Preparing to upload a file (%s) to a remote server (%s).", $settings['image_path'], $this->server_name ) );
+		WRIO_Plugin::app()->logger->info( sprintf( 'Preparing to upload a file (%s) to a remote server (%s).', $settings['image_path'], $this->api_url ) );
 
-		$boundary = wp_generate_password( 24 ); // Just a random string, use something better than wp_generate_password() though.
+		$boundary = '--------------------------' . md5( microtime( true ) . wp_rand() );
 		$headers  = [
-			'Authorization' => 'Bearer ' . base64_encode( wrio_get_license_key() ),
-			'PluginId'      => wrio_get_freemius_plugin_id(),
-			'content-type'  => 'multipart/form-data; boundary=' . $boundary
+			'Authorization'    => 'Bearer ' . base64_encode( wrio_get_license_key() ),
+			'PluginId'         => wrio_get_freemius_plugin_id(),
+			'X-License-Source' => wrio_get_license_source(),
+			'X-Site-Url'       => home_url(),
+			'content-type'     => 'multipart/form-data; boundary=' . $boundary,
 		];
 
 		$payload = '';
@@ -93,12 +98,13 @@ class WIO_Image_Processor_Premium extends WIO_Image_Processor_Abstract {
 			$payload .= $value;
 			$payload .= "\r\n";
 		}
+
 		// Upload the file
 		if ( $file ) {
 			$payload .= '--' . $boundary;
 			$payload .= "\r\n";
 			$payload .= 'Content-Disposition: form-data; name="file"; filename="' . basename( $file ) . '"' . "\r\n";
-			//$payload .= 'Content-Type: image/jpeg' . "\r\n"; // If you know the mime-type
+			// $payload .= 'Content-Type: image/jpeg' . "\r\n"; // If you know the mime-type
 			$payload .= "\r\n";
 			$payload .= @file_get_contents( $file );
 			$payload .= "\r\n";
@@ -110,12 +116,15 @@ class WIO_Image_Processor_Premium extends WIO_Image_Processor_Abstract {
 
 		wp_raise_memory_limit( 'image' );
 
-		$response = wp_remote_request( $this->api_url, [
-			'method'  => 'POST',
-			'headers' => $headers,
-			'body'    => $payload,
-			'timeout' => 150 // it make take some time for large images and slow Internet connections
-		] );
+		$response = wp_remote_request(
+			$this->api_url,
+			[
+				'method'  => 'POST',
+				'headers' => $headers,
+				'body'    => $payload,
+				'timeout' => 150, // it make take some time for large images and slow Internet connections
+			]
+		);
 
 		if ( is_wp_error( $response ) ) {
 			WRIO_Plugin::app()->logger->error( sprintf( '%s returned error (%s).', $error_message, $response->get_error_message() ) );
@@ -124,42 +133,43 @@ class WIO_Image_Processor_Premium extends WIO_Image_Processor_Abstract {
 			return $response;
 		}
 
-        $response_code = wp_remote_retrieve_response_code($response);
-        if ($response_code !== 200) {
-	        WRIO_Plugin::app()->logger->error( sprintf( '%s, responded Http error (%s)', $error_message, $response_code ) );
+		$response_code = wp_remote_retrieve_response_code( $response );
+		if ( $response_code !== 200 ) {
+			WRIO_Plugin::app()->logger->error( sprintf( '%s, responded Http error (%s)', $error_message, $response_code ) );
 
-            return new WP_Error('http_request_failed', sprintf("Server responded an HTTP error %s", $response_code));
-        }
+			return new WP_Error( 'http_request_failed', sprintf( 'Server responded an HTTP error %s', $response_code ) );
+		}
 
-        $response_text = wp_remote_retrieve_body($response);
-        $data = @json_decode($response_text);
-        if (!isset($data->status)) {
-	        WRIO_Plugin::app()->logger->error( sprintf( '%s responded an empty request body.', $error_message ) );
+		$response_text = wp_remote_retrieve_body( $response );
+		$data          = @json_decode( $response_text );
+		if ( ! isset( $data->status ) ) {
+			WRIO_Plugin::app()->logger->error( sprintf( '%s responded an empty request body.', $error_message ) );
 
-            return new WP_Error('http_request_failed', "Server responded an empty request body.");
-        }
+			return new WP_Error( 'http_request_failed', 'Server responded an empty request body.' );
+		}
 
-        if ($data->status != 'ok') {
-	        WRIO_Plugin::app()->logger->error( sprintf( "Pending status \"ok\", bot received \"%s\"", $data->status ) );
+		if ( $data->status != 'ok' ) {
+			WRIO_Plugin::app()->logger->error( sprintf( 'Pending status "ok", bot received "%s"', $data->status ) );
 
-            if(isset($data->error) && is_string($data->error)) {
-                return new WP_Error( 'http_request_failed', $data->error );
-            }
+			if ( isset( $data->error ) && is_string( $data->error ) ) {
+				return new WP_Error( 'http_request_failed', $data->error );
+			}
 
-            return new WP_Error('http_request_failed', sprintf("Server responded an %s status", $response_code));
-        }
+			return new WP_Error( 'http_request_failed', sprintf( 'Server responded an %s status', $response_code ) );
+		}
 
 		if ( ! empty( $data->response->quota ) ) {
 			$this->set_quota_limit( $data->response->quota );
+			WRIO_Plugin::app()->updatePopulateOption( 'quota_fetched', true );
 		}
 
-        return [
-            'optimized_img_url' => $data->response->dest,
-            'src_size'          => $data->response->src_size,
-            'optimized_size'    => $data->response->dest_size,
-            'optimized_percent' => $data->response->percent,
-            'not_need_download' => false
-        ];
+		return [
+			'optimized_img_url' => $data->response->dest,
+			'src_size'          => $data->response->src_size,
+			'optimized_size'    => $data->response->dest_size,
+			'optimized_percent' => $data->response->percent,
+			'not_need_download' => false,
+		];
 	}
 
 	/**
@@ -177,22 +187,22 @@ class WIO_Image_Processor_Premium extends WIO_Image_Processor_Abstract {
 			}
 		}
 
-		switch( $quality ) {
-            case 'normal':
-                return 90;
+		switch ( $quality ) {
+			case 'normal':
+				return 90;
 
-            case 'aggresive':
-                return 75;
+			case 'aggresive':
+				return 75;
 
-            case 'ultra':
-                return 50;
+			case 'ultra':
+				return 50;
 
-            case 'googlepage':
-                return 30;
+			case 'googlepage':
+				return 30;
 
-            default:
-                return 100;
-        }
+			default:
+				return 100;
+		}
 	}
 
 	/**

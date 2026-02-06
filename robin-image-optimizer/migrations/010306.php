@@ -9,12 +9,11 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Updates for altering the table used to store statistics data.
  * Adds new columns and renames existing ones in order to add support for the new social buttons.
  */
-class WIOUpdate010306 extends Wbcr_Factory480_Update {
+class WIOUpdate010306 extends Wbcr_Factory600_Update {
 
 	/**
 	 * {inherit}
 	 *
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 * @since  1.3.6
 	 */
 	public function install() {
@@ -32,7 +31,7 @@ class WIOUpdate010306 extends Wbcr_Factory480_Update {
 
 		$this->clear_webp_images();
 
-		WBCR\Factory_Templates_134\Helpers::flushPageCache();
+		WBCR\Factory_Templates_759\Helpers::flushPageCache();
 
 		WRIO_Plugin::app()->logger->info( 'Plugin migration was successfull!' );
 	}
@@ -40,7 +39,6 @@ class WIOUpdate010306 extends Wbcr_Factory480_Update {
 	/**
 	 * Get previous plugin version
 	 *
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 * @since  1.3.8
 	 * @return number
 	 */
@@ -53,7 +51,6 @@ class WIOUpdate010306 extends Wbcr_Factory480_Update {
 	}
 
 	/**
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 * @since  1.3.6
 	 * @see    RIO_Process_Queue::fix_table_collation
 	 */
@@ -66,7 +63,6 @@ class WIOUpdate010306 extends Wbcr_Factory480_Update {
 	 * version, it will be better to remove them, so that the user can start converting
 	 * and have no compatibility problems.
 	 *
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 * @since  1.3.6
 	 */
 	public function clear_webp_queue_items() {
@@ -80,7 +76,6 @@ class WIOUpdate010306 extends Wbcr_Factory480_Update {
 	 * We are removing Webp dir, since the migration will be very difficult. The previous
 	 * version of the plugin has serious problems in the design of webp image convertation.
 	 *
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 * @since  1.3.6
 	 * @return bool
 	 */

@@ -2,11 +2,8 @@
 /**
  * Ajax action to migrate old architecture based on post meta into new table.
  *
- * @author        Webcraftic <wordpress.webraftic@gmail.com>
- * @author        Alexander Teshabaev <sasha.tesh@gmail.com>
  * @see           RIO_Process_Queue for further information.
  *
- * @copyright (c) 2018 Webraftic Ltd
  * @version       1.0
  */
 
@@ -20,7 +17,6 @@ add_action( 'wp_ajax_wrio_meta_migrations', 'wbcr_rio_migrate_postmeta_to_proces
 /**
  * Migrating postmeta to newly created table.
  *
- * @author Alexander Teshabaev <sasha.tesh@gmail.com>
  * @since  1.3.0
  * @see    RIO_Process_Queue as referce for new table.
  */
@@ -65,7 +61,7 @@ function wbcr_rio_migrate_postmeta_to_process_queue() {
 		/**
 		 * @var WP_Post $attachment
 		 */
-		for ( $i = 0; $i < $limit; $i ++ ) {
+		for ( $i = 0; $i < $limit; $i++ ) {
 			$attachment = $attachments->posts[ $i ];
 			$post_meta  = get_post_custom( $attachment->ID );
 
@@ -141,14 +137,15 @@ function wbcr_rio_migrate_postmeta_to_process_queue() {
 			$rows_inserted = $wpdb->insert( RIO_Process_Queue::table_name(), $data, $format );
 
 			if ( $rows_inserted > 0 ) {
-				$processed_items ++;
+				++$processed_items;
 
 				$attachment_id = absint( $attachment->ID );
 				$wpdb->query( "DELETE FROM {$wpdb->postmeta} WHERE post_id='{$attachment_id}' AND meta_key LIKE 'wio_%'" );
 			}
 		}
 
-		$left_items     = $attachments_total - $processed_items;
+		$left_items = $attachments_total - $processed_items;
+		// translators: %s is the number of items left to migrate
 		$message        = sprintf( __( 'left to migrate: %s items', 'robin-image-optimizer' ), $left_items );
 		$need_more_time = true;
 
@@ -165,10 +162,10 @@ function wbcr_rio_migrate_postmeta_to_process_queue() {
 
 	WRIO_Plugin::app()->logger->memory_usage();
 
-	wp_send_json_success( [
-		'need_more_time' => $need_more_time,
-		'message'        => $message,
-	] );
+	wp_send_json_success(
+		[
+			'need_more_time' => $need_more_time,
+			'message'        => $message,
+		]
+	);
 }
-
-

@@ -13,52 +13,48 @@
 	 *  value         => a value to show in the control
 	 *  default       => a default value of the control if the "value" option is not specified
 	 *
-	 * @author Alex Kovalev <alex.kovalevv@gmail.com>
-	 * @copyright (c) 2018, Webcraftic Ltd
-	 *
 	 * @package core
 	 * @since 1.0.0
 	 */
 
 	// Exit if accessed directly
-	if( !defined('ABSPATH') ) {
-		exit;
-	}
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
 
-	if( !class_exists('Wbcr_FactoryForms480_GradientControl') ) {
-		class Wbcr_FactoryForms480_GradientControl extends Wbcr_FactoryForms480_Control {
+if ( ! class_exists( 'Wbcr_FactoryForms600_GradientControl' ) ) {
+	class Wbcr_FactoryForms600_GradientControl extends Wbcr_FactoryForms600_Control {
 
-			public $type = 'gradient';
+		public $type = 'gradient';
 
-			/**
-			 * Shows the html markup of the control.
-			 *
-			 * @since 1.0.0
-			 * @return void
-			 */
-			public function html()
-			{
-				$name = $this->getNameOnForm();
-				$value = esc_attr($this->getValue());
+		/**
+		 * Shows the html markup of the control.
+		 *
+		 * @since 1.0.0
+		 * @return void
+		 */
+		public function html() {
+			$name  = $this->getNameOnForm();
+			$value = esc_attr( $this->getValue() );
 
-				if( !empty($value) ) {
+			if ( ! empty( $value ) ) {
 
-					$values = json_decode(stripcslashes(htmlspecialchars_decode($value)));
+				$values = json_decode( stripcslashes( htmlspecialchars_decode( $value ) ) );
 
-					$points = '';
+				$points = '';
 
-					foreach($values->color_points as $split_values) {
-						$points .= $split_values . ',';
-					}
-
-					$points = rtrim($points, ',');
-
-					$this->addHtmlData('points', $points);
-					$this->addHtmlData('directions', $values->filldirection);
-				} else {
-					$this->addHtmlData('directions', 'top');
+				foreach ( $values->color_points as $split_values ) {
+					$points .= $split_values . ',';
 				}
-				?>
+
+				$points = rtrim( $points, ',' );
+
+				$this->addHtmlData( 'points', $points );
+				$this->addHtmlData( 'directions', $values->filldirection );
+			} else {
+				$this->addHtmlData( 'directions', 'top' );
+			}
+			?>
 				<script>
 					if( !window.factory ) {
 						window.factory = {};
@@ -66,10 +62,10 @@
 					if( !window.factory.res ) {
 						window.factory.res = {};
 					}
-					factory.res.resVertical = '<?php _e( 'vertical', 'wbcr_factory_forms_480' ) ?>';
-					factory.res.resHorizontal = '<?php _e( 'horizontal', 'wbcr_factory_forms_480' ) ?>';
+					factory.res.resVertical = '<?php _e( 'vertical', 'robin-image-optimizer' ); ?>';
+					factory.res.resHorizontal = '<?php _e( 'horizontal', 'robin-image-optimizer' ); ?>';
 				</script>
-				<div <?php $this->attrs() ?>>
+				<div <?php $this->attrs(); ?>>
 					<div class="factory-gradient-picker">
 						<ul class="gradientPicker-pallets">
 							<li class="factory-preset-gradient factory-primary-gradient" data-primary="#1bbc9d" data-secondary="#16a086"></li>
@@ -95,9 +91,9 @@
 							<div class="factory-color-picker"></div>
 						</div>
 					</div>
-					<input type="hidden" id="<?php echo esc_attr($name); ?>" class="factory-result" name="<?php echo esc_attr($name); ?>" value="<?php echo esc_attr($value); ?>">
+					<input type="hidden" id="<?php echo esc_attr( $name ); ?>" class="factory-result" name="<?php echo esc_attr( $name ); ?>" value="<?php echo esc_attr( $value ); ?>">
 				</div>
 			<?php
-			}
 		}
 	}
+}

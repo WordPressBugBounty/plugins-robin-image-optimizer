@@ -1,4 +1,6 @@
-button[data-value="googlepage"]:after, button[data-value="background"]:after {
+/* PRO labels for dropdown buttons */
+button[data-value="googlepage"]:after,
+button[data-value="background"]:after {
     display: inline-block;
     position: absolute;
     content: 'PRO';

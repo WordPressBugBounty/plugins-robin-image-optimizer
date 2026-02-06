@@ -8,8 +8,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Класс для работы с кастомными папками
  *
- * @author        Eugene Jokerov <jokerov@gmail.com>
- * @copyright (c) 2018, Webcraftic
  * @version       1.0
  */
 class WRIO_Custom_Folders {
@@ -51,8 +49,6 @@ class WRIO_Custom_Folders {
 	/**
 	 * @return object|\WRIO_Custom_Folders object Main instance.
 	 * @since  1.3.0
-	 *
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 */
 	public static function get_instance() {
 		if ( ! isset( static::$_instance ) ) {
@@ -69,10 +65,15 @@ class WRIO_Custom_Folders {
 
 		// todo: убрать эти фильтры
 		add_filter( 'wbcr/rio/optimize_template/optimize_ajax_action', [ $this, 'optimizeAjaxAction' ], 10, 2 );
-		add_filter( 'wbcr/rio/optimize_template/reoptimize_ajax_action', [
-			$this,
-			'reoptimizeAjaxAction',
-		], 10, 2 );
+		add_filter(
+			'wbcr/rio/optimize_template/reoptimize_ajax_action',
+			[
+				$this,
+				'reoptimizeAjaxAction',
+			],
+			10,
+			2
+		);
 		add_filter( 'wbcr/rio/optimize_template/restore_ajax_action', [ $this, 'restoreAjaxAction' ], 10, 2 );
 
 		add_action( 'admin_menu', [ $this, 'add_media_page' ] );
@@ -82,10 +83,17 @@ class WRIO_Custom_Folders {
 	}
 
 	public function add_media_page() {
-		add_submenu_page( 'upload.php', __( 'Other Media', 'robin-image-optimizer' ), __( 'Other Media', 'robin-image-optimizer' ), 'manage_options', 'rio-custom-media', [
-			$this,
-			'custom_media_page'
-		] );
+		add_submenu_page(
+			'upload.php',
+			__( 'Other Media', 'robin-image-optimizer' ),
+			__( 'Other Media', 'robin-image-optimizer' ),
+			'manage_options',
+			'rio-custom-media',
+			[
+				$this,
+				'custom_media_page',
+			]
+		);
 	}
 
 	public function media_page_assets( $hook ) {
@@ -100,7 +108,7 @@ class WRIO_Custom_Folders {
 		if ( ! class_exists( 'WP_List_Table' ) ) {
 			require_once ABSPATH . 'wp-admin/includes/class-wp-list-table.php';
 		}
-		require_once( WRIOP_PLUGIN_DIR . '/includes/classes/class.folders-list-table.php' );
+		require_once WRIOP_PLUGIN_DIR . '/includes/classes/class.folders-list-table.php';
 
 		$list_table = new WRIO_Folders_List_Table();
 		$list_table->prepare_items();
@@ -142,6 +150,32 @@ class WRIO_Custom_Folders {
 
 		if ( empty( $path ) ) {
 			return new WP_Error( 'empty_path', 'Path is empty.' );
+		}
+
+		// Use the same base path as the file browser (get_home_path for main site, upload dir for subsites)
+		if ( is_main_site() ) {
+			$base_path = realpath( get_home_path() );
+		} else {
+			$upload_dir = wp_upload_dir();
+			$base_path  = realpath( $upload_dir['basedir'] );
+		}
+
+		// Validate that the path exists and is a directory
+		$real_path = realpath( $base_path . DIRECTORY_SEPARATOR . ltrim( $path, '/' ) );
+		if ( false === $real_path ) {
+			return new WP_Error( 'invalid_path', 'The specified path does not exist.' );
+		}
+
+		// Prevent directory traversal attacks - ensure path is within allowed base directory
+		if ( strpos( $real_path, $base_path . DIRECTORY_SEPARATOR ) !== 0 && $real_path !== $base_path ) {
+			return new WP_Error( 'invalid_path', 'The specified path is outside the allowed directory.' );
+		}
+
+		if ( ! is_dir( $real_path ) ) {
+			return new WP_Error( 'not_a_directory', 'The specified path is not a directory.' );
+		}
+		if ( ! is_readable( $real_path ) ) {
+			return new WP_Error( 'not_readable', 'The specified directory is not readable.' );
 		}
 
 		$uid = hash( 'sha256', $path );
@@ -200,7 +234,7 @@ class WRIO_Custom_Folders {
 	/**
 	 * Возвращает объект image
 	 *
-	 * @param int $image_id
+	 * @param int         $image_id
 	 * @param array|false $image_meta
 	 *
 	 * @return WRIO_Folder_Image
@@ -216,7 +250,7 @@ class WRIO_Custom_Folders {
 	/**
 	 * Оптимизирует cf_image
 	 *
-	 * @param int $image_id номер картинки в таблице nextgen
+	 * @param int    $image_id номер картинки в таблице nextgen
 	 * @param string $level качество
 	 *
 	 * @return array
@@ -317,7 +351,7 @@ class WRIO_Custom_Folders {
 		}
 
 		if ( empty( $this->folders ) ) {
-			return new WP_Error( 'folders_not_found', __( 'You need to add an custom folder to start optimization!', 'robin-image-optimizer' ) );
+			return new WP_Error( 'folders_not_found', __( 'You need to add a custom folder to start optimization.', 'robin-image-optimizer' ) );
 		}
 
 		$image_statistics = WRIO_Image_Statistic_Folders::get_instance();
@@ -326,9 +360,8 @@ class WRIO_Custom_Folders {
 		$total         = $image_statistics->getUnoptimizedCount(); // тут общее кол-во неоптимизированных
 
 		if ( empty( $folder_images ) ) {
-			return new WP_Error( 'no_unoptimized_in_folder', __( 'If the file counter shows that not all files have been optimized yet, add the custom folder again.', 'robin-image-optimizer' ) );
+			return new WP_Error( 'no_unoptimized_in_folder', __( 'If some files weren\'t optimized, try removing and re-adding the folder.', 'robin-image-optimizer' ) );
 		}
-
 
 		$folder_images_count = count( $folder_images );
 		$optimized_count     = 0;
@@ -338,7 +371,7 @@ class WRIO_Custom_Folders {
 		if ( $folder_images_count ) {
 			foreach ( $folder_images as $folder_image ) {
 				$this->optimizeImage( $folder_image->id );
-				$optimized_count ++;
+				++$optimized_count;
 				$optimized_items[ $folder_image->id ] = $folder_image;
 			}
 		}
@@ -472,16 +505,20 @@ class WRIO_Custom_Folders {
 	 * @return void
 	 */
 	public function resetCurrentErrors() {
-		//do_action( 'wbcr/rio/multisite_current_blog' );
+		// do_action( 'wbcr/rio/multisite_current_blog' );
 		global $wpdb;
 
 		$db_table = RIO_Process_Queue::table_name();
 
-		$wpdb->update( $db_table, [ 'result_status' => 'unoptimized' ], [
-			'item_type'     => 'cf_image',
-			'result_status' => 'error'
-		] );
-		//do_action( 'wbcr/rio/multisite_restore_blog' );
+		$wpdb->update(
+			$db_table,
+			[ 'result_status' => 'unoptimized' ],
+			[
+				'item_type'     => 'cf_image',
+				'result_status' => 'error',
+			]
+		);
+		// do_action( 'wbcr/rio/multisite_restore_blog' );
 	}
 
 	/**
@@ -609,7 +646,7 @@ class WRIO_Custom_Folders {
 	 * Возвращает процент оптимизации
 	 * Фильтр wbcr/rio/optimize_template/optimized_percent
 	 *
-	 * @param int $percent процент оптимизации
+	 * @param int    $percent процент оптимизации
 	 * @param string $type тип страницы
 	 *
 	 * @return int процент оптимизации

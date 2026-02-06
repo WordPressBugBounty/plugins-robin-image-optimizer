@@ -17,9 +17,6 @@ use WRIO\WEBP\HTML\Delivery;
  *
  * Same applies for custom folder and NextGen plugin.
  *
- * @author        Webcraftic <wordpress.webraftic@gmail.com>
- * @author        Alexander Teshabaev <sasha.tesh@gmail.com>
- * @copyright (c) 22.09.2018, Webcraftic
  * @version       1.0
  */
 class Listener {
@@ -33,6 +30,10 @@ class Listener {
 	 * @var null|\RIO_Process_Queue[] Saved queue items.
 	 */
 	private $_saved_models = null;
+	/**
+	 * @var string|null Format to convert to (webp, avif). Set during convert_webp().
+	 */
+	private $_current_format = null;
 
 	/**
 	 * WRIO_Webp constructor.
@@ -45,82 +46,128 @@ class Listener {
 	 * Init the object.
 	 */
 	public function init() {
-		if ( Delivery::is_webp_enabled() ) {
-			add_action( 'wbcr/riop/queue_item_saved', [ $this, 'convert_webp' ], 10, 2 );
-		}
+		// Always register the hook - the convert_webp method will check format.
+		// This allows single-image conversion (e.g., clicking "Convert to WebP" button)
+		// to work even when global conversion is disabled.
+		add_action( 'wbcr/riop/queue_item_saved', [ $this, 'convert_webp' ], 10, 3 );
 
 		add_action( 'wbcr/rio/attachment_restored', [ $this, 'process_attachment_restore' ] );
 		add_action( 'wbcr/rio/cf_image_restored', [ $this, 'process_attachment_restore' ] );
 		add_action( 'wbcr/rio/nextgen_image_restored', [ $this, 'process_attachment_restore' ] );
 	}
 
-	public function convert_webp( $model, $quota = false ) {
+	public function convert_webp( $model, $quota = false, $format = null ) {
 		/**
 		 * @var \RIO_Process_Queue $model
 		 */
-		if ( $model->get_item_type() !== self::DEFAULT_TYPE ) { // Otherwise it can become recursive
+		// Skip if already a format conversion item (prevent recursion)
+		if ( in_array( $model->get_item_type(), [ 'webp', 'avif' ] ) ) {
+			return;
+		}
 
-			$this->process_queue_item( $model );
+		// Use provided format, or fall back to all enabled formats
+		if ( $format === null ) {
+			$formats = \WRIO_Format_Converter_Factory::get_enabled_formats();
 
-			if ( ! empty( $this->_saved_models ) ) {
-				( new \WRIO_WebP_Api( $this->_saved_models ) )->process_image_queue( $quota );
+			// If no formats are enabled, exit early
+			if ( empty( $formats ) ) {
+				return;
 			}
 
-			$this->_saved_models = null;
+			// Process each enabled format
+			foreach ( $formats as $format_type ) {
+				$this->_current_format = $format_type;
+				if ( $format_type !== 'original' ) {
+					$this->process_queue_item( $model );
+
+					if ( ! empty( $this->_saved_models ) ) {
+						$converter = \WRIO_Format_Converter_Factory::create( $this->_saved_models, $format_type );
+						$converter->process_image_queue( $quota );
+						$this->_saved_models = []; // Clear for next format
+					}
+				}
+			}
+			return;
 		}
+
+		// Store format for use in save() method
+		$this->_current_format = $format;
+
+		if ( $format === 'original' ) {
+			return;
+		}
+
+		$this->process_queue_item( $model );
+
+		if ( ! empty( $this->_saved_models ) ) {
+			$converter = \WRIO_Format_Converter_Factory::create( $this->_saved_models, $format );
+			$converter->process_image_queue( $quota );
+		}
+
+		$this->_saved_models   = null;
+		$this->_current_format = null;
 	}
 
 	/**
 	 * Process attachment restore.
 	 *
-	 * @param \RIO_Process_Queue $model
+	 * @param \RIO_Process_Queue|null $model
 	 *
 	 * @return bool
 	 */
 	public function process_attachment_restore( $model ) {
-		$item_params = [
-			'object_id' => $model->get_object_id(),
-			'item_type' => Listener::DEFAULT_TYPE,
-		];
-		if ( 'cf_image' == $model->get_item_type() ) {
-			unset( $item_params['object_id'] ); // для custom folders не нужен номер объекта
-			/**
-			 * @var $extra_data \WRIO_CF_Image_Extra_Data
-			 */
-			$extra_data               = $model->get_extra_data();
-			$item_params['item_hash'] = hash( 'sha256', $extra_data->get_image_url() );
-		}
-
-		$delete_items = \RIO_Process_Queue::find_all( $item_params );
-
-		if ( empty( $delete_items ) ) {
+		if ( ! $model instanceof \RIO_Process_Queue ) {
+			\WRIO_Plugin::app()->logger->warning( 'process_attachment_restore called with invalid model (null or wrong type)' );
 			return false;
 		}
 
-		foreach ( $delete_items as $item ) {
-			/**
-			 * @var $extra \RIOP_WebP_Extra_Data
-			 */
-			$extra = $item->get_extra_data();
+		// Look for both webp and avif items
+		foreach ( [ 'webp', 'avif' ] as $item_type ) {
+			$item_params = [
+				'object_id' => $model->get_object_id(),
+				'item_type' => $item_type,
+			];
 
-			if ( empty( $extra ) ) {
-				\WRIO_Plugin::app()->logger->warning( sprintf( 'Failed to clean-up queue item #%s as it is missing extra data', $item->get_id() ) );
+			if ( 'cf_image' == $model->get_item_type() ) {
+				unset( $item_params['object_id'] ); // для custom folders не нужен номер объекта
+				/**
+				 * @var $extra_data \WRIO_CF_Image_Extra_Data
+				 */
+				$extra_data               = $model->get_extra_data();
+				$item_params['item_hash'] = hash( 'sha256', $extra_data->get_image_url() );
+			}
+
+			$delete_items = \RIO_Process_Queue::find_all( $item_params );
+
+			if ( empty( $delete_items ) ) {
 				continue;
 			}
 
-			$converted_path = $extra->get_converted_path();
-			if ( ! empty( $converted_path ) ) {
-				if ( @unlink( $converted_path ) ) {
-					\WRIO_Plugin::app()->logger->info( sprintf( 'Unlinked %s from disk, ready to delete item #%s from DB', $converted_path, $item->get_id() ) );
-				} else {
-					\WRIO_Plugin::app()->logger->error( sprintf( 'Failed to unlink %s from disk', $converted_path ) );
-				}
-			}
+			foreach ( $delete_items as $item ) {
+				/**
+				 * @var $extra \RIOP_WebP_Extra_Data
+				 */
+				$extra = $item->get_extra_data();
 
-			if ( $item->delete() ) {
-				\WRIO_Plugin::app()->logger->info( sprintf( 'Deleted #%s as attachment #%s was recovered', $item->get_id(), $item->get_object_id() ) );
-			} else {
-				\WRIO_Plugin::app()->logger->error( sprintf( 'Failed to delete queue item #%s as delete() method failed', $item->get_id() ) );
+				if ( empty( $extra ) ) {
+					\WRIO_Plugin::app()->logger->warning( sprintf( 'Failed to clean-up queue item #%s as it is missing extra data', $item->get_id() ) );
+					continue;
+				}
+
+				$converted_path = $extra->get_converted_path();
+				if ( ! empty( $converted_path ) ) {
+					if ( @unlink( $converted_path ) ) {
+						\WRIO_Plugin::app()->logger->info( sprintf( 'Unlinked %s from disk, ready to delete item #%s from DB', $converted_path, $item->get_id() ) );
+					} else {
+						\WRIO_Plugin::app()->logger->error( sprintf( 'Failed to unlink %s from disk', $converted_path ) );
+					}
+				}
+
+				if ( $item->delete() ) {
+					\WRIO_Plugin::app()->logger->info( sprintf( 'Deleted #%s as attachment #%s was recovered', $item->get_id(), $item->get_object_id() ) );
+				} else {
+					\WRIO_Plugin::app()->logger->error( sprintf( 'Failed to delete queue item #%s as delete() method failed', $item->get_id() ) );
+				}
 			}
 		}
 
@@ -130,7 +177,7 @@ class Listener {
 	/**
 	 * Process new queue item.
 	 *
-	 * @param \RIO_Process_Queue $model Model to process.
+	 * @param \RIO_Process_Queue|null $model Model to process.
 	 *
 	 * @return bool
 	 */
@@ -141,7 +188,8 @@ class Listener {
 			return false;
 		}
 
-		/*if ( ! $model->is_optimized() ) {
+		/*
+		if ( ! $model->is_optimized() ) {
 			\WRIO_Plugin::app()->logger->info( sprintf( 'Skipping to process attachment #%s as it is not optimized', $model->get_id() ) );
 
 			return false;
@@ -154,7 +202,7 @@ class Listener {
 			case 'cf_image':
 				$this->process_custom_folder( $model );
 				break;
-			case 'nextgen';
+			case 'nextgen':
 				$this->process_nextgen( $model );
 				break;
 		}
@@ -175,12 +223,12 @@ class Listener {
 	 */
 	public function process_attachment( $model ) {
 
-		\WRIO_Plugin::app()->logger->info( sprintf( 'Start webp convertation proccess for attachment #%s', $model->get_id() ) );
+		\WRIO_Plugin::app()->logger->info( sprintf( 'Start WebP conversion process for attachment #%s', $model->get_id() ) );
 
 		$attachment = get_post( $model->get_object_id() );
 
 		if ( empty( $attachment ) ) {
-			\WRIO_Plugin::app()->logger->warning( sprintf( 'Webp convertation: No attachment found by #%s', $model->get_object_id() ) );
+			\WRIO_Plugin::app()->logger->warning( sprintf( 'WebP conversion: No attachment found by #%s', $model->get_object_id() ) );
 
 			return false;
 		}
@@ -188,7 +236,7 @@ class Listener {
 		$allowed_mimes = wrio_get_allowed_formats();
 
 		if ( ! in_array( $attachment->post_mime_type, $allowed_mimes ) ) {
-			\WRIO_Plugin::app()->logger->warning( sprintf( 'Webp convertation: Attachment #%s with MIME type %s cannot be processed as only these are allowed: %s', $attachment->ID, $attachment->post_mime_type, implode( ', ', $allowed_mimes ) ) );
+			\WRIO_Plugin::app()->logger->warning( sprintf( 'WebP conversion: Attachment #%s with MIME type %s cannot be processed as only these are allowed: %s', $attachment->ID, $attachment->post_mime_type, implode( ', ', $allowed_mimes ) ) );
 
 			return false;
 		}
@@ -196,7 +244,7 @@ class Listener {
 		$attachment_meta = static::get_attachment_data( $attachment );
 
 		if ( empty( $attachment_meta ) ) {
-			\WRIO_Plugin::app()->logger->warning( sprintf( 'Webp convertation: Unable to get attachment #%s meta such as height, abs. path, URL, etc. Skipping WebP processing...', $attachment->ID ) );
+			\WRIO_Plugin::app()->logger->warning( sprintf( 'WebP conversion: Unable to get attachment #%s meta such as height, abs. path, URL, etc. Skipping WebP processing...', $attachment->ID ) );
 
 			return false;
 		}
@@ -206,48 +254,58 @@ class Listener {
 		 */
 		foreach ( $attachment_meta as $hash => $data ) {
 
-			\WRIO_Plugin::app()->logger->info( sprintf( 'Webp convertation: Ready to save hash "%s" (extra data: %s) as it does not exist yet', $hash, json_encode( $data ) ) );
+			\WRIO_Plugin::app()->logger->info( sprintf( 'WebP conversion: Ready to save hash "%s" (extra data: %s) as it does not exist yet', $hash, json_encode( $data ) ) );
 
 			$source_path = isset( $data['absolute_path'] ) ? $data['absolute_path'] : null;
 
 			if ( empty( $source_path ) || ! file_exists( $source_path ) ) {
-				\WRIO_Plugin::app()->logger->error( sprintf( "Webp convertation: Image is not found.\r\nSource path: %s", $source_path ) );
+				\WRIO_Plugin::app()->logger->error( sprintf( "WebP conversion: Image is not found.\r\nSource path: %s", $source_path ) );
 				continue;
 			}
 
 			$source_src = $data['url'];
 
-			$webp_queue = \RIO_Process_Queue::find_by_hash( hash( 'sha256', $source_src ) );
+			// Include format in hash so WebP and AVIF conversions are tracked separately
+			$format     = $this->_current_format ?? 'webp';
+			$hash_seed  = $source_src . '|' . $format;
+			$item_hash  = hash( 'sha256', $hash_seed );
+			$webp_queue = \RIO_Process_Queue::find_by_hash( $item_hash );
 
 			if ( $webp_queue instanceof \RIO_Process_Queue ) {
-				if ( $webp_queue->get_result_status() !== 'processing' ) {
-					\WRIO_Plugin::app()->logger->warning( sprintf( "Webp convertation: Skipped because the webp image already exists.\r\nSource scr: %s", $source_src ) );
-
-					return false;
-				} else {
-					$this->_saved_models[] = $webp_queue;
-				}
+				// Reset existing record for re-conversion
+					\WRIO_Plugin::app()->logger->warning( sprintf( "WebP conversion: Skipped because the webp image already exists.\r\nSource scr: %s", $source_src ) );
+				$webp_queue->result_status = \RIO_Process_Queue::STATUS_PROCESSING;
+				$webp_queue->final_size    = 0;
+				$webp_queue->save();
+				$this->_saved_models[] = $webp_queue;
+				continue;
 			}
 
-			$extra_data = new \RIOP_WebP_Extra_Data( [
-				'convert_from'        => 'attachment',
-				'converted_from_size' => $data['size'],
-				'source_src'          => $source_src,
-				'source_path'         => $source_path,
-			] );
+			$extra_data = new \RIOP_WebP_Extra_Data(
+				[
+					'convert_from'        => 'attachment',
+					'converted_from_size' => $data['size'],
+					'source_src'          => $source_src,
+					'source_path'         => $source_path,
+				]
+			);
 
-			$saved = $this->save( [
-				'item_hash'          => $source_src,
-				'object_id'          => $attachment->ID,
-				'original_mime_type' => $attachment->post_mime_type,
-			], $extra_data );
+			$saved = $this->save(
+				[
+					'item_hash'          => $hash_seed, // Include format in hash seed
+					'object_id'          => $attachment->ID,
+					'original_mime_type' => $attachment->post_mime_type,
+				],
+				$extra_data
+			);
 
 			if ( $saved instanceof \RIO_Process_Queue ) {
 				$this->_saved_models[] = $saved;
 			}
 		}
 
-		\WRIO_Plugin::app()->logger->info( sprintf( 'End webp convertation proccess for attachment #%s. Saved models: %d', $model->get_id(), sizeof( $this->_saved_models ) ) );
+		$count_models = is_array( $this->_saved_models ) ? count( $this->_saved_models ) : 0;
+		\WRIO_Plugin::app()->logger->info( sprintf( 'End WebP conversion process for attachment #%s. Saved models: %d', $model->get_id(), $count_models ) );
 
 		return true;
 	}
@@ -261,38 +319,50 @@ class Listener {
 	 */
 	public function process_custom_folder( $model ) {
 
-		\WRIO_Plugin::app()->logger->info( sprintf( 'Start webp convertation proccess for Custom folder item #%s', $model->get_id() ) );
+		\WRIO_Plugin::app()->logger->info( sprintf( 'Start WebP conversion process for Custom folder item #%s', $model->get_id() ) );
 
 		/**
 		 * @var $model_extra_data \WRIO_CF_Image_Extra_Data
 		 */
 		$model_extra_data = $model->get_extra_data();
 
-		$webp_exists = \RIO_Process_Queue::find_by_hash( hash( 'sha256', $model_extra_data->get_image_url() ) );
+		// Include format in hash so WebP and AVIF conversions are tracked separately
+		$format    = $this->_current_format ?? 'webp';
+		$hash_seed = $model_extra_data->get_image_url() . '|' . $format;
+
+		$webp_exists = \RIO_Process_Queue::find_by_hash( hash( 'sha256', $hash_seed ) );
 
 		if ( $webp_exists ) {
-			\WRIO_Plugin::app()->logger->warning( sprintf( "Webp convertation: Skipped because the webp image already exists.\r\nSource scr: %s", $model_extra_data->get_image_url() ) );
+			// Reset existing record for re-conversion
+			$webp_exists->result_status = \RIO_Process_Queue::STATUS_PROCESSING;
+			$webp_exists->final_size    = 0;
+			$webp_exists->save();
+			$this->_saved_models[] = $webp_exists;
+		} else {
+			$extra_data = new \RIOP_WebP_Extra_Data(
+				[
+					'convert_from' => 'cf_image',
+					'source_src'   => $model_extra_data->get_image_url(),
+					'source_path'  => $model_extra_data->get_image_absolute_path(),
+				]
+			);
 
-			return false;
+			$saved = $this->save(
+				[
+					'item_hash'             => $hash_seed,
+					'item_hash_alternative' => $model_extra_data->get_image_relative_path(),
+					'original_mime_type'    => $model->get_original_mime_type(),
+				],
+				$extra_data
+			);
+
+			if ( $saved instanceof \RIO_Process_Queue ) {
+				$this->_saved_models[] = $saved;
+			}
 		}
 
-		$extra_data = new \RIOP_WebP_Extra_Data( [
-			'convert_from' => 'cf_image',
-			'source_src'   => $model_extra_data->get_image_url(),
-			'source_path'  => $model_extra_data->get_image_absolute_path(),
-		] );
-
-		$saved = $this->save( [
-			'item_hash'             => $model_extra_data->get_image_url(),
-			'item_hash_alternative' => $model_extra_data->get_image_relative_path(),
-			'original_mime_type'    => $model->get_original_mime_type(),
-		], $extra_data );
-
-		if ( $saved instanceof \RIO_Process_Queue ) {
-			$this->_saved_models[] = $saved;
-		}
-
-		\WRIO_Plugin::app()->logger->info( sprintf( 'End webp convertation proccess for Custom folder #%s. Saved models: %d', $model->get_id(), sizeof( $this->_saved_models ) ) );
+		$count_models = is_array( $this->_saved_models ) ? count( $this->_saved_models ) : 0;
+		\WRIO_Plugin::app()->logger->info( sprintf( 'End WebP conversion process for Custom folder #%s. Saved models: %d', $model->get_id(), $count_models ) );
 
 		return true;
 	}
@@ -308,7 +378,7 @@ class Listener {
 	 */
 	public function process_nextgen( $model ) {
 
-		\WRIO_Plugin::app()->logger->info( sprintf( 'Start webp convertation proccess for NextGen item #%s', $model->get_id() ) );
+		\WRIO_Plugin::app()->logger->info( sprintf( 'Start WebP conversion process for NextGen item #%s', $model->get_id() ) );
 
 		/**
 		 * @var $model_extra_data \WRIO_Nextgen_Extra_Data
@@ -319,50 +389,78 @@ class Listener {
 			return false;
 		}
 
-		$webp_exists = \RIO_Process_Queue::find_by_hash( hash( 'sha256', $model_extra_data->get_image_url() ) );
+		// Include format in hash so WebP and AVIF conversions are tracked separately
+		$format    = $this->_current_format ?? 'webp';
+		$hash_seed = $model_extra_data->get_image_url() . '|' . $format;
+
+		$webp_exists = \RIO_Process_Queue::find_by_hash( hash( 'sha256', $hash_seed ) );
 
 		if ( $webp_exists ) {
-			\WRIO_Plugin::app()->logger->warning( sprintf( "Webp convertation: Skipped because the webp image already exists.\r\nSource scr: %s", $model_extra_data->get_image_url() ) );
+			// Reset existing record for re-conversion
+			$webp_exists->result_status = \RIO_Process_Queue::STATUS_PROCESSING;
+			$webp_exists->final_size    = 0;
+			$webp_exists->save();
+			$this->_saved_models[] = $webp_exists;
+		} else {
+			// Original
+			$extra_data = new \RIOP_WebP_Extra_Data(
+				[
+					'convert_from'        => 'nextgen',
+					'converted_from_size' => null,
+					'source_src'          => $model_extra_data->get_image_url(),
+					'source_path'         => $model_extra_data->get_image_absolute_path(),
+				]
+			);
 
-			return false;
-		}
+			$original_saved = $this->save(
+				[
+					'item_hash'          => $hash_seed,
+					'original_mime_type' => $model->get_original_mime_type(),
+					'object_id'          => $model->get_object_id(),
+				],
+				$extra_data
+			);
 
-		// Original
-		$extra_data = new \RIOP_WebP_Extra_Data( [
-			'convert_from'        => 'nextgen',
-			'converted_from_size' => null,
-			'source_src'          => $model_extra_data->get_image_url(),
-			'source_path'         => $model_extra_data->get_image_absolute_path(),
-		] );
-
-		$original_saved = $this->save( [
-			'item_hash'          => $model_extra_data->get_image_url(),
-			'original_mime_type' => $model->get_original_mime_type(),
-			'object_id'          => $model->get_object_id(),
-		], $extra_data );
-
-		if ( $original_saved instanceof \RIO_Process_Queue ) {
-			$this->_saved_models[] = $original_saved;
+			if ( $original_saved instanceof \RIO_Process_Queue ) {
+				$this->_saved_models[] = $original_saved;
+			}
 		}
 
 		// Thumbnail
-		$extra_data_thumbnail = new \RIOP_WebP_Extra_Data( [
-			'convert_from'        => 'nextgen',
-			'converted_from_size' => null,
-			'source_src'          => $model_extra_data->get_image_thumbnail_url(),
-			'source_path'         => $model_extra_data->get_image_thumbnail_absolute_path(),
-		] );
+		$thumbnail_hash_seed   = $model_extra_data->get_image_thumbnail_url() . '|' . $format;
+		$thumbnail_webp_exists = \RIO_Process_Queue::find_by_hash( hash( 'sha256', $thumbnail_hash_seed ) );
 
-		$thumbmail_saved = $this->save( [
-			'item_hash'          => $model_extra_data->get_image_thumbnail_url(),
-			'original_mime_type' => $model->get_original_mime_type(),
-		], $extra_data_thumbnail );
+		if ( $thumbnail_webp_exists ) {
+			// Reset existing record for re-conversion
+			$thumbnail_webp_exists->result_status = \RIO_Process_Queue::STATUS_PROCESSING;
+			$thumbnail_webp_exists->final_size    = 0;
+			$thumbnail_webp_exists->save();
+			$this->_saved_models[] = $thumbnail_webp_exists;
+		} else {
+			$extra_data_thumbnail = new \RIOP_WebP_Extra_Data(
+				[
+					'convert_from'        => 'nextgen',
+					'converted_from_size' => null,
+					'source_src'          => $model_extra_data->get_image_thumbnail_url(),
+					'source_path'         => $model_extra_data->get_image_thumbnail_absolute_path(),
+				]
+			);
 
-		if ( $thumbmail_saved instanceof \RIO_Process_Queue ) {
-			$this->_saved_models[] = $thumbmail_saved;
+			$thumbmail_saved = $this->save(
+				[
+					'item_hash'          => $thumbnail_hash_seed,
+					'original_mime_type' => $model->get_original_mime_type(),
+				],
+				$extra_data_thumbnail
+			);
+
+			if ( $thumbmail_saved instanceof \RIO_Process_Queue ) {
+				$this->_saved_models[] = $thumbmail_saved;
+			}
 		}
 
-		\WRIO_Plugin::app()->logger->info( sprintf( 'End webp convertation proccess for NextGen #%s. Saved models: %d', $model->get_id(), sizeof( $this->_saved_models ) ) );
+		$count_models = is_array( $this->_saved_models ) ? count( $this->_saved_models ) : 0;
+		\WRIO_Plugin::app()->logger->info( sprintf( 'End WebP conversion process for NextGen #%s. Saved models: %d', $model->get_id(), $count_models ) );
 
 		return true;
 	}
@@ -434,30 +532,32 @@ class Listener {
 
 			$hashmap[ hash( 'sha256', $original['url'] ) ] = $original;
 
-			foreach ( $attachment_meta['sizes'] as $size => $size_data ) {
-				// [2019, 01, somename.jpg]
-				$exploded = explode( '/', $attachment_meta['file'] );
+			if ( ! empty( $attachment_meta['sizes'] ) && is_array( $attachment_meta['sizes'] ) ) {
+				foreach ( $attachment_meta['sizes'] as $size => $size_data ) {
+					// [2019, 01, somename.jpg]
+					$exploded = explode( '/', $attachment_meta['file'] );
 
-				// [2019, 01]
-				array_pop( $exploded );
+					// [2019, 01]
+					array_pop( $exploded );
 
-				// [2019, 01, someothername.jpg]
-				$exploded[] = $size_data['file'];
+					// [2019, 01, someothername.jpg]
+					$exploded[] = $size_data['file'];
 
-				$new_file = implode( '/', $exploded );
+					$new_file = implode( '/', $exploded );
 
-				$url           = \WRIO_Url::normalize( trailingslashit( $dirs['baseurl'] ) . $new_file );
-				$absolute_path = wp_normalize_path( trailingslashit( $dirs['basedir'] ) . $new_file );
-				$hashed_url    = hash( 'sha256', $url );
+					$url           = \WRIO_Url::normalize( trailingslashit( $dirs['baseurl'] ) . $new_file );
+					$absolute_path = wp_normalize_path( trailingslashit( $dirs['basedir'] ) . $new_file );
+					$hashed_url    = hash( 'sha256', $url );
 
-				$hashmap[ $hashed_url ] = [
-					'size'          => $size,
-					'height'        => $size_data['height'],
-					'width'         => $size_data['width'],
-					'mime'          => $size_data['mime-type'],
-					'absolute_path' => $absolute_path,
-					'url'           => $url,
-				];
+					$hashmap[ $hashed_url ] = [
+						'size'          => $size,
+						'height'        => $size_data['height'],
+						'width'         => $size_data['width'],
+						'mime'          => $size_data['mime-type'],
+						'absolute_path' => $absolute_path,
+						'url'           => $url,
+					];
+				}
 			}
 		}
 
@@ -467,7 +567,7 @@ class Listener {
 	/**
 	 * Add new image to be converted to WebP.
 	 *
-	 * @param array $props List of properties to be set on the model.
+	 * @param array                 $props List of properties to be set on the model.
 	 * @param \RIOP_WebP_Extra_Data $extra_data List of extra data params
 	 *
 	 * @return false|\RIO_Process_Queue
@@ -492,13 +592,16 @@ class Listener {
 			$model->original_mime_type = $props['original_mime_type'];
 		}
 
-		$model->item_type        = self::DEFAULT_TYPE;
+		// Use the format stored during convert_webp(), or fall back to global setting
+		$format = $this->_current_format ?? 'webp';
+
+		$model->item_type        = $format; // 'webp' or 'avif'
 		$model->result_status    = \RIO_Process_Queue::STATUS_PROCESSING;
 		$model->processing_level = \WRIO_Plugin::app()->getPopulateOption( 'image_optimization_level', \RIO_Process_Queue::LEVEL_NORMAL );
 		$model->is_backed_up     = false;
 		$model->original_size    = @filesize( $extra_data->get_source_path() );
 		$model->final_size       = 0; // to be known
-		$model->final_mime_type  = 'image/webp';
+		$model->final_mime_type  = ( $format === 'avif' ) ? 'image/avif' : 'image/webp';
 		$model->extra_data       = $extra_data;
 
 		$is_saved = $model->save();

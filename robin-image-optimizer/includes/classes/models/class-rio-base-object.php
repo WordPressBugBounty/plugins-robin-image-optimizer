@@ -22,8 +22,6 @@ if ( ! defined( 'ABSPATH' ) ) {
  * // equivalent to $object->setLabel('abc');
  * $object->label = 'abc';
  * ```
- *
- * @author Alexander Teshabaev <sasha.tesh@gmail.com>
  */
 class RIO_Base_Object {
 
@@ -32,7 +30,7 @@ class RIO_Base_Object {
 	 *
 	 * @param array $config name-value pairs that will be used to initialize the object properties.
 	 */
-	public function __construct ( $config = [] ) {
+	public function __construct( $config = [] ) {
 
 		if ( ! empty( $config ) ) {
 			$this->configure( $config );
@@ -44,8 +42,7 @@ class RIO_Base_Object {
 	/**
 	 * Initiate model.
 	 */
-	public function init () {
-
+	public function init() {
 	}
 
 	/**
@@ -53,7 +50,7 @@ class RIO_Base_Object {
 	 *
 	 * @param array $config name-value pairs that will be used to initialize the object properties.
 	 */
-	public function configure ( $config ) {
+	public function configure( $config ) {
 		RIO_Base_Helper::configure( $this, $config );
 	}
 
@@ -69,7 +66,7 @@ class RIO_Base_Object {
 	 * @throws Exception if the property is not defined
 	 * @see __set()
 	 */
-	public function __get ( $name ) {
+	public function __get( $name ) {
 		$getter = 'get_' . $name;
 		if ( method_exists( $this, $getter ) ) {
 			return $this->$getter();
@@ -86,12 +83,12 @@ class RIO_Base_Object {
 	 * will be implicitly called when executing `$object->property = $value;`.
 	 *
 	 * @param string $name the property name or the event name
-	 * @param mixed $value the property value
+	 * @param mixed  $value the property value
 	 *
 	 * @throws Exception if the property is not defined
 	 * @see __get()
 	 */
-	public function __set ( $name, $value ) {
+	public function __set( $name, $value ) {
 		$setter = 'set_' . $name;
 		if ( method_exists( $this, $setter ) ) {
 			$this->$setter( $value );

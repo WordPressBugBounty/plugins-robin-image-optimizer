@@ -1,6 +1,53 @@
 jQuery(function($){
 	var ajaxUrl = ajaxurl;
-	
+
+	// Delivery Mode Toggle Handler
+	// Handles the visibility of the delivery mode options based on WebP and AVIF conversion toggles
+	var $webpToggle = $('input[name="wbcr_io_convert_webp_format"]');
+	var $avifToggle = $('input[name="wbcr_io_convert_avif_format"]');
+	var $deliveryModeSection = $('.wrio-conversion-delivery-options');
+
+	// Function to check if at least one toggle is enabled
+	function updateDeliveryModeVisibility() {
+		var isWebpEnabled = $webpToggle.val() === '1';
+		var isAvifEnabled = $avifToggle.val() === '1';
+
+		// Show delivery mode section only if at least one format is enabled
+		if (isWebpEnabled || isAvifEnabled) {
+			$deliveryModeSection.slideDown(300);
+		} else {
+			$deliveryModeSection.slideUp(300);
+		}
+	}
+
+	// Attach event listeners to both toggles
+	if ($webpToggle.length && $avifToggle.length && $deliveryModeSection.length) {
+		// Get the button containers for both toggles
+		var $webpButtons = $webpToggle.closest('.factory-checkbox').find('button');
+		var $avifButtons = $avifToggle.closest('.factory-checkbox').find('button');
+
+		// Initial check on page load
+		updateDeliveryModeVisibility();
+
+		// Listen for clicks on the factory buttons
+		$webpButtons.on('click', function() {
+			setTimeout(updateDeliveryModeVisibility, 50);
+		});
+
+		$avifButtons.on('click', function() {
+			setTimeout(updateDeliveryModeVisibility, 50);
+		});
+
+		// Also listen for direct changes on the hidden inputs (fallback)
+		$webpToggle.on('change', function() {
+			updateDeliveryModeVisibility();
+		});
+
+		$avifToggle.on('change', function() {
+			updateDeliveryModeVisibility();
+		});
+	}
+
 	$('#wio-restore-backup-btn').on('click', function() {
 		if ( $('#wio-multisite-mode').length ) {
 			$('#wio-multisite-mode').toggle();

@@ -10,8 +10,6 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * todo: add usage example
  *
- * @author        Eugene Jokerov <jokerov@gmail.com>
- * @copyright (c) 2018, Webcraftic
  * @version       1.0
  */
 abstract class WIO_Image_Processor_Abstract {
@@ -94,10 +92,10 @@ abstract class WIO_Image_Processor_Abstract {
 	/**
 	 * HTTP запрос к API стороннего сервиса.
 	 *
-	 * @param string $type POST|GET
-	 * @param string $url URL для запроса
+	 * @param string            $type POST|GET
+	 * @param string            $url URL для запроса
 	 * @param array|string|null $body Параметры запроса. По умолчанию: false.
-	 * @param array $headers Дополнительные заголовки. По умолчанию: false.
+	 * @param array             $headers Дополнительные заголовки. По умолчанию: false.
 	 *
 	 * @return string|WP_Error
 	 */
@@ -105,11 +103,14 @@ abstract class WIO_Image_Processor_Abstract {
 
 		$args = [
 			'method'  => $type,
-			'headers' => array_merge( [
-				'User-Agent' => ''
-			], $headers ),
+			'headers' => array_merge(
+				[
+					'User-Agent' => '',
+				],
+				$headers
+			),
 			'body'    => $body,
-			'timeout' => 150 // it make take some time for large images and slow Internet connections
+			'timeout' => 150, // it make take some time for large images and slow Internet connections
 		];
 
 		$error_message = sprintf( 'Failed to get content of URL: %s as wp_remote_request()', $url );
@@ -129,13 +130,13 @@ abstract class WIO_Image_Processor_Abstract {
 		if ( $response_code !== 200 ) {
 			WRIO_Plugin::app()->logger->error( sprintf( '%s responded Http error (%s).', $error_message, $response_code ) );
 
-			return new WP_Error( 'http_request_failed', sprintf( "Server responded an HTTP error %s", $response_code ) );
+			return new WP_Error( 'http_request_failed', sprintf( 'Server responded an HTTP error %s', $response_code ) );
 		}
 
 		if ( empty( $response_body ) ) {
 			WRIO_Plugin::app()->logger->error( sprintf( '%s responded an empty request body.', $error_message ) );
 
-			return new WP_Error( 'http_request_failed', "Server responded an empty request body." );
+			return new WP_Error( 'http_request_failed', 'Server responded an empty request body.' );
 		}
 
 		return $response_body;

@@ -72,11 +72,13 @@ ul.wio-datas-list .big {
 li.wio-data-item {
 	clear: both;
 	margin-bottom: 2px;
+	display: flex;
+	align-items: center;
+	gap: 5px;
 }
 ul.wio-datas-list .wio-data-item span.data,
 ul.wio-datas-list .wio-data-item strong {
-	float: left;
-	width: 50%;
+	
 	-webkit-box-sizing: border-box;
 	-moz-box-sizing: border-box;
 	box-sizing: border-box;
@@ -212,4 +214,22 @@ ul.wio-datas-details.wio-datas-details {
 	width: 12px;
 	margin-right: 2px;
 	font-size: 11px;
+}
+
+/* Button spacing */
+td.column-wio_optimized_file {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	align-items: center;
+	gap: 8px;
+}
+.column-wio_optimized_file .wio-datas-actions-links {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	gap: 8px 1em;
+}
+.column-wio_optimized_file .wio-datas-actions-links a {
+	margin: 0;
 }

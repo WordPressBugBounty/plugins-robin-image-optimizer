@@ -8,8 +8,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Класс для работы со статистическими данными по оптимизации изображений
  *
- * @author        Eugene Jokerov <jokerov@gmail.com>
- * @copyright (c) 2018, Webcraftic
  * @version       1.0
  */
 class WRIO_Image_Statistic_Folders extends WRIO_Image_Statistic {
@@ -19,7 +17,7 @@ class WRIO_Image_Statistic_Folders extends WRIO_Image_Statistic {
 	 *
 	 * @since  1.3.0
 	 * @access protected
-	 * @var    object
+	 * @var    static
 	 */
 	protected static $_instance;
 
@@ -141,17 +139,26 @@ class WRIO_Image_Statistic_Folders extends WRIO_Image_Statistic {
 		$current_folder = apply_filters( 'wriop_cf_current_folder', false );
 
 		if ( $current_folder ) {
-			$sql_unoptimized = $wpdb->prepare( "
+			$sql_unoptimized = $wpdb->prepare(
+				"
 			SELECT COUNT(*)
 			FROM {$db_table}
 			WHERE item_type = 'cf_image'
 			AND item_hash_alternative = %s
-			AND result_status IN (%s,%s);", $current_folder, RIO_Process_Queue::STATUS_UNOPTIMIZED, RIO_Process_Queue::STATUS_PROCESSING );
+			AND result_status IN (%s,%s);",
+				$current_folder,
+				RIO_Process_Queue::STATUS_UNOPTIMIZED,
+				RIO_Process_Queue::STATUS_PROCESSING
+			);
 		} else {
-			$sql_unoptimized = $wpdb->prepare( "
+			$sql_unoptimized = $wpdb->prepare(
+				"
 			SELECT COUNT(*)
 			FROM {$db_table} WHERE
-			item_type = 'cf_image' AND result_status IN (%s,%s);", RIO_Process_Queue::STATUS_UNOPTIMIZED, RIO_Process_Queue::STATUS_PROCESSING );
+			item_type = 'cf_image' AND result_status IN (%s,%s);",
+				RIO_Process_Queue::STATUS_UNOPTIMIZED,
+				RIO_Process_Queue::STATUS_PROCESSING
+			);
 		}
 
 		$unoptimized = $wpdb->get_var( $sql_unoptimized );
@@ -207,23 +214,24 @@ class WRIO_Image_Statistic_Folders extends WRIO_Image_Statistic {
 	}
 
 	/**
-	 * Возвращает результат последних оптимизаций изображений
+	 * Returns the result of the last optimized images.
 	 *
-	 * @param int   $limit            лимит
+	 * @param int $limit Limit.
 	 *
-	 * @return array {
-	 *     Параметры
-	 * @type string $id               id
-	 * @type string $file_name        Имя файла
-	 * @type string $url              URL
-	 * @type string $thumbnail_url    URL превьюшки
-	 * @type string $original_size    Размер до оптимизации
-	 * @type string $optimized_size   Размер после оптимизации
-	 * @type string $webp_size        webP размер
-	 * @type string $original_saving  На сколько процентов изменился главный файл
-	 * @type string $thumbnails_count Сколько превьюшек оптимизировано
-	 * @type string $total_saving     Процент оптимизации главного файла и превьюшек
-	 * }
+	 * @return array<int, array{
+	 *     id: int|string,
+	 *     file_name: string,
+	 *     url: string,
+	 *     thumbnail_url: string,
+	 *     original_size: string,
+	 *     optimized_size: string,
+	 *     webp_size?: string,
+	 *     original_saving: string,
+	 *     thumbnails_count: int,
+	 *     type: string,
+	 *     total_saving: string,
+	 *     error_msg?: string
+	 * }>
 	 */
 	public function get_last_optimized_images( $limit = 100 ) {
 		global $wpdb;
@@ -231,13 +239,18 @@ class WRIO_Image_Statistic_Folders extends WRIO_Image_Statistic {
 		$items    = [];
 		$db_table = RIO_Process_Queue::table_name();
 
-		$sql = $wpdb->prepare( "SELECT *
+		$sql = $wpdb->prepare(
+			"SELECT *
 					FROM {$db_table} as t1 
 					WHERE t1.item_type = 'cf_image' 
 					AND t1.result_status 
 					IN (%s, %s)
 					ORDER BY id DESC
-					LIMIT %d;", RIO_Process_Queue::STATUS_SUCCESS, RIO_Process_Queue::STATUS_ERROR, $limit );
+					LIMIT %d;",
+			RIO_Process_Queue::STATUS_SUCCESS,
+			RIO_Process_Queue::STATUS_ERROR,
+			$limit
+		);
 
 		$optimized_images = $wpdb->get_results( $sql, ARRAY_A );
 
@@ -249,19 +262,21 @@ class WRIO_Image_Statistic_Folders extends WRIO_Image_Statistic {
 	}
 
 	/**
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
-	 * @since  1.1
+	 * Get the last optimized image record for a specific model.
 	 *
-	 * @param $id
+	 * @param RIO_Process_Queue $model Queue model instance.
+	 *
+	 * @return array<int, array<string, mixed>>
+	 * @since  1.1
 	 */
 	public function get_last_optimized_image( $model ) {
+		$items   = [];
 		$items[] = $this->format_for_log( $model );
 
 		return $items;
 	}
 
 	/**
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 * @since  1.0.4
 	 *
 	 * @param int|RIO_Process_Queue $queue_model
@@ -290,6 +305,7 @@ class WRIO_Image_Statistic_Folders extends WRIO_Image_Statistic {
 		$formated_data = [
 			'id'               => $optimization_data->id,
 			'url'              => $image_url,
+			'original_url'     => $image_url,
 			'thumbnail_url'    => $thumbnail_url,
 			'file_name'        => wp_basename( $main_file ),
 			'original_size'    => size_format( $optimization_data->original_size, 2 ),
@@ -328,5 +344,4 @@ class WRIO_Image_Statistic_Folders extends WRIO_Image_Statistic {
 
 		return $formated_data;
 	}
-
 }

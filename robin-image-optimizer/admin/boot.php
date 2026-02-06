@@ -2,9 +2,6 @@
 /**
  * Admin boot
  *
- * @author    Alex Kovalev <alex.kovalevv@gmail.com> <Telegram:@alex_kovalevv>
- * @author    Webcraftic <wordpress.webraftic@gmail.com>
- * @copyright Webcraftic 25.05.2017
  * @version   1.0
  */
 
@@ -22,61 +19,73 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * @return bool
  */
-add_action( 'admin_init', function () {
-	RIO_Process_Queue::try_create_plugin_tables();
-} );
+add_action(
+	'admin_init',
+	function () {
+		RIO_Process_Queue::try_create_plugin_tables();
+	}
+);
 
 /**
- * Удаляет карточку компонента в плагине Clearfy.
  *
- * @author Alexander Kovalev <alex.kovalevv@gmail.com>
  * @since  1.3.0
  */
-add_filter( 'wbcr/clearfy/components/items_list', function ( $components ) {
-	if ( wrio_is_clearfy_license_activate() ) {
-		return $components;
-	}
-	if ( ! empty( $components ) ) {
-		foreach ( $components as $key => $component ) {
-			if ( "robin_image_optimizer" == $component['name'] ) {
-				unset( $components[ $key ] );
+add_filter(
+	'wbcr/clearfy/components/items_list',
+	function ( $components ) {
+		if ( wrio_is_clearfy_license_activate() ) {
+			return $components;
+		}
+		if ( ! empty( $components ) ) {
+			foreach ( $components as $key => $component ) {
+				if ( 'robin_image_optimizer' == $component['name'] ) {
+					unset( $components[ $key ] );
+				}
 			}
 		}
-	}
 
-	return $components;
-} );
+		return $components;
+	}
+);
 
 /**
  * Добавляет карточку компонента на страницу компонентов
- * в плагине Clearfy.
  *
- * @author Alexander Kovalev <alex.kovalevv@gmail.com>
  * @since  1.3.0
  */
-add_action( 'wbcr/clearfy/components/custom_plugins_card', function () {
-	if ( ! wrio_is_clearfy_license_activate() ) {
-		$view = WRIO_Views::get_instance( WRIO_PLUGIN_DIR );
-		$view->print_template( 'clearfy-component-card' );
+add_action(
+	'wbcr/clearfy/components/custom_plugins_card',
+	function () {
+		if ( ! wrio_is_clearfy_license_activate() ) {
+			$view = WRIO_Views::get_instance( WRIO_PLUGIN_DIR );
+			$view->print_template( 'clearfy-component-card' );
+		}
 	}
-} );
+);
 
 /**
  * We asset migration scripts to all admin panel pages
  *
- * @author Alexander Kovalev <alex.kovalevv@gmail.com>
  * @since  1.3.0
  */
-add_action( 'admin_enqueue_scripts', function () {
-	if ( ! current_user_can( 'update_plugins' ) || ! wbcr_rio_has_meta_to_migrate() ) {
-		return;
-	}
+add_action(
+	'admin_enqueue_scripts',
+	function () {
+		if ( ! current_user_can( 'update_plugins' ) || ! wbcr_rio_has_meta_to_migrate() ) {
+			return;
+		}
 
-	wp_enqueue_script( 'wrio-meta-migrations', WRIO_PLUGIN_URL . '/admin/assets/js/meta-migrations.js', [
-		'jquery',
-		'wbcr-factory-clearfy-000-global'
-	], WRIO_Plugin::app()->getPluginVersion() );
-} );
+		wp_enqueue_script(
+			'wrio-meta-migrations',
+			WRIO_PLUGIN_URL . '/admin/assets/js/meta-migrations.js',
+			[
+				'jquery',
+				'wbcr-factory-clearfy-000-global',
+			],
+			WRIO_Plugin::app()->getPluginVersion()
+		);
+	}
+);
 
 /**
  * Plugin was heavy migrated into new architecture. Specifically, post meta was moved to separate table and
@@ -90,7 +99,6 @@ add_action( 'admin_enqueue_scripts', function () {
  * @param $notices
  *
  * @return array
- * @author Alexander Kovalev <alex.kovalevv@gmail.com>
  * @since  1.3.0
  *
  * @see    wbcr_rio_migrate_postmeta_to_process_queue() for further information about AJAX processing function.
@@ -98,22 +106,25 @@ add_action( 'admin_enqueue_scripts', function () {
  *
  * @see    RIO_Process_Queue for further information about new table.
  */
-add_action( "wbcr/factory/admin_notices", function ( $notices ) {
+add_action(
+	'wbcr/factory/admin_notices',
+	function ( $notices ) {
 
-	if ( ! current_user_can( 'update_plugins' ) || ! wbcr_rio_has_meta_to_migrate() ) {
+		if ( ! current_user_can( 'update_plugins' ) || ! wbcr_rio_has_meta_to_migrate() ) {
+			return $notices;
+		}
+
+		$notices[] = [
+			'id'              => WRIO_Plugin::app()->getPrefix() . 'meta_to_migration',
+			'type'            => 'warning',
+			'dismissible'     => false,
+			'dismiss_expires' => 0,
+			'text'            => '<p><b>' . WRIO_Plugin::app()->getPluginTitle() . ':</b> ' . wrio_get_meta_migration_notice_text() . '</p>',
+		];
+
 		return $notices;
 	}
-
-	$notices[] = [
-		'id'              => WRIO_Plugin::app()->getPrefix() . 'meta_to_migration',
-		'type'            => 'warning',
-		'dismissible'     => false,
-		'dismiss_expires' => 0,
-		'text'            => "<p><b>" . WRIO_Plugin::app()->getPluginTitle() . ":</b> " . wrio_get_meta_migration_notice_text() . '</p>'
-	];
-
-	return $notices;
-} );
+);
 
 /**
  * Plugin was heavy migrated into new architecture. Specifically, post meta was moved to separate table and
@@ -127,7 +138,6 @@ add_action( "wbcr/factory/admin_notices", function ( $notices ) {
  * @param Wbcr_Factory480_Plugin $plugin
  * @param Wbcr_FactoryPages480_ImpressiveThemplate $obj
  *
- * @author Alexander Kovalev <alex.kovalevv@gmail.com>
  * @since  1.3.0
  *
  * @see    wbcr_rio_migrate_postmeta_to_process_queue() for further information about AJAX processing function.
@@ -135,13 +145,18 @@ add_action( "wbcr/factory/admin_notices", function ( $notices ) {
  *
  * @see    RIO_Process_Queue for further information about new table.
  */
-add_action( 'wbcr/factory/pages/impressive/print_all_notices', function ( $plugin, $obj ) {
-	if ( ( $plugin->getPluginName() != WRIO_Plugin::app()->getPluginName() ) || ! wbcr_rio_has_meta_to_migrate() ) {
-		return;
-	}
+add_action(
+	'wbcr/factory/pages/impressive/print_all_notices',
+	function ( $plugin, $obj ) {
+		if ( ( $plugin->getPluginName() != WRIO_Plugin::app()->getPluginName() ) || ! wbcr_rio_has_meta_to_migrate() ) {
+			return;
+		}
 
-	$obj->printWarningNotice( wrio_get_meta_migration_notice_text() );
-}, 10, 2 );
+		$obj->printWarningNotice( wrio_get_meta_migration_notice_text() );
+	},
+	10,
+	2
+);
 
 /***
  * Flush configuration after saving the settings
@@ -151,7 +166,8 @@ add_action( 'wbcr/factory/pages/impressive/print_all_notices', function ( $plugi
  *
  * @return bool
  */
-/*add_action('wbcr_factory_480_imppage_after_form_save', function ($plugin, $obj) {
+/*
+add_action('wbcr_factory_480_imppage_after_form_save', function ($plugin, $obj) {
 	$is_rio = WRIO_Plugin::app()->getPluginName() == $plugin->getPluginName();
 
 	if( $is_rio ) {
@@ -178,46 +194,46 @@ function wio_rating_widget_url( $page_url, $plugin_name ) {
 add_filter( 'wbcr_factory_pages_480_imppage_rating_widget_url', 'wio_rating_widget_url', 10, 2 );
 
 /**
- * Widget with the offer to buy Clearfy Business
  *
  * @param array $widgets
  * @param string $position
  * @param Wbcr_Factory480_Plugin $plugin
  */
-add_filter( 'wbcr/factory/pages/impressive/widgets', function ( $widgets, $position, $plugin ) {
-	if ( $plugin->getPluginName() == WRIO_Plugin::app()->getPluginName() ) {
-		require_once WRIO_PLUGIN_DIR . '/admin/includes/sidebar-widgets.php';
+add_filter(
+	'wbcr/factory/pages/impressive/widgets',
+	function ( $widgets, $position, $plugin ) {
+		if ( $plugin->getPluginName() == WRIO_Plugin::app()->getPluginName() ) {
+			require_once WRIO_PLUGIN_DIR . '/admin/includes/sidebar-widgets.php';
 
-		if ( wrio_is_license_activate() ) {
-			unset( $widgets['donate_widget'] );
+			if ( wrio_is_license_activate() ) {
+				unset( $widgets['donate_widget'] );
 
-			if ( $position == 'right' ) {
-				unset( $widgets['adverts_widget'] );
-				unset( $widgets['business_suggetion'] );
-				unset( $widgets['rating_widget'] );
-				unset( $widgets['info_widget'] );
-			}
+				if ( $position == 'right' ) {
+					unset( $widgets['adverts_widget'] );
+					unset( $widgets['business_suggetion'] );
+					unset( $widgets['rating_widget'] );
+					unset( $widgets['info_widget'] );
+				}
 
-			/*if ( $position == 'bottom' ) {
+				/*
+				if ( $position == 'bottom' ) {
 				$widgets['support'] = wrio_get_sidebar_support_widget();
-			}*/
+				}*/
 
-			return $widgets;
-		} else {
-			if ( $position == 'right' ) {
+				return $widgets;
+			} elseif ( $position == 'right' ) {
 				unset( $widgets['info_widget'] );
 				unset( $widgets['rating_widget'] );
-				//$widgets['support'] = wrio_get_sidebar_support_widget();
+				// $widgets['support'] = wrio_get_sidebar_support_widget();
+
 			}
 		}
 
-		//if ( $position == 'bottom' ) {
-		//$widgets['donate_widget'] = wrio_get_sidebar_premium_widget();
-		//}
-	}
-
-	return $widgets;
-}, 20, 3 );
+		return $widgets;
+	},
+	20,
+	3
+);
 
 /**
  * Заменяет заголовок в рекламном виджете
@@ -226,13 +242,18 @@ add_filter( 'wbcr/factory/pages/impressive/widgets', function ( $widgets, $posit
  * @param string $plugin_name
  * @param string $page_id
  */
-add_filter( 'wbcr/clearfy/pages/suggetion_title', function ( $features, $plugin_name, $page_id ) {
-	if ( ! empty( $plugin_name ) && ( $plugin_name == WRIO_Plugin::app()->getPluginName() ) ) {
-		return __( "ROBIN IMAGE OPTIMIZER PRO", 'robin-image-optimizer' );
-	}
+add_filter(
+	'wbcr/clearfy/pages/suggetion_title',
+	function ( $features, $plugin_name, $page_id ) {
+		if ( ! empty( $plugin_name ) && ( $plugin_name == WRIO_Plugin::app()->getPluginName() ) ) {
+			return __( 'ROBIN IMAGE OPTIMIZER PRO', 'robin-image-optimizer' );
+		}
 
-	return $features;
-}, 20, 3 );
+		return $features;
+	},
+	20,
+	3
+);
 
 /**
  * Заменяем премиум возможности в рекламном виджете
@@ -241,22 +262,27 @@ add_filter( 'wbcr/clearfy/pages/suggetion_title', function ( $features, $plugin_
  * @param string $plugin_name
  * @param string $page_id
  */
-add_filter( 'wbcr/clearfy/pages/suggetion_features', function ( $features, $plugin_name, $page_id ) {
-	if ( ! empty( $plugin_name ) && ( $plugin_name == WRIO_Plugin::app()->getPluginName() ) ) {
-		$upgrade_feature   = [];
-		$upgrade_feature[] = __( 'Automatic convertation in Webp', 'robin-image-optimizer' );
-		$upgrade_feature[] = __( 'You can optimize custom folders', 'robin-image-optimizer' );
-		$upgrade_feature[] = __( 'Support Nextgen gallery', 'robin-image-optimizer' );
-		$upgrade_feature[] = __( 'Multisite support', 'robin-image-optimizer' );
-		$upgrade_feature[] = __( 'Fast optimization servers', 'robin-image-optimizer' );
-		$upgrade_feature[] = __( 'No ads', 'robin-image-optimizer' );
-		$upgrade_feature[] = __( 'Best support', 'robin-image-optimizer' );
+add_filter(
+	'wbcr/clearfy/pages/suggetion_features',
+	function ( $features, $plugin_name, $page_id ) {
+		if ( ! empty( $plugin_name ) && ( $plugin_name == WRIO_Plugin::app()->getPluginName() ) ) {
+			$upgrade_feature   = [];
+			$upgrade_feature[] = __( 'Automatic conversion to WebP', 'robin-image-optimizer' );
+			$upgrade_feature[] = __( 'You can optimize custom folders', 'robin-image-optimizer' );
+			$upgrade_feature[] = __( 'Supports NextGen gallery', 'robin-image-optimizer' );
+			$upgrade_feature[] = __( 'Multisite support', 'robin-image-optimizer' );
+			$upgrade_feature[] = __( 'Fast optimization servers', 'robin-image-optimizer' );
+			$upgrade_feature[] = __( 'Ad-free experience', 'robin-image-optimizer' );
+			$upgrade_feature[] = __( 'Priority support', 'robin-image-optimizer' );
 
-		return $upgrade_feature;
-	}
+			return $upgrade_feature;
+		}
 
-	return $features;
-}, 20, 3 );
+		return $features;
+	},
+	20,
+	3
+);
 
 /**
  * Заменяем премиум возможности в рекламном виджете
@@ -265,89 +291,65 @@ add_filter( 'wbcr/clearfy/pages/suggetion_features', function ( $features, $plug
  * @param string $type
  * @param string $plugin_name
  */
-add_filter( 'wbcr/factory/premium/notice_text', function ( $text, $type, $plugin_name ) {
-	if ( WRIO_Plugin::app()->getPluginName() != $plugin_name ) {
+add_filter(
+	'wbcr/factory/premium/notice_text',
+	function ( $text, $type, $plugin_name ) {
+		if ( WRIO_Plugin::app()->getPluginName() != $plugin_name ) {
+			return $text;
+		}
+
+		$license_page_url = WRIO_Plugin::app()->getPluginPageUrl( 'rio_license' );
+
+		if ( null === $license_page_url ) {
+			return $text;
+		}
+
+		if ( 'need_activate_license' == $type ) {
+			return sprintf(
+			// translators: %1$s is opening <a> tag, %2$s is closing </a> tag.
+				__( '%1$sLicense activation%2$s required. A license is required to get premium plugin updates, as well as to get additional services.', 'robin-image-optimizer' ),
+				'<a href="' . esc_url( $license_page_url ) . '">',
+				'</a>'
+			);
+		} elseif ( 'need_renew_license' == $type ) {
+			return sprintf(
+			// translators: %1$s is opening <a> tag, %2$s is closing </a> tag.
+				__( 'Your %1$slicense%2$s has expired. You can no longer get premium plugin updates, premium support and your access to services has been suspended.', 'robin-image-optimizer' ),
+				'<a href="' . esc_url( $license_page_url ) . '">',
+				'</a>'
+			);
+		}
+
 		return $text;
-	}
-
-	$license_page_url = WRIO_Plugin::app()->getPluginPageUrl( 'rio_license' );
-
-	if ( 'need_activate_license' == $type ) {
-		return sprintf( __( '<a href="%s">License activation</a> required. A license is required to get premium plugin updates, as well as to get additional services.', 'robin-image-optimizer' ), $license_page_url );
-	} else if ( 'need_renew_license' == $type ) {
-		return sprintf( __( 'Your <a href="%s">license</a> has expired. You can no longer get premium plugin updates, premium support and your access to Webcraftic services has been suspended.', 'robin-image-optimizer' ), $license_page_url );
-	}
-
-	return $text;
-}, 10, 3 );
+	},
+	10,
+	3
+);
 
 /**
- * Отправка уведомлений и скором окончании квоты
- * Уведомления создаются только если квота <= 100
+ * Check if the AVIF upsell banner has been dismissed by the current user.
  *
- * @author Alexander Gorenkov <g.a.androidjc2@ya.ru>
- * @since  1.4.2
+ * @return bool True if dismissed, false otherwise.
  */
-add_action( 'wbcr/factory/admin_notices', function ( $notices, $plugin_name ) {
-	if ( $plugin_name != WRIO_Plugin::app()->getPluginName() ) {
-		return $notices;
-	}
-
-	if ( WRIO_Plugin::app()->getPopulateOption( 'image_optimization_server' ) != 'server_5' ) {
-		return $notices;
-	}
-
-	$processor     = WIO_OptimizationTools::getImageProcessor( 'server_5' );
-	$current_quota = $processor->get_quota_limit();
-
-	if ( $current_quota > 100 ) {
-		return $notices;
-	}
-
-	$notice_text = __( 'The remainder of the quota is coming to an end. Remained credits: ' . $current_quota, 'robin_image_optimizer' );
-
-	$plugin_title = WRIO_Plugin::app()->getPluginTitle();
-	$notice_text  = '<b>' . $plugin_title . '</b>: ' . $notice_text;
-	$notices[]    = [
-		'id'              => 'wrio_remained_quota',
-		'type'            => 'warning',
-		'dismissible'     => true,
-		'where'           => [ 'plugins', 'dashboard', 'edit' ],
-		'dismiss_expires' => time() + 3600 * 4,
-		'text'            => $notice_text,
-	];
-
-	return $notices;
-}, 10, 2 );
+function wrio_is_avif_banner_dismissed() {
+	return (bool) get_user_meta( get_current_user_id(), 'wrio_avif_banner_dismissed', true );
+}
 
 /**
- * Отправка уведомлений и скором окончании квоты в Impressive
- * Уведомления создаются только если квота <= 100
- *
- * @param Wbcr_Factory480_Plugin $plugin Экземпляр плагина, который передается в функцию обратного вызова
- * @param Wbcr_FactoryPages480_ImpressiveThemplate $obj Экземпляр страницы, который передается в функцию обратного вызова
- *
- * @author Alexander Gorenkov <g.a.androidjc2@ya.ru>
- * @since  1.4.2
+ * AJAX handler for dismissing the AVIF upsell banner.
  */
-add_action( 'wbcr/factory/pages/impressive/print_all_notices', function ( $plugin, $obj ) {
-	if ( $plugin->getPluginName() != WRIO_Plugin::app()->getPluginName() ) {
-		return false;
+add_action(
+	'wp_ajax_wrio_dismiss_avif_banner',
+	function () {
+		check_ajax_referer( 'wrio_dismiss_avif_banner', 'nonce' );
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( [ 'message' => __( 'Permission denied.', 'robin-image-optimizer' ) ] );
+		}
+
+		// Dismiss permanently.
+		update_user_meta( get_current_user_id(), 'wrio_avif_banner_dismissed', 1 );
+
+		wp_send_json_success();
 	}
-
-	$processor = WIO_OptimizationTools::getImageProcessor();
-
-	if ( ! $processor->has_quota_limit() ) {
-		return false;
-	}
-
-	$current_quota = $processor->get_quota_limit();
-
-	if ( $current_quota > 100 ) {
-		return false;
-	}
-
-	$notice_text = __( 'The remainder of the quota is coming to an end. Remained credits: ' . $current_quota, 'robin_image_optimizer' );
-
-	$obj->printWarningNotice( $notice_text );
-}, 10, 2 );
+);

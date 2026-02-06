@@ -2,9 +2,6 @@
 /**
  * The class contains a base class for all lists of assets.
  *
- * @author        Alex Kovalev <alex.kovalevv@gmail.com>, repo: https://github.com/alexkovalevv
- * @author        Webcraftic <wordpress.webraftic@gmail.com>, site: https://webcraftic.com
- *
  * @package       factory-core
  * @since         1.0.0
  */
@@ -19,25 +16,25 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * @since 1.0.0
  */
-class Wbcr_Factory480_AssetsList {
+class Wbcr_Factory600_AssetsList {
 
-	protected $all = [];
+	protected $all       = [];
 	public $header_place = [];
 	public $footer_place = [];
-	public $required = [];
+	public $required     = [];
 
 	protected $default_place;
 
 	/**
-	 * @var Wbcr_Factory480_Plugin
+	 * @var Wbcr_Factory600_Plugin
 	 */
 	protected $plugin;
 
 	/**
-	 * @param Wbcr_Factory480_Plugin $plugin
+	 * @param Wbcr_Factory600_Plugin $plugin
 	 * @param bool                   $defaultIsFooter
 	 */
-	public function __construct( Wbcr_Factory480_Plugin $plugin, $defaultIsFooter = true ) {
+	public function __construct( Wbcr_Factory600_Plugin $plugin, $defaultIsFooter = true ) {
 		$this->plugin = $plugin;
 
 		if ( $defaultIsFooter ) {
@@ -89,7 +86,7 @@ class Wbcr_Factory480_AssetsList {
 	 *
 	 * @return boolean
 	 */
-	public function isEmpty( $source = 'wordpress' ) {
+	public function isEmpty( $source = 'WordPress' ) {
 		if ( 'bootstrap' === $source ) {
 			return empty( $this->required[ $source ] );
 		}
@@ -110,7 +107,7 @@ class Wbcr_Factory480_AssetsList {
 	 *
 	 * @param mixed
 	 */
-	public function request( $items, $source = 'wordpress' ) {
+	public function request( $items, $source = 'WordPress' ) {
 
 		if ( is_array( $items ) ) {
 			foreach ( $items as $item ) {
@@ -123,4 +120,3 @@ class Wbcr_Factory480_AssetsList {
 		return $this;
 	}
 }
-

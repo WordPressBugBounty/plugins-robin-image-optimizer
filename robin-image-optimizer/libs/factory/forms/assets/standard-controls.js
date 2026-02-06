@@ -4,7 +4,7 @@
     if ( $.factory.widget ) return;
     
     /**
-    * OnePress Widget Factory.
+    * Widget Factory.
     */
     $.factory.widget = function (pluginName, pluginObject) {
 

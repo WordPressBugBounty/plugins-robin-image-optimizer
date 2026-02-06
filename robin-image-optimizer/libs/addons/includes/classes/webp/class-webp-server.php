@@ -3,8 +3,6 @@
 namespace WRIO\WEBP;
 
 /**
- * @author        Webcraftic <wordpress.webraftic@gmail.com>, Alexander Kovalev <alex.kovalevv@gmail.com>
- * @copyright (c) 20.04.2019, Webcraftic
  * @version       1.0
  */
 class Server {
@@ -12,7 +10,6 @@ class Server {
 	/**
 	 * return the server home path
 	 *
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 * @since  1.0.4
 	 */
 	public static function get_home_path() {
@@ -25,7 +22,8 @@ class Server {
 
 			if ( $pos !== false ) {
 				$home_path = substr( $_SERVER['SCRIPT_FILENAME'], 0, $pos );
-				$home_path = trim( $home_path, '/\\' ) . DIRECTORY_SEPARATOR;;
+				$home_path = trim( $home_path, '/\\' ) . DIRECTORY_SEPARATOR;
+
 			} else {
 				$wp_path_rel_to_home = DIRECTORY_SEPARATOR . trim( $wp_path_rel_to_home, '/\\' ) . DIRECTORY_SEPARATOR;
 
@@ -41,7 +39,7 @@ class Server {
 
 		$home_path = trim( $home_path, '\\/ ' );
 
-		//not for windows
+		// not for windows
 		if ( DIRECTORY_SEPARATOR != '\\' ) {
 			$home_path = DIRECTORY_SEPARATOR . $home_path;
 		}
@@ -52,7 +50,6 @@ class Server {
 	/**
 	 * Return if the server run Apache
 	 *
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 * @since  1.0.4
 	 * @return bool
 	 */
@@ -65,7 +62,6 @@ class Server {
 	/**
 	 * Return if the server run on nginx
 	 *
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 * @since  1.0.4
 	 * @return bool
 	 */
@@ -78,7 +74,6 @@ class Server {
 	/**
 	 * Return if the server run on IIS
 	 *
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 * @since  1.0.4
 	 * @return bool
 	 */
@@ -91,7 +86,6 @@ class Server {
 	/**
 	 * Return if the server run on IIS version 7 and up
 	 *
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 * @since  1.0.4
 	 * @return bool
 	 */
@@ -104,7 +98,6 @@ class Server {
 	/**
 	 * Is permalink enabled?
 	 *
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 * @since  1.0.4
 	 * @return bool
 	 * @global \WP_Rewrite $wp_rewrite
@@ -122,7 +115,6 @@ class Server {
 	/**
 	 * Return whatever the htaccess config file is writable
 	 *
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 * @since  1.0.4
 	 * @return bool
 	 */
@@ -137,7 +129,6 @@ class Server {
 	/**
 	 * Return whatever the web.config config file is writable
 	 *
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 * @since  1.0.4
 	 */
 	public static function is_writable_webconfig_file() {
@@ -152,7 +143,6 @@ class Server {
 	}
 
 	/**
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 * @since  1.0.4
 	 * @return bool
 	 */
@@ -167,7 +157,6 @@ class Server {
 	/**
 	 * Does the specified module exist in the Apache config?
 	 *
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 * @since  1.0.4
 	 *
 	 * @param string $mod       The module, e.g. mod_rewrite.
@@ -175,7 +164,6 @@ class Server {
 	 *
 	 * @return bool Whether the specified module is loaded.
 	 * @global bool  $is_apache
-	 *
 	 */
 	public static function apache_mod_loaded( $mod, $default = false ) {
 		if ( ! static::is_apache() ) {
@@ -187,11 +175,11 @@ class Server {
 			if ( in_array( $mod, $mods ) ) {
 				return true;
 			}
-		} else if ( getenv( 'HTTP_MOD_REWRITE' ) !== false ) {
+		} elseif ( getenv( 'HTTP_MOD_REWRITE' ) !== false ) {
 			$mod_found = getenv( 'HTTP_MOD_REWRITE' ) == 'On' ? true : false;
 
 			return $mod_found;
-		} else if ( function_exists( 'phpinfo' ) && false === strpos( ini_get( 'disable_functions' ), 'phpinfo' ) ) {
+		} elseif ( function_exists( 'phpinfo' ) && false === strpos( ini_get( 'disable_functions' ), 'phpinfo' ) ) {
 			ob_start();
 			phpinfo( 8 );
 			$phpinfo = ob_get_clean();
@@ -206,7 +194,6 @@ class Server {
 	/**
 	 * Return whatever server using the .htaccess config file
 	 *
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 * @since  1.0.4
 	 * @return bool
 	 */
@@ -227,7 +214,6 @@ class Server {
 	 * Cleans webp rules from htaccess file. Use when deactivating a plugin
 	 * or turn off webp support option.
 	 *
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 * @since  1.0.4
 	 */
 	public static function htaccess_clear_webp_rules() {
@@ -254,7 +240,6 @@ class Server {
 	 * Add webp rules in htaccess file. Use when activating a plugin
 	 * or turn on webp support option.
 	 *
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 * @since  @since  1.0.4
 	 *
 	 * @param bool $clear
@@ -322,7 +307,7 @@ class Server {
 
 	public static function insert_with_markers( $file_path, $content ) {
 		if ( ! static::is_writable_htaccess( $file_path ) ) {
-			\WRIO_Plugin::app()->logger->error( sprintf( "It is not possible to update webp rules for htaccess, because file (%s) is not writable.", $file_path ) );
+			\WRIO_Plugin::app()->logger->error( sprintf( 'It is not possible to update webp rules for htaccess, because file (%s) is not writable.', $file_path ) );
 		} else {
 			if ( ! static::got_mod_rewrite() ) {
 				\WRIO_Plugin::app()->logger->error( "It isn't possible to update webp rules for htaccess, because mode rewrite is unsupported." );

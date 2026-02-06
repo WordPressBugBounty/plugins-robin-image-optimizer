@@ -2,8 +2,6 @@
 /**
  * Supporting functions for premium plugin
  *
- * @author        Webcraftic <wordpress.webraftic@gmail.com>, Alexander Kovalev <alex.kovalevv@gmail.com>
- * @copyright (c) 19.04.2019, Webcraftic
  * @version       1.0
  */
 
@@ -60,7 +58,6 @@ function wrio_get_ngg_galleries_path() {
  * @access public
  * @return string An absolute path.
  */
-
 function wrio_get_wc_logs_path() {
 	if ( defined( 'WC_LOG_DIR' ) ) {
 		return WC_LOG_DIR;
@@ -100,7 +97,6 @@ function wrio_get_ewww_tools_path() {
  * @access public
  * @return string An absolute path.
  */
-
 function wrio_get_shortpixel_path() {
 	if ( defined( 'SHORTPIXEL_BACKUP_FOLDER' ) ) {
 		return trailingslashit( SHORTPIXEL_BACKUP_FOLDER );

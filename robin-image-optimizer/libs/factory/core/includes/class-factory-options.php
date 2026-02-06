@@ -1,6 +1,6 @@
 <?php
 
-namespace WBCR\Factory_480;
+namespace WBCR\Factory_600;
 
 // Exit if accessed directly
 use Exception;
@@ -10,20 +10,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Трейт используется для расширения базового класса плагина Wbcr_Factory480_Base, позволяя работать с опциями плагина.
+ * Трейт используется для расширения базового класса плагина Wbcr_Factory600_Base, позволяя работать с опциями плагина.
  *
- * Этот трейт является оберткой для Wordpress функций get_option, get_site_option, update_option, update_site_option,
+ * Этот трейт является оберткой для WordPress функций get_option, get_site_option, update_option, update_site_option,
  * delete_option, delete_site_option. Основная задача была получать, обновлять, удалять опции без использования префиксов,
  * чтобы класс выполнял эту работу за программиста. В дополнение, трейт содержит методы для полной выгрузки всех опций
  * плагина, что позволяет при инициализации плагина автоматически выгрузить все существующие опции плагина в объектный
  * кеш. Все опции, с которыми работает плагин, могут быть отфильтрованы.
- *
- * Документация по трейту: https://webcraftic.atlassian.net/wiki/spaces/FFD/pages/393805831/
- * Документация по созданию плагина: https://webcraftic.atlassian.net/wiki/spaces/CNCFC/pages/327828
- * Репозиторий: https://github.com/alexkovalevv
- *
- * @author        Alex Kovalev <alex.kovalevv@gmail.com>, repo: https://github.com/alexkovalevv
- * @author        Webcraftic <wordpress.webraftic@gmail.com>, site: https://webcraftic.com
  *
  * @since         4.0.8  - Добавлен
  * @package       factory-core
@@ -32,8 +25,8 @@ trait Options {
 
 	/**
 	 * Абстрактный метод, должен быть реализован в классе использующем этот трейт. Метод позволяет получить префикс
-	 * плагина для формирования имен опций в базе данных Wordpress. У опций должно быть свое пространство имен,
-	 * иначе может быть конфликт с другими плагинами или с сами ядром Wordpress.
+	 * плагина для формирования имен опций в базе данных WordPress. У опций должно быть свое пространство имен,
+	 * иначе может быть конфликт с другими плагинами или с сами ядром WordPress.
 	 *
 	 * @since  4.0.8 - Добавлен
 	 * @return string Возвращает префикс плагина. Пример: wbcr_clearfy_
@@ -96,7 +89,7 @@ trait Options {
 
 		$network_id = (int) get_current_network_id();
 
-		$is_option_loaded = wp_cache_get( $network_id . ":" . $this->getPrefix() . 'all_options_loaded', $this->getPrefix() . 'network_options' );
+		$is_option_loaded = wp_cache_get( $network_id . ':' . $this->getPrefix() . 'all_options_loaded', $this->getPrefix() . 'network_options' );
 
 		if ( false === $is_option_loaded ) {
 			wp_cache_add_global_groups( [ $this->getPrefix() . 'network_options' ] );
@@ -105,13 +98,13 @@ trait Options {
 
 			$options = [];
 			if ( ! empty( $result ) ) {
-				wp_cache_add( $network_id . ":" . $this->getPrefix() . 'all_options_loaded', 1, $this->getPrefix() . 'network_options' );
+				wp_cache_add( $network_id . ':' . $this->getPrefix() . 'all_options_loaded', 1, $this->getPrefix() . 'network_options' );
 
 				foreach ( $result as $option ) {
 					$value = maybe_unserialize( $option->meta_value );
 					$value = $this->normalizeValue( $value );
 
-					$cache_key = $network_id . ":" . $option->meta_key;
+					$cache_key = $network_id . ':' . $option->meta_key;
 					wp_cache_add( $cache_key, $value, $this->getPrefix() . 'network_options' );
 					$options[ $option->meta_key ] = $value;
 				}
@@ -287,7 +280,7 @@ trait Options {
 		 * @param string $option_name    Имя опции без префикса.
 		 * @param mixed  $option_value   Значение опции. Может принимать массив или объект.
 		 */
-		do_action( "wbcr/factory/update_network_option", $option_name, $option_value );
+		do_action( 'wbcr/factory/update_network_option', $option_name, $option_value );
 	}
 
 	/**
@@ -313,7 +306,7 @@ trait Options {
 		 *
 		 * @param mixed  $option_value
 		 */
-		do_action( "wbcr/factory/update_option", $option_name, $option_value );
+		do_action( 'wbcr/factory/update_option', $option_name, $option_value );
 
 		return $result;
 	}
@@ -373,7 +366,7 @@ trait Options {
 	}
 
 	/**
-	 * Сбрасывает объектный кеш. Может использоваться для перезагрузки опций плагина и Wordpress в целом.
+	 * Сбрасывает объектный кеш. Может использоваться для перезагрузки опций плагина и WordPress в целом.
 	 *
 	 * @since 4.0.0 - Добавлен
 	 * @return bool Возвращает true, если кеш сброшен успешно, false в случае ошибки.
@@ -418,11 +411,11 @@ trait Options {
 		if ( is_string( $data ) ) {
 			$check_string = rtrim( trim( $data ) );
 
-			if ( $check_string == "1" || $check_string == "0" ) {
+			if ( $check_string == '1' || $check_string == '0' ) {
 				return intval( $data );
-			} else if ( $check_string === 'false' ) {
+			} elseif ( $check_string === 'false' ) {
 				return false;
-			} else if ( $check_string === 'true' ) {
+			} elseif ( $check_string === 'true' ) {
 				return true;
 			}
 		}

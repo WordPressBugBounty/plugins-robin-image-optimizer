@@ -1,7 +1,5 @@
 /**
  * General
- * @author Webcraftic <wordpress.webraftic@gmail.com>
- * @copyright (c) 10.09.2017, Webcraftic
  * @version 1.0
  */
 (function($) {
@@ -42,7 +40,7 @@
 					onOpen: function(modal) {
 
 						$(modal).find("#wrio-file-tree").fileTree({
-							script: ajaxurl + '?action=wriop_browse_dir',
+							script: ajaxurl + '?action=wriop_browse_dir&_wpnonce=' + self.settings.optimization_nonce,
 							multiFolder: false,
 							onlyFolders: true
 						});
@@ -109,8 +107,8 @@
 					.attr('data-confirm', self.i18n.alert_remove_folder)
 					.html(' <span class="dashicons dashicons-no"></span>');
 
-				compressed_msg = self.i18n.compressed_in_folder.replace('%d', 0);
-				compressed_msg = compressed_msg.replace('%s', '<span id="wrio-cf-total-' + response.data.uid + '">0</span>');
+				compressed_msg = self.i18n.compressed_in_folder.replace('%1$d', 0);
+				compressed_msg = compressed_msg.replace('%2$s', '<span id="wrio-cf-total-' + response.data.uid + '">0</span>');
 
 				tr.addClass('wrio-table-item')
 					.append(td.clone().addClass('wrio-table-spinner'))
@@ -195,6 +193,7 @@
 				'uid': self.closest('td').data('uid'),
 				'total': 0,
 				'offset': 0,
+				'_wpnonce': wrio_settings_bulk_page.optimization_nonce,
 			};
 			send_indexing_data(ai_data);
 		});
@@ -266,7 +265,8 @@
 		}
 		var data = {
 			action: 'wriop_remove_folder',
-			uid: $(this).closest('td').data('uid')
+			uid: $(this).closest('td').data('uid'),
+			_wpnonce: wrio_settings_bulk_page.optimization_nonce,
 		};
 		$(this).closest('tr').remove();
 		$.post(ajaxurl, data, function(response) {
@@ -277,6 +277,7 @@
 	function reload_ui() {
 		var data = {
 			action: 'wio_cf_reload_ui',
+			_wpnonce: wrio_settings_bulk_page.optimization_nonce,
 		};
 		$.post(ajaxurl, data, function(response) {
 			if( response.folders_table ) {

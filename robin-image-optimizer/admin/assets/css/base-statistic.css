@@ -1,8 +1,5 @@
 /**
- * Styles for the Widget to be displayed in the Clearfy plugin
-
- * @author Alex Kovalev <alex.kovalevv@gmail.com> 
- * @copyright Webcraftic 14.06.2019
+ * Styles for the Widget to be displayed in the plugin
  */
 #WBCR {
   /* Doughnut */
@@ -29,11 +26,11 @@
     }
   }*/
 }
-#WBCR .factory-bootstrap-482 select.form-control {
+#WBCR .factory-bootstrap-500 select.form-control {
   background: #efefef url(data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M5%206l5%205%205-5%202%201-7%207-7-7%202-1z%22%20fill%3D%22%23555%22%2F%3E%3C%2Fsvg%3E) no-repeat right 5px top 55% !important;
 }
-#WBCR .factory-bootstrap-482 .btn-default.active,
-#WBCR .factory-bootstrap-482 .factory-bootstrap-482 .btn-default:active {
+#WBCR .factory-bootstrap-500 .btn-default.active,
+#WBCR .factory-bootstrap-500 .factory-bootstrap-500 .btn-default:active {
   text-shadow: none;
   color: #fff;
   background-color: #33aad5;
@@ -43,7 +40,7 @@
   border-bottom: 1px solid #0074a2;
   border-left: 1px solid #0074a2;
 }
-#WBCR .factory-bootstrap-482 .btn-group > .btn:last-of-type {
+#WBCR .factory-bootstrap-500 .btn-group > .btn:last-of-type {
   border-top-right-radius: 3px;
   border-bottom-right-radius: 3px;
 }
@@ -51,7 +48,9 @@
   clear: both;
 }
 #WBCR #io_folders_statistic-wbcr_clearfy-tab,
-#WBCR #io_nextgen_gallery_statistic-wbcr_clearfy-tab {
+#WBCR #io_nextgen_gallery_statistic-wbcr_clearfy-tab,
+#WBCR #io_folders_statistic-robin-image-optimizer-tab,
+#WBCR #io_nextgen_gallery_statistic-robin-image-optimizer-tab {
   display: none !important;
 }
 #WBCR .wrio-statistic-nav {
@@ -94,7 +93,7 @@
   display: block;
   padding: 10px 20px 10px 20px;
   text-decoration: none;
-  color: #d4d4d4;
+  color: #999999;
   font-size: 22px;
   line-height: 2;
 }
@@ -116,9 +115,7 @@
 }
 #WBCR .wrio-statistic-nav ul li .wrio-statistic-tab .wrio-statistic-tab-percent {
   display: inline-block;
-  width: 42px;
-  height: 42px;
-  border-radius: 100px;
+  border-radius: 10px;
   border: 2px dashed #e4e4e4;
   padding: 5px;
   margin-left: 30px;
@@ -755,5 +752,285 @@
   #WBCR .wio-columns .col-chart.col-chart {
     margin-top: 3em;
   }
+}
+/* Card-based Statistics Layout */
+#WBCR .wrio-cards-container {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+#WBCR .wrio-card {
+  flex: 1 1 0;
+  min-width: 280px;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  text-align: center;
+}
+#WBCR .wrio-card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 15px;
+}
+#WBCR .wrio-donut-container {
+  position: relative;
+  width: 160px;
+  height: 160px;
+  margin: 0 auto 15px;
+}
+#WBCR .wrio-donut-container canvas {
+  display: block;
+}
+#WBCR .wrio-donut-percent {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 28px;
+  font-weight: 600;
+  color: #666;
+}
+#WBCR .wrio-donut-percent span:last-child {
+  font-size: 16px;
+  vertical-align: super;
+}
+#WBCR .wrio-legend {
+  text-align: left;
+  margin: 15px 0;
+  font-size: 12px;
+}
+#WBCR .wrio-legend-item {
+  margin-bottom: 8px;
+}
+#WBCR .wrio-legend-dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+#WBCR .wrio-legend-dot.gray {
+  background: #d6d6d6;
+}
+#WBCR .wrio-legend-dot.green {
+  background: #8bc34a;
+}
+#WBCR .wrio-legend-dot.red {
+  background: #f1b1b6;
+}
+#WBCR .wrio-size-info {
+  text-align: left;
+  margin: 15px 0;
+  font-size: 12px;
+}
+#WBCR .wrio-size-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 5px;
+}
+#WBCR .wrio-size-bar {
+  height: 6px;
+  background: #e0e0e0;
+  border-radius: 3px;
+  margin-bottom: 10px;
+}
+#WBCR .wrio-size-bar-fill {
+  height: 100%;
+  background: #d6d6d6;
+  border-radius: 3px;
+  transition: width 0.3s;
+}
+#WBCR .wrio-size-bar-fill.optimized {
+  background: #8bc34a;
+}
+#WBCR .wrio-conversion-info {
+  text-align: left;
+  margin: 15px 0;
+  font-size: 13px;
+}
+#WBCR .wrio-conversion-info p {
+  margin: 0;
+}
+#WBCR .wrio-info-hint {
+  margin-top: 5px !important;
+  font-size: 11px;
+  color: #888;
+}
+#WBCR .wrio-card-footer {
+  margin-top: auto;
+  padding-top: 15px;
+}
+#WBCR .wrio-card .wio-optimize-button {
+  width: 100%;
+}
+#WBCR .wrio-green {
+  color: #8bc34a;
+}
+#WBCR .wrio-statistic-message {
+  padding: 0 20px;
+}
+@media (max-width: 960px) {
+  #WBCR .wrio-cards-container {
+    flex-direction: column;
+  }
+  #WBCR .wrio-card {
+    width: 100%;
+  }
+}
+
+/* AVIF Upsell Banner */
+#WBCR .wrio-avif-upsell-banner {
+  background: #fff;
+  border: 1px solid #C5E1A5;
+  border-left: 4px solid #8BC34A;
+  border-radius: 4px;
+  padding: 16px 20px;
+  margin: 20px 20px 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  position: relative;
+}
+
+#WBCR .wrio-avif-banner-dismiss {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: #999;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background 0.2s, color 0.2s;
+}
+
+#WBCR .wrio-avif-banner-dismiss:hover {
+  background: #f0f0f0;
+  color: #666;
+}
+
+#WBCR .wrio-avif-banner-icon {
+  flex-shrink: 0;
+  background: #FFF8E1;
+  border-radius: 50%;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#WBCR .wrio-avif-banner-content {
+  flex: 1;
+  padding-right: 20px;
+}
+
+#WBCR .wrio-avif-banner-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+#WBCR .wrio-avif-banner-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
+}
+
+#WBCR .wrio-avif-pro-badge {
+  background: #8BC34A;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+#WBCR .wrio-avif-banner-description {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: #666;
+  line-height: 1.5;
+}
+
+#WBCR .wrio-avif-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+#WBCR .wrio-avif-unlock-button {
+  background: #8BC34A;
+  color: #fff;
+  text-decoration: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 13px;
+  transition: background 0.2s;
+  white-space: nowrap;
+  border: none;
+  cursor: pointer;
+  display: inline-block;
+}
+
+#WBCR .wrio-avif-unlock-button:hover {
+  background: #7AB03F;
+  color: #fff;
+}
+
+#WBCR .wrio-avif-learn-more {
+  color: #8BC34A;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+#WBCR .wrio-avif-learn-more:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 600px) {
+  #WBCR .wrio-avif-upsell-banner {
+    flex-direction: column;
+    padding-right: 40px;
+  }
+  #WBCR .wrio-avif-banner-content {
+    padding-right: 0;
+  }
+  #WBCR .wrio-avif-banner-actions {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+}
+
+.factory-bootstrap-500 p.wrio-webp-options-info {
+  margin-left: 20px;
+}
+
+.factory-bootstrap-500 .wrio-optimization-format-info {
+  margin-top: 10px;
 }
 /*# sourceMappingURL=base-statistic.css.map */

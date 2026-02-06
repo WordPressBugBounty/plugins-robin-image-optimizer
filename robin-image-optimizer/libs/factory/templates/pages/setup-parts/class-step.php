@@ -1,11 +1,10 @@
 <?php
 
-namespace WBCR\Factory_Templates_134\Pages;
+namespace WBCR\Factory_Templates_759\Pages;
 
 /**
  * Step
- * @author Webcraftic <wordpress.webraftic@gmail.com>
- * @copyright (c) 23.07.2020, Webcraftic
+ *
  * @version 1.0
  */
 abstract class Step {
@@ -16,33 +15,30 @@ abstract class Step {
 	protected $next_id = false;
 
 	/**
-	 * @var \WBCR\Factory_Templates_134\Pages\Setup
+	 * @var \WBCR\Factory_Templates_759\Pages\Setup
 	 */
 	protected $page;
 
 	/**
-	 * @var \Wbcr_Factory480_Plugin
+	 * @var \Wbcr_Factory600_Plugin
 	 */
 	protected $plugin;
 
-	public function __construct(\WBCR\Factory_Templates_134\Pages\Setup $page)
-	{
-		$this->page = $page;
+	public function __construct( \WBCR\Factory_Templates_759\Pages\Setup $page ) {
+		$this->page   = $page;
 		$this->plugin = $page->plugin;
-		//$this->form_handler();
+		// $this->form_handler();
 	}
 
-	public function get_id()
-	{
-		if( empty($this->id) ) {
-			throw new \Exception('Step ID setting is required for the {' . static::class . '} class!');
+	public function get_id() {
+		if ( empty( $this->id ) ) {
+			throw new \Exception( 'Step ID setting is required for the {' . static::class . '} class!' );
 		}
 
 		return $this->id;
 	}
 
-	public function get_next_id()
-	{
+	public function get_next_id() {
 		return $this->next_id;
 	}
 
@@ -51,31 +47,26 @@ abstract class Step {
 	 *
 	 * @return void
 	 * @since 1.0.0
-	 * @see   FactoryPages480_AdminPage
-	 *
+	 * @see   FactoryPages600_AdminPage
 	 */
-	public function assets($scripts, $styles)
-	{
+	public function assets( $scripts, $styles ) {
 		// nothing
 	}
 
-	protected function continue_step($skip = false)
-	{
+	protected function continue_step( $skip = false ) {
 		$next_id = $this->get_next_id();
-		if( !$next_id ) {
+		if ( ! $next_id ) {
 			$next_id = $this->get_id();
 		}
-		wp_safe_redirect($this->page->getActionUrl($next_id));
+		wp_safe_redirect( $this->page->getActionUrl( $next_id ) );
 		die();
 	}
 
-	protected function skip_step()
-	{
-		$this->continue_step(true);
+	protected function skip_step() {
+		$this->continue_step( true );
 	}
 
 	abstract public function get_title();
 
 	abstract public function html();
-
 }

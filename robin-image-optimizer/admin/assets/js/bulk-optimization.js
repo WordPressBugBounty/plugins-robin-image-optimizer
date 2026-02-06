@@ -26,60 +26,20 @@ jQuery(function ($) {
             this.i18n = wrio_l18n_bulk_page;
             this.settings = wrio_settings_bulk_page;
             this.startOptButton = $('#wrio-start-optimization');
-            this.startConvButton = $('#wrio-start-conversion');
-
-            if ('server_1' === $('#wrio-change-optimization-server').val()) {
-                $(".wrio-premium-user-balance-wrap").hide();
-                $(".wrio-premium-user-update-wrap").hide();
-            }
-            if ('server_5' === $('#wrio-change-optimization-server').val()) {
-                if (!this.settings.is_premium) {
-                    $.wrio_modal.showErrorModal(this.i18n.premium_server_disabled);
-                }
-            }
 
             this.registerEvents();
             this.checkServerStatus();
             //this.calculateTotalImages();
             this.checkPremiumUserBalance();
-
         },
 
         registerEvents: function () {
-            var self = this,
-                selectedServer = $("#wrio-change-optimization-server option:selected");
-
-            $('#wrio-change-optimization-server').on('change', function () {
-                $(this).prop('disabled', true);
-                $('.wrio-premium-user-balance').attr('data-server', $(this).val());
-                $(".wrio-premium-user-balance-wrap").show();
-                $(".wrio-premium-user-update-wrap").show();
-
-                if ('server_1' === $(this).val()) {
-                    $(".wrio-premium-user-balance-wrap").hide();
-                    $(".wrio-premium-user-update-wrap").hide();
-                }
-                if ('server_5' === $(this).val()) {
-                    if (!self.settings.is_premium) {
-                        $.wrio_modal.showErrorModal(self.i18n.premium_server_disabled);
-                        selectedServer.prop('selected', true);
-                        $(this).prop('disabled', false);
-
-                        return;
-                    }
-                }
-
-                self.checkPremiumUserBalance();
-
-                selectedServer = $(this).find('option:selected');
-                self.checkServerStatus();
-            });
+            var self = this;
 
             this.startOptButton.on('click', function () {
                 self.startOptButton = $(this);
 
                 if ($(this).hasClass('wio-running')) {
-                    self.startConvButton.prop('disabled', false);
                     self.stop();
                     return;
                 }
@@ -115,12 +75,6 @@ jQuery(function ($) {
                     'action': 'wbcr-rio-check-user-balance',
                     '_wpnonce': self.settings.optimization_nonce
                 };
-
-            data['server_name'] = $('#wrio-change-optimization-server').val();
-
-            if (!["server_2", "server_5"].includes(data['server_name'])) {
-                return
-            }
 
             userBalance.addClass('wrio-premium-user-balance-check-proccess');
             userBalance.text('');
@@ -166,18 +120,14 @@ jQuery(function ($) {
 
             self.serverDown = false;
 
-            data['server_name'] = $('#wrio-change-optimization-server').val();
-
             serverStatus.addClass('wrio-server-check-proccess');
             serverStatus.text('');
             serverStatus.removeClass('wrio-down').removeClass('wrio-stable');
 
             self.startOptButton.prop('disabled', true);
-            self.startConvButton.prop('disabled', true);
 
             $.post(ajaxurl, data, function (response) {
                 serverStatus.removeClass('wrio-server-check-proccess');
-                $('#wrio-change-optimization-server').prop('disabled', false);
 
                 if (!response || !response.data || !response.success) {
                     console.log('[Error]: Response error');
@@ -187,7 +137,6 @@ jQuery(function ($) {
                         console.log(response);
                     }
 
-                    $('option[name="' + data['server_name'] + '"]').prop('disabled', true);
                     serverStatus.addClass('wrio-down');
                     serverStatus.text(self.i18n.server_status_down);
                     self.serverDown = true;
@@ -199,7 +148,6 @@ jQuery(function ($) {
                 }
 
                 self.startOptButton.prop('disabled', false);
-                self.startConvButton.prop('disabled', false);
 
             }).fail(function (xhr, status, error) {
                 console.log(xhr);
@@ -273,8 +221,6 @@ jQuery(function ($) {
                 cancelButtonText: this.i18n.modal_optimization_cron_button,
                 reverseButtons: true,
             }).then(function (result) {
-
-                self.startConvButton.prop('disabled', true);
                 self.process();
 
                 window.onbeforeunload = function () {
@@ -283,7 +229,6 @@ jQuery(function ($) {
 
             }, function (dismiss) {
                 if (dismiss === 'cancel') { // you might also handle 'close' or 'timer' if you used those
-                    self.startConvButton.prop('disabled', true);
                     self.process('cron');
                 } else {
                     throw dismiss;
@@ -376,8 +321,6 @@ jQuery(function ($) {
                         if (response.data && response.data.error_message) {
                             self.throwError(response.data.error_message);
                         }
-                    } else {
-                        self.startConvButton.prop('disabled', false);
                     }
                 }).fail(function (xhr, status, error) {
                     console.log(xhr);
@@ -413,7 +356,6 @@ jQuery(function ($) {
             this.startOptButton.text(this.i18n.button_completed);
             this.startOptButton.removeClass('wio-running');
             this.startOptButton.prop('disabled', true);
-            this.startConvButton.prop('disabled', false);
         },
 
         setButtonStyleStop: function () {
@@ -439,10 +381,10 @@ jQuery(function ($) {
         throwError: function (error_message) {
             this.stop();
 
-            var noticeId = $.wbcr_factory_templates_134.app.showNotice(error_message, 'danger');
+            var noticeId = $.wbcr_factory_templates_759.app.showNotice(error_message, 'danger');
 
             setTimeout(function () {
-                $.wbcr_factory_templates_134.app.hideNotice(noticeId);
+                $.wbcr_factory_templates_759.app.hideNotice(noticeId);
             }, 10000);
         },
 
@@ -506,16 +448,15 @@ jQuery(function ($) {
         },
 
         updateLog: function (new_item_data) {
-            var self = this;
-
-            var limit = 100,
-                tableEl = $('.wrio-optimization-progress .wrio-table');
+            const self = this;
+            const limit = 100;
+            const tableEl = $('.wrio-optimization-progress .wrio-table');
 
             if (!tableEl.length || !new_item_data) {
                 return;
             }
 
-            // если таблица была пустая
+            // Handle empty table state
             if ($('.wrio-table-container-empty').length) {
                 $('.wrio-table-container-empty').addClass('wrio-table-container').removeClass('wrio-table-container-empty');
                 if (tableEl.find('tbody').length) {
@@ -524,51 +465,106 @@ jQuery(function ($) {
             }
 
             $.each(new_item_data, function (index, value) {
-                var trEl = $('<tr>'),
-                    tdEl = $('<td>'),
-                    webpSize = value.webp_size ? value.webp_size : '-';
+                const attachmentId = value.attachment_id || value.id;
+                const existingRow = tableEl.find('[data-attachment-id="' + attachmentId + '"]');
 
-                if (tableEl.find('.wrio-row-id-' + value.id).length) {
-                    tableEl.find('.wrio-row-id-' + value.id).remove();
-                }
-
-                trEl.addClass('flash').addClass('wrio-table-item').addClass('wrio-row-id-' + value.id);
-
-                if ('error' === value.type) {
-                    trEl.addClass('wrio-error');
-                }
-
-                var preview = $('<img width="40" height="40" src="' + value.thumbnail_url + '" alt="">'),
-                    previewUrl = $('<a href="' + value.url + '" target="_blank">' + value.file_name + '</a>');
-
-                tableEl.prepend(trEl);
-
-                trEl.append(tdEl.clone().append(preview));
-                trEl.append(tdEl.clone().append(previewUrl));
-
-                if ('error' === value.type) {
-                    var colspan = value.scope !== 'custom-folders' ? '6' : '5';
-                    trEl.append(tdEl.clone().attr('colspan', colspan).text("Error: " + value.error_msg));
+                if (existingRow.length) {
+                    // Update existing row data
+                    self.updateRowData(existingRow, value);
+                    // Move existing row to top of the table
+                    existingRow.detach();
+                    tableEl.find('tbody').prepend(existingRow);
+                    // Re-trigger flash animation
+                    existingRow.removeClass('flash');
+                    // Force reflow to restart animation
+                    existingRow[0].offsetWidth;
+                    existingRow.addClass('flash');
                 } else {
-                    trEl.append(tdEl.clone().text(value.original_size));
-                    trEl.append(tdEl.clone().text(value.optimized_size));
-                    trEl.append(tdEl.clone().text(webpSize));
-                    trEl.append(tdEl.clone().text(value.original_saving));
-
-                    if ("custom-folders" !== self.settings.scope) {
-                        trEl.append(tdEl.clone().text(value.thumbnails_count));
-                    }
-
-                    trEl.append(tdEl.clone().text(value.total_saving));
+                    // Create new row and add to top
+                    const trEl = self.buildLogRow(value);
+                    tableEl.find('tbody').prepend(trEl);
                 }
             });
 
-            if (tableEl.find('tr').length > limit) {
-                var diff = tableEl.find('tr').length - limit;
+            // Enforce row limit
+            self.enforceRowLimit(tableEl, limit);
+        },
 
-                for (var i = 0; i < diff; i++) {
-                    tableEl.find('tr:last').remove();
+        updateRowData: function (row, data) {
+            // Update optimized size cell
+            row.find('.wrio-optimized-size').text(data.optimized_size);
+
+            // Update WebP size if present
+            if (data.webp_size) {
+                const webpCell = row.find('.wrio-webp-size');
+                if (webpCell.length) {
+                    webpCell.text(data.webp_size);
                 }
+            }
+
+            // Update AVIF size if present
+            if (data.avif_size) {
+                const avifCell = row.find('.wrio-avif-size');
+                if (avifCell.length) {
+                    avifCell.text(data.avif_size);
+                }
+            }
+
+            // Update total saving
+            row.find('.wrio-total-saving').text(data.total_saving);
+
+            // Update thumbnails count
+            if (data.thumbnails_count !== undefined) {
+                row.find('.wrio-thumbnails-count').text(data.thumbnails_count);
+            }
+
+            // Update error state if needed
+            if (data.type === 'error') {
+                row.addClass('wrio-error');
+            } else {
+                row.removeClass('wrio-error');
+            }
+        },
+
+        buildLogRow: function (value) {
+            const attachmentId = value.attachment_id || value.id;
+            const trEl = $('<tr>')
+                .addClass('flash wrio-table-item')
+                .addClass('wrio-row-id-' + value.id)
+                .attr('data-attachment-id', attachmentId);
+
+            if (value.type === 'error') {
+                trEl.addClass('wrio-error');
+            }
+
+            // Build cells with classes for easy updates
+            const preview = $('<img width="40" height="40" src="' + value.thumbnail_url + '" alt="">');
+            const previewUrl = $('<a href="' + value.url + '" target="_blank">' + value.file_name + '</a>');
+
+            trEl.append($('<td>').append(preview));
+            trEl.append($('<td>').append(previewUrl));
+
+            if (value.type === 'error') {
+                const colspan = this.settings.scope !== 'custom-folders' ? '4' : '3';
+                trEl.append($('<td>').attr('colspan', colspan).text("Error: " + value.error_msg));
+            } else {
+                trEl.append($('<td class="wrio-original-size">').text(value.original_size));
+                trEl.append($('<td class="wrio-optimized-size">').text(value.optimized_size));
+
+                if ("custom-folders" !== this.settings.scope) {
+                    trEl.append($('<td class="wrio-thumbnails-count">').text(value.thumbnails_count));
+                }
+
+                trEl.append($('<td class="wrio-total-saving">').text(value.total_saving));
+            }
+
+            return trEl;
+        },
+
+        enforceRowLimit: function (tableEl, limit) {
+            const rows = tableEl.find('tbody tr');
+            if (rows.length > limit) {
+                rows.slice(limit).remove();
             }
         }
 
@@ -589,8 +585,8 @@ jQuery(function ($) {
         $('#wio-total-optimized-attachments').text(statistic.optimized); // optimized
         $('#wio-original-size').text(bytesToSize(statistic.original_size));
         $('#wio-optimized-size').text(bytesToSize(statistic.optimized_size));
-        $('#wio-total-optimized-attachments-pct').text(statistic.save_size_percent + '%');
-        $('#wio-overview-chart-percent').html(statistic.optimized_percent + '<span>%</span>');
+        $('#wio-total-saved').text(statistic.save_size_percent + '%');
+        $('#wio-overview-chart-percent').text(statistic.optimized_percent);
         $('.wio-total-percent').text(statistic.optimized_percent + '%');
         $('#wio-optimized-bar').css('width', statistic.percent_line + '%');
 
@@ -606,9 +602,9 @@ jQuery(function ($) {
             $('.wrio-statistic-nav li.active').find('span.wio-statistic-tab-percent').text(statistic.optimized_percent + '%');
         }
 
-        window.wio_chart.data.datasets[0].data[0] = statistic.unoptimized; // unoptimized
+        window.wio_chart.data.datasets[0].data[0] = statistic.error; // errors
         window.wio_chart.data.datasets[0].data[1] = statistic.optimized; // optimized
-        window.wio_chart.data.datasets[0].data[2] = statistic.error; // errors
+        window.wio_chart.data.datasets[0].data[2] = statistic.unoptimized; // unoptimized
         window.wio_chart.update();
         if ($('#wio-overview-chart-percent').text() == '100%') {
             window.onbeforeunload = null;
@@ -632,5 +628,19 @@ jQuery(function ($) {
             redraw_statistics(response.data.statistic);
         });
     });*/
+
+    // AVIF upsell banner dismiss handler
+    $(document).on('click', '.wrio-avif-banner-dismiss', function () {
+        var $banner = $(this).closest('.wrio-avif-upsell-banner');
+
+        $.post(ajaxurl, {
+            action: 'wrio_dismiss_avif_banner',
+            nonce: $banner.data('nonce')
+        }, function () {
+            $banner.slideUp(300, function () {
+                $(this).remove();
+            });
+        });
+    });
 
 });

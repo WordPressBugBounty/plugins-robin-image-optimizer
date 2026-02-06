@@ -8,8 +8,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * WP CLI commands for optimize
  *
- * @author        Artem Prikhodko <webtemyk@yandex.ru>
- * @copyright (c) 2021, Webcraftic
  * @version       1.0
  */
 class WRIO_CLI_Commands {
@@ -31,7 +29,7 @@ class WRIO_CLI_Commands {
 	 * @when after_wp_load
 	 */
 	public function optimize( $args, $assoc_args ) {
-		list( $scope ) = $args;
+		list( $scope )   = $args;
 		$process_running = WRIO_Plugin::app()->getPopulateOption( 'process_running', $scope );
 
 		if ( ! $process_running ) {
@@ -43,15 +41,14 @@ class WRIO_CLI_Commands {
 					WP_CLI::log( "Items pushed: {$push_items}" );
 					WRIO_Plugin::app()->updatePopulateOption( 'process_running', $scope );
 					$processing->save()->dispatch();
-					WP_CLI::log( "Start optimize" );
+					WP_CLI::log( 'Start optimize' );
 				}
 			} else {
-				WP_CLI::error( "Undefined scope" );
+				WP_CLI::error( 'Undefined scope' );
 			}
 		} else {
-			WP_CLI::error( "Optimize already running!" );
+			WP_CLI::error( 'Optimize already running!' );
 		}
-
 	}
 
 	/**
@@ -77,17 +74,16 @@ class WRIO_CLI_Commands {
 
 		if ( $process_running ) {
 			$processing = wrio_get_processing_class( $scope );
-			if ( $scope && is_object( $processing ) ) {
+			if ( $scope && $processing ) {
 				WP_CLI::log( "Current scope: {$scope}" );
-				$processing = wrio_get_processing_class( $scope );
 				WRIO_Plugin::app()->updatePopulateOption( 'process_running', false );
 				$processing->cancel_process();
 				WP_CLI::log( "Processing scope '{$scope}' is canceled!" );
 			} else {
-				WP_CLI::error( "Undefined scope" );
+				WP_CLI::error( 'Undefined scope' );
 			}
 		} else {
-			WP_CLI::error( "Optimize not running!" );
+			WP_CLI::error( 'Optimize not running!' );
 		}
 	}
 
@@ -127,14 +123,13 @@ class WRIO_CLI_Commands {
 			}
 
 			WP_CLI::log( "Scope: {$scope}" );
-			WP_CLI::log( "Status: " . ($process_running ? "running" : "stopped") );
+			WP_CLI::log( 'Status: ' . ( $process_running ? 'running' : 'stopped' ) );
 			WP_CLI::log( "Remains to optimize: {$unoptimized}" );
 
 		} else {
-			WP_CLI::error( "Undefined scope" );
+			WP_CLI::error( 'Undefined scope' );
 		}
 	}
-
 }
 
 WP_CLI::add_command( 'robin', 'WRIO_CLI_Commands' );

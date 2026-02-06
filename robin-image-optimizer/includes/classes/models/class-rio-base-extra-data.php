@@ -4,8 +4,6 @@
  * Class RIO_Base_Extra_Data is a base DTO model for `extra_data` property in RIO_Process_Queue.
  *
  * @see RIO_Process_Queue::$extra_data for further information
- *
- * @author Alexander Teshabaev <sasha.tesh@gmail.com>
  */
 class RIO_Base_Extra_Data extends RIO_Base_Object {
 
@@ -16,6 +14,7 @@ class RIO_Base_Extra_Data extends RIO_Base_Object {
 
 	/**
 	 * Magic override of to string method to convert
+	 *
 	 * @return bool|false|mixed|string
 	 */
 	public function __toString() {
@@ -35,7 +34,7 @@ class RIO_Base_Extra_Data extends RIO_Base_Object {
 	 * Get class
 	 *
 	 * @return  string
-	 */ 
+	 */
 	public function get_class() {
 		return $this->class;
 	}
@@ -43,10 +42,10 @@ class RIO_Base_Extra_Data extends RIO_Base_Object {
 	/**
 	 * Set class
 	 *
-	 * @param  string  $class_name  Имя класса
+	 * @param  string $class_name  Имя класса
 	 *
 	 * @return  void
-	 */ 
+	 */
 	public function set_class( $class_name ) {
 		$this->class = $class_name;
 	}

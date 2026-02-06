@@ -14,11 +14,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Класс отвечает за работу страницы настроек
  *
- * @author        Eugene Jokerov <jokerov@gmail.com>
- * @copyright (c) 2018, Webcraftic
  * @version       1.0
  */
-class WRIO_Page extends WBCR\Factory_Templates_134\Impressive {
+class WRIO_Page extends WBCR\Factory_Templates_759\Impressive {
 
 	/**
 	 * {@inheritdoc}
@@ -37,12 +35,20 @@ class WRIO_Page extends WBCR\Factory_Templates_134\Impressive {
 
 	/**
 	 * {@inheritdoc}
+	 *
+	 * @var bool
 	 */
-	public $show_right_sidebar_in_options = true;
+	public $show_right_sidebar_in_options = false;
+
+	/**
+	 * Hide bottom sidebar by default - only show on Settings page
+	 *
+	 * @var bool
+	 */
+	public $show_bottom_sidebar = false;
 
 
 	/**
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 * @since  1.3.0
 	 * @var WRIO_Views
 	 */
@@ -58,7 +64,7 @@ class WRIO_Page extends WBCR\Factory_Templates_134\Impressive {
 			if ( WRIO_Plugin::app()->isNetworkActive() && WCL_Plugin::app()->isNetworkActive() ) {
 				$this->clearfy_collaboration = true;
 			}
-		} else if ( defined( 'WCL_PLUGIN_ACTIVE' ) ) {
+		} elseif ( defined( 'WCL_PLUGIN_ACTIVE' ) ) {
 			$this->clearfy_collaboration = true;
 		}
 
@@ -66,8 +72,8 @@ class WRIO_Page extends WBCR\Factory_Templates_134\Impressive {
 	}
 
 	/**
-	 * Подменяем простраинство имен для меню плагина, если активирован плагин Clearfy
-	 * Меню текущего плагина будет добавлено в общее меню Clearfy
+	 * Подменяем простраинство имен для меню плагина, если активирован плагин
+	 * Меню текущего плагина будет добавлено в общее меню
 	 *
 	 * @return string
 	 */
@@ -78,6 +84,6 @@ class WRIO_Page extends WBCR\Factory_Templates_134\Impressive {
 			return 'wbcr_clearfy';
 		}
 
-		return $this->plugin->getPluginName();
+		return 'robin-image-optimizer';
 	}
 }

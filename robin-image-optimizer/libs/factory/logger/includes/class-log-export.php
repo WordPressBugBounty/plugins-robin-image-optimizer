@@ -1,6 +1,6 @@
 <?php
 
-namespace WBCR\Factory_Logger_149;
+namespace WBCR\Factory_Logger_359;
 
 /**
  * Prepares export files, ZIPs them and allows to download the package.
@@ -37,7 +37,7 @@ class Log_Export {
 	/**
 	 * Log_Export constructor.
 	 *
-	 * @param Logger $logger
+	 * @param Logger      $logger
 	 * @param null|string $archive_name
 	 */
 	public function __construct( $logger, $archive_name = null ) {
@@ -81,7 +81,6 @@ class Log_Export {
 		$save_base_path   = isset( $uploads['basedir'] ) ? $uploads['basedir'] : null;
 		$zip_archive_name = 'wplugin_export.zip';
 		$zip_save_path    = $save_base_path . DIRECTORY_SEPARATOR . $zip_archive_name;
-
 
 		if ( ! $zip->open( $zip_save_path, \ZipArchive::CREATE ) ) {
 			$this->logger->error( sprintf( 'Failed to created ZIP archive in path %s. Skipping export...', $zip_save_path ) );
@@ -167,7 +166,7 @@ class Log_Export {
 					$advanced_info      = $all_plugins[ $active_plugin ];
 					$name               = isset( $advanced_info['Name'] ) ? $advanced_info['Name'] : '';
 					$version            = isset( $advanced_info['Version'] ) ? $advanced_info['Version'] : '';
-					$prepared_plugins[] = sprintf( "%s (%s)", $name, $version );
+					$prepared_plugins[] = sprintf( '%s (%s)', $name, $version );
 				}
 			}
 

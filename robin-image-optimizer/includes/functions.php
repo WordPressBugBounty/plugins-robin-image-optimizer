@@ -15,7 +15,6 @@ use WRIO\Paths\phpUri;
  * Case #3: URL Path begins with wp-json/ (your REST prefix)
  *          Also supports WP installations in subfolders
  *
- * @author matzeeable https://wordpress.stackexchange.com/questions/221202/does-something-like-is-rest-exist
  * @since  1.3.6
  * @return boolean
  */
@@ -23,8 +22,8 @@ function wrio_doing_rest_api() {
 	$prefix     = rest_get_url_prefix();
 	$rest_route = WRIO_Plugin::app()->request->get( 'rest_route', null );
 	if ( ( defined( 'REST_REQUEST' ) && REST_REQUEST ) // (#1)
-		 || ( ! is_null( $rest_route ) // (#2)
-			  && strpos( trim( $rest_route, '\\/' ), $prefix, 0 ) === 0 ) ) {
+		|| ( ! is_null( $rest_route ) // (#2)
+				&& strpos( trim( $rest_route, '\\/' ), $prefix, 0 ) === 0 ) ) {
 		return true;
 	}
 
@@ -38,7 +37,6 @@ function wrio_doing_rest_api() {
 /**
  * @return bool
  * @since  1.3.6
- * @author Alexander Kovalev <alex.kovalevv@gmail.com>
  */
 function wrio_doing_ajax() {
 	if ( function_exists( 'wp_doing_ajax' ) ) {
@@ -51,7 +49,6 @@ function wrio_doing_ajax() {
 /**
  * @return bool
  * @since  1.3.6
- * @author Alexander Kovalev <alex.kovalevv@gmail.com>
  */
 function wrio_doing_cron() {
 	if ( function_exists( 'wp_doing_cron' ) ) {
@@ -67,9 +64,7 @@ function wrio_doing_cron() {
  * @param string $url abs url https://site.com/wp-conent/uploads/10/05/image.jpeg
  *
  * @return string|null abs path var/site.com/www/wp-conent/uploads/10/05/image.jpeg, if failure null
- * @author Alexander Kovalev <alex.kovalevv@gmail.com>
  * @since  1.4.0
- *
  */
 function wrio_url_to_abs_path( $url ) {
 	if ( empty( $url ) ) {
@@ -86,7 +81,7 @@ function wrio_url_to_abs_path( $url ) {
 
 	$url = rtrim( $url, '/' );
 
-	# todo: if the external site, then it will not work
+	// todo: if the external site, then it will not work
 	return str_replace( get_site_url(), untrailingslashit( wp_normalize_path( ABSPATH ) ), $url );
 }
 
@@ -96,9 +91,7 @@ function wrio_url_to_abs_path( $url ) {
  * @param string $url relative url /wp-conent/uploads/10/05/image.jpeg
  *
  * @return string abs url https://site.com/wp-conent/uploads/10/05/image.jpeg
- * @author Alexander Kovalev <alex.kovalevv@gmail.com>
  * @since  1.4.0
- *
  */
 function wrio_rel_to_abs_url( $url ) {
 	require_once WRIO_PLUGIN_DIR . '/libs/class-rio-relative-to-abs-uri.php';
@@ -112,9 +105,7 @@ function wrio_rel_to_abs_url( $url ) {
  * @param string $url relative url /wp-conent/uploads/10/05/image.jpeg
  *
  * @return string abs path var/site.com/www/wp-conent/uploads/10/05/image.jpeg
- * @author Alexander Kovalev <alex.kovalevv@gmail.com>
  * @since  1.4.0
- *
  */
 function wrio_rel_url_to_abs_path( $url ) {
 	$abs_url = wrio_rel_to_abs_url( $url );
@@ -128,8 +119,6 @@ function wrio_rel_url_to_abs_path( $url ) {
  *
  * @return mixed|string
  * @since  1.1
- *
- * @author Alexander Kovalev <alex.kovalevv@gmail.com>
  */
 function wrio_dashes_to_camel_case( $string, $capitalize_first_character = false ) {
 
@@ -148,18 +137,16 @@ function wrio_dashes_to_camel_case( $string, $capitalize_first_character = false
  * @param string $str file path
  *
  * @return string|string[]|null
- * @author Alexander Kovalev <alex.kovalevv@gmail.com>
  * @since  1.3.0
- *
  */
-/*function wrio_basename( $str ) {
+/*
+function wrio_basename( $str ) {
 	return preg_replace( '/^.+[\\\\\\/]/', '', $str );
 }*/
 
 /**
  * @return bool
  * @since  1.3.0
- * @author Alexander Kovalev <alex.kovalevv@gmail.com>
  */
 function wrio_is_active_nextgen_gallery() {
 	return is_plugin_active( 'nextgen-gallery/nggallery.php' );
@@ -169,9 +156,7 @@ function wrio_is_active_nextgen_gallery() {
  * @param string $dir
  *
  * @return bool
- * @author Alexander Kovalev <alex.kovalevv@gmail.com>
  * @since  1.1
- *
  */
 function wrio_rmdir( $dir ) {
 	if ( is_dir( $dir ) ) {
@@ -231,7 +216,7 @@ function wrio_generate_random_string( $length = 10 ) {
 	$characters       = '0123456789abcdefghiklmnopqrstuvwxyz';
 	$charactersLength = strlen( $characters );
 	$randomString     = '';
-	for ( $i = 0; $i < $length; $i ++ ) {
+	for ( $i = 0; $i < $length; $i++ ) {
 		$randomString .= $characters[ rand( 0, $charactersLength - 1 ) ];
 	}
 
@@ -239,23 +224,19 @@ function wrio_generate_random_string( $length = 10 ) {
 }
 
 /**
- * Checks whether the license is activated for the plugin or not. If the Clearfy plugin is installed
  * in priorities checks its license.
  *
  * @return bool
  * @since  1.3.0
- * @author Alexander Kovalev <alex.kovalevv@gmail.com>
  */
 function wrio_is_license_activate() {
 	return wrio_is_clearfy_license_activate() || ( WRIO_Plugin::app()->premium->is_activate() && WRIO_Plugin::app()->premium->is_active() );
 }
 
 /**
- * Checks whether the license is activated for Clearfy plugin.
  *
  * @return bool
  * @since  1.3.0
- * @author Alexander Kovalev <alex.kovalevv@gmail.com>
  */
 function wrio_is_clearfy_license_activate() {
 	if ( class_exists( 'WCL_Plugin' ) ) {
@@ -263,9 +244,8 @@ function wrio_is_clearfy_license_activate() {
 			if ( WCL_Plugin::app()->premium->is_activate() ) {
 				$plan_id = WCL_Plugin::app()->premium->get_license()->get_plan_id();
 
-				// Old plans for the Clearfy plugin allowed the use the Robin Premium plugin under one license.
 				// Now for new plans this doesn't work.
-				return "4710" === $plan_id || "3530" === $plan_id;
+				return '4710' === $plan_id || '3530' === $plan_id;
 			}
 		} else {
 			$current_license = WCL_Licensing::instance()->getStorage()->getLicense();
@@ -280,12 +260,10 @@ function wrio_is_clearfy_license_activate() {
 }
 
 /**
- * Checks active (not expired!) License for plugin or not. If the Clearfy plugin is installed
  * checks its license in priorities.
  *
  * @return bool
  * @since  1.3.0
- * @author Alexander Kovalev <alex.kovalevv@gmail.com>
  */
 function wrio_is_license_active() {
 	if ( wrio_is_clearfy_license_activate() ) {
@@ -300,12 +278,10 @@ function wrio_is_license_active() {
 }
 
 /**
- * Allows you to get a license key. If the Clearfy plugin is installed, it will be prioritized
  * return it key.
  *
  * @return string|null
  * @since  1.3.0
- * @author Alexander Kovalev <alex.kovalevv@gmail.com>
  */
 function wrio_get_license_key() {
 	if ( ! wrio_is_license_activate() ) {
@@ -339,9 +315,22 @@ function wrio_get_license_key() {
 }
 
 /**
+ * Get the license source (freemius or sdk).
+ *
+ * @return string|null 'freemius', 'sdk', or null if no license.
+ * @since  1.6.0
+ */
+function wrio_get_license_source() {
+	if ( ! wrio_is_license_activate() ) {
+		return null;
+	}
+
+	return WRIO_Plugin::app()->premium->get_license()->get_source();
+}
+
+/**
  * @return number|null
  * @since  1.3.0
- * @author Alexander Kovalev <alex.kovalevv@gmail.com>
  */
 function wrio_get_freemius_plugin_id() {
 	if ( wrio_is_clearfy_license_activate() ) {
@@ -368,7 +357,7 @@ function wrio_get_image_sizes() {
 			$sizes[ $_size ]['width']  = get_option( "{$_size}_size_w" );
 			$sizes[ $_size ]['height'] = get_option( "{$_size}_size_h" );
 			$sizes[ $_size ]['crop']   = (bool) get_option( "{$_size}_crop" );
-		} else if ( isset( $_wp_additional_image_sizes[ $_size ] ) ) {
+		} elseif ( isset( $_wp_additional_image_sizes[ $_size ] ) ) {
 			$sizes[ $_size ] = [
 				'width'  => $_wp_additional_image_sizes[ $_size ]['width'],
 				'height' => $_wp_additional_image_sizes[ $_size ]['height'],
@@ -387,15 +376,11 @@ function wrio_get_image_sizes() {
  *
  * @return string
  * @since  1.2.0
- *
  */
 function wrio_get_server_url( $server_name ) {
 
-	$use_http = WRIO_Plugin::app()->getPopulateOption( 'use_http' );
-
 	$servers = [
-		'server_1' => 'http://api.resmush.it/ws.php',
-		'server_2' => 'https://server2-free.robinoptimizer.com/v1/free/image/optimize',
+		'server_2' => 'https://dashboard.robinoptimizer.com/v1/free/image/optimize',
 		'server_5' => 'https://dashboard.robinoptimizer.com/v1/tariff/optimize',
 	];
 
@@ -427,10 +412,10 @@ function wrio_get_user_agent() {
 		'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:89.0) Gecko/20100101 Firefox/89.0',
 		'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1',
 		'Mozilla/5.0 (Android 11; Mobile; rv:94.0) Gecko/94.0 Firefox/94.0',
-		'Mozilla/5.0 (iPad; CPU OS 15_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.2 Mobile/15E148 Safari/604.1'
+		'Mozilla/5.0 (iPad; CPU OS 15_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.2 Mobile/15E148 Safari/604.1',
 	];
 
-	$random_user_agent = $browsers[array_rand($browsers)];
+	$random_user_agent = $browsers[ array_rand( $browsers ) ];
 
 	$current_user_agent = isset( $_SERVER['HTTP_USER_AGENT'] )
 		? sanitize_text_field( $_SERVER['HTTP_USER_AGENT'] )
@@ -448,7 +433,6 @@ function wrio_get_user_agent() {
  *
  * @return bool
  * @throws Exception
- * @author Alexander Teshabaev <sasha.tesh@gmail.com>
  * @since  1.3.0
  */
 function wbcr_rio_has_meta_to_migrate() {
@@ -479,9 +463,7 @@ function wbcr_rio_has_meta_to_migrate() {
  * @param int $limit Attachment limit per page.
  *
  * @return WP_Query
- * @author Alexander Teshabaev <sasha.tesh@gmail.com>
  * @since  1.3.0
- *
  */
 function wbcr_rio_get_meta_to_migrate( $limit = 0 ) {
 	$args = [
@@ -507,18 +489,22 @@ function wbcr_rio_get_meta_to_migrate( $limit = 0 ) {
 /**
  * @return string
  * @since  1.3.0
- * @author Alexander Kovalev <alex.kovalevv@gmail.com>
  */
 function wrio_get_meta_migration_notice_text() {
 	$nonce = wp_create_nonce( 'wrio-meta-migrations' );
 
-	return sprintf( __( 'There were big changes in database schema. Please <a href="#" id="wbcr-wio-meta-migration-action" class="button button-default" data-nonce="%s">click here</a> to upgrade it to the latest version', 'robin-image-optimizer' ), $nonce );
+	return sprintf(
+		// translators: %1$s is the opening anchor tag, %2$s is the closing anchor tag.
+		__( 'The database schema has changed. %1$sUpgrade now%2$s to the latest version.', 'robin-image-optimizer' ),
+		'<a href="#" id="wbcr-wio-meta-migration-action" class="button button-default" data-nonce="' . esc_attr( $nonce ) . '">',
+		'</a>'
+	);
 }
 
 /**
  * @param string $scope
  *
- * @return WRIO_Folder_Processing|WRIO_Media_Processing|WRIO_Nextgen_Processing|null
+ * @return WRIO_Folder_Processing|WRIO_Media_Processing|WRIO_Media_Processing_Webp|WRIO_Media_Processing_Avif|WRIO_Nextgen_Processing|null
  */
 function wrio_get_processing_class( $scope ) {
 	$object = null;
@@ -531,6 +517,11 @@ function wrio_get_processing_class( $scope ) {
 		case 'media-library_webp':
 			if ( class_exists( 'WRIO_Media_Processing_Webp' ) ) {
 				$object = new WRIO_Media_Processing_Webp( $scope );
+			}
+			break;
+		case 'media-library_avif':
+			if ( class_exists( 'WRIO_Media_Processing_Avif' ) ) {
+				$object = new WRIO_Media_Processing_Avif( $scope );
 			}
 			break;
 		case 'custom-folders':
@@ -551,10 +542,10 @@ function wrio_get_processing_class( $scope ) {
 /**
  * @param bool $for_sql
  *
- * @return string|array
+ * @return string|array<string>
  */
 function wrio_get_allowed_formats( $for_sql = false ) {
-	$allowed_formats     = explode( ',', WRIO_Plugin::app()->getOption( 'allowed_formats', "image/jpeg,image/png,image/gif" ) );
+	$allowed_formats     = explode( ',', WRIO_Plugin::app()->getOption( 'allowed_formats', 'image/jpeg,image/png,image/gif' ) );
 	$allowed_formats_sql = [];
 	foreach ( $allowed_formats as $k => $format ) {
 		$format = esc_sql( $format );
@@ -564,4 +555,51 @@ function wrio_get_allowed_formats( $for_sql = false ) {
 	$allowed_formats_sql = implode( ',', $allowed_formats_sql );
 
 	return $for_sql ? $allowed_formats_sql : $allowed_formats;
+}
+
+/**
+ * Get the currently enabled image conversion formats.
+ *
+ * @return string[] Array of enabled format names ('webp', 'avif'). Empty if none enabled.
+ * @since 1.9.0
+ */
+function wrio_get_conversion_format() {
+	return WRIO_Format_Converter_Factory::get_enabled_formats();
+}
+
+/**
+ * Check if format conversion is currently enabled.
+ *
+ * @return bool True if WebP or AVIF conversion is enabled, false otherwise.
+ * @since 1.9.0
+ */
+function wrio_is_format_conversion_enabled() {
+	return WRIO_Format_Converter_Factory::is_format_conversion_enabled();
+}
+
+/**
+ * Check if AVIF format is available (requires premium license).
+ *
+ * @return bool True if AVIF format is available, false otherwise.
+ * @since 1.9.0
+ */
+function wrio_is_avif_available() {
+	return wrio_is_license_activate();
+}
+
+/**
+ * Read file size reliably within the current request.
+ * PHP caches stat() results; we clear cache for this path.
+ *
+ * @param mixed $file_path The file path.
+ *
+ * @return int
+ */
+function wrio_get_file_size( $file_path ) {
+	if ( empty( $file_path ) || ! is_string( $file_path ) ) {
+		return 0;
+	}
+
+	clearstatcache( true, $file_path );
+	return file_exists( $file_path ) ? (int) filesize( $file_path ) : 0;
 }

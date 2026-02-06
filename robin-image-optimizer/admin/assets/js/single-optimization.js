@@ -19,6 +19,7 @@ jQuery(function($) {
 		var ai_data = {
 			'action' : $(this).attr('data-action'),
 			'id' : $(this).attr('data-id'),
+			'format' : $(this).attr('data-format'),
 			'_wpnonce' : $(this).attr('data-nonce')
 		};
 		var td = $(this).closest('td');

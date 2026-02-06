@@ -3,17 +3,12 @@
 /**
  * Class to check if the current WordPress and PHP versions meet our requirements
  *
- * @see           Docs https://webcraftic.atlassian.net/wiki/spaces/FFD/pages/21692485/WFF+Requirements
- *
- * @author        Alex Kovalev <alex.kovalevv@gmail.com>, repo: https://github.com/alexkovalevv
- * @author        Webcraftic <wordpress.webraftic@gmail.com>, site: https://webcraftic.com
- *
  * @version       2.0.0
  * @since         4.0.9
  */
 // @formatter:off
-if ( ! class_exists( 'Wbcr_Factory480_Requirements' ) ) {
-	class Wbcr_Factory480_Requirements {
+if ( ! class_exists( 'Wbcr_Factory600_Requirements' ) ) {
+	class Wbcr_Factory600_Requirements {
 
 		/**
 		 * Factory framework version
@@ -74,7 +69,7 @@ if ( ! class_exists( 'Wbcr_Factory480_Requirements' ) ) {
 		 *
 		 * @var string
 		 */
-		protected $plugin_title = "(no title)";
+		protected $plugin_title = '(no title)';
 
 		/**
 		 * @var string
@@ -121,11 +116,15 @@ if ( ! class_exists( 'Wbcr_Factory480_Requirements' ) ) {
 			$this->plugin_basename = plugin_basename( $plugin_file );
 			$this->plugin_url      = plugins_url( '', $plugin_file );
 
-			$plugin_info = get_file_data( $this->plugin_file, array(
-				'Version'          => 'Version',
-				'FrameworkVersion' => 'Framework Version',
-				'TextDomain'       => 'Text Domain'
-			), 'plugin' );
+			$plugin_info = get_file_data(
+				$this->plugin_file,
+				[
+					'Version'          => 'Version',
+					'FrameworkVersion' => 'Framework Version',
+					'TextDomain'       => 'Text Domain',
+				],
+				'plugin'
+			);
 
 			if ( isset( $plugin_info['FrameworkVersion'] ) ) {
 				$this->factory_version = $plugin_info['FrameworkVersion'];
@@ -139,7 +138,7 @@ if ( ! class_exists( 'Wbcr_Factory480_Requirements' ) ) {
 				$this->plugin_text_domain = $plugin_info['TextDomain'];
 			}
 
-			add_action( 'admin_init', array( $this, 'register_notices' ) );
+			add_action( 'admin_init', [ $this, 'register_notices' ] );
 		}
 
 		public function get_plugin_version() {
@@ -158,13 +157,13 @@ if ( ! class_exists( 'Wbcr_Factory480_Requirements' ) ) {
 			if ( current_user_can( 'activate_plugins' ) && current_user_can( 'edit_plugins' ) && current_user_can( 'install_plugins' ) ) {
 
 				if ( is_multisite() ) {
-					add_action( 'network_admin_notices', array( $this, 'show_notice' ) );
+					add_action( 'network_admin_notices', [ $this, 'show_notice' ] );
 
-					if ( ! empty( $this->plugin_basename ) && in_array( $this->plugin_basename, (array) get_option( 'active_plugins', array() ) ) ) {
-						add_action( 'admin_notices', array( $this, 'show_notice' ) );
+					if ( ! empty( $this->plugin_basename ) && in_array( $this->plugin_basename, (array) get_option( 'active_plugins', [] ) ) ) {
+						add_action( 'admin_notices', [ $this, 'show_notice' ] );
 					}
 				} else {
-					add_action( 'admin_notices', array( $this, 'show_notice' ) );
+					add_action( 'admin_notices', [ $this, 'show_notice' ] );
 				}
 			}
 		}
@@ -180,12 +179,12 @@ if ( ! class_exists( 'Wbcr_Factory480_Requirements' ) ) {
 				return;
 			}
 
-			echo '<div class="notice notice-error"><p>' . wp_kses($this->get_notice_text(), 'default') . '</p></div>';
+			echo '<div class="notice notice-error"><p>' . wp_kses( $this->get_notice_text(), 'default' ) . '</p></div>';
 		}
 
 
 		/**
-		 * The method checks the compatibility of the plugin with php and wordpress version.
+		 * The method checks the compatibility of the plugin with php and WordPress version.
 		 *
 		 * @since 4.1.1
 		 * @return bool
@@ -193,7 +192,6 @@ if ( ! class_exists( 'Wbcr_Factory480_Requirements' ) ) {
 		public function check() {
 
 			// Fix for ithemes sync. When the ithemes sync plugin accepts the request, set the WP_ADMIN constant,
-			// after which the plugin Clearfy begins to create errors, and how the logic of its work is broken.
 			// Solution to simply terminate the plugin if there is a request from ithemes sync
 			// --------------------------------------
 			if ( defined( 'DOING_AJAX' ) && DOING_AJAX && isset( $_REQUEST['action'] ) && $_REQUEST['action'] == 'ithemes_sync_request' ) {
@@ -222,7 +220,7 @@ if ( ! class_exists( 'Wbcr_Factory480_Requirements' ) ) {
 		}
 
 		/**
-		 * The method checks the compatibility of the plugin with the Wordpress version of the site.
+		 * The method checks the compatibility of the plugin with the WordPress version of the site.
 		 *
 		 * @return mixed
 		 */
@@ -239,21 +237,22 @@ if ( ! class_exists( 'Wbcr_Factory480_Requirements' ) ) {
 		 * @return string
 		 */
 		protected function get_notice_text() {
-			$notice_text         = $notice_default_text = '';
-			$notice_default_text .= '<b>' . $this->plugin_title . ' ' . __( 'warning', '' ) . ':</b>' . '<br>';
+			$notice_text          = $notice_default_text = '';
+			$notice_default_text .= '<b>' . $this->plugin_title . ' ' . __( 'warning', 'robin-image-optimizer' ) . ':</b>' . '<br>';
 
-			$notice_default_text .= sprintf( __( 'The %s plugin has stopped.', 'wbcr_factory_templates_134' ), $this->plugin_title ) . ' ';
-			$notice_default_text .= __( 'Possible reasons:', '' ) . ' <br>';
+			// translators: %s is the plugin title
+			$notice_default_text .= sprintf( __( 'The %s plugin has stopped.', 'robin-image-optimizer' ), $this->plugin_title ) . ' ';
+			$notice_default_text .= __( 'Possible reasons:', 'robin-image-optimizer' ) . ' <br>';
 
 			$has_one = false;
 
 			if ( ! $this->check_php_compat() ) {
-				$has_one     = true;
+				$has_one      = true;
 				$notice_text .= '- ' . $this->get_php_incompat_text() . '<br>';
 			}
 
 			if ( ! $this->check_wp_compat() ) {
-				$has_one     = true;
+				$has_one      = true;
 				$notice_text .= '- ' . $this->get_wp_incompat_text() . '<br>';
 			}
 
@@ -273,21 +272,24 @@ if ( ! class_exists( 'Wbcr_Factory480_Requirements' ) ) {
 		 * @return string
 		 */
 		protected function get_php_incompat_text() {
-			return sprintf( __( 'You need to update the PHP version to %s or higher!', 'wbcr_factory_480' ), $this->required_php_version );
+			// translators: %s is the required php version
+			return sprintf( __( 'You need to update the PHP version to %s or higher!', 'robin-image-optimizer' ), $this->required_php_version );
 		}
 
 		/**
 		 * @return string
 		 */
 		protected function get_wp_incompat_text() {
-			return sprintf( __( 'You need to update WordPress to %s or higher!', 'wbcr_factory_480' ), $this->required_wp_version );
+			// translators: %s is the required WordPress version
+			return sprintf( __( 'You need to update WordPress to %s or higher!', 'robin-image-optimizer' ), $this->required_wp_version );
 		}
 
 		/**
 		 * @return string
 		 */
 		protected function get_plugin_already_activate_text() {
-			return sprintf( __( 'Plugin %s is already activated, you are trying to activate it again.', 'wbcr_factory_480' ), $this->plugin_title );
+			// translators: %s is the plugin title
+			return sprintf( __( 'Plugin %s is already activated, you are trying to activate it again.', 'robin-image-optimizer' ), $this->plugin_title );
 		}
 	}
 }

@@ -9,9 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Class WRIO_Nextgen_Extra_Data is a  DTO model for `nextgen` post type used for `extra_data`
  * property in RIO_Process_Queue.
  *
- * @author Alexander Teshabaev <sasha.tesh@gmail.com>
  * @see    RIO_Process_Queue::$extra_data for further information
- *
  */
 class WRIO_CF_Image_Extra_Data extends RIO_Base_Extra_Data {
 
@@ -202,8 +200,10 @@ class WRIO_CF_Image_Extra_Data extends RIO_Base_Extra_Data {
 	 */
 	public function get_folder_absolute_path() {
 		$relative_path = $this->get_folder_relative_path();
+		// Use get_home_path() to match how real_path_to_relative() calculates relative paths
+		$base_path = is_main_site() ? get_home_path() : wp_upload_dir()['basedir'] . '/';
 
-		return wp_normalize_path( ABSPATH . $relative_path );
+		return wp_normalize_path( untrailingslashit( $base_path ) . $relative_path );
 	}
 
 	/**
@@ -222,8 +222,10 @@ class WRIO_CF_Image_Extra_Data extends RIO_Base_Extra_Data {
 	 */
 	public function get_image_absolute_path() {
 		$relative_path = $this->get_image_relative_path();
+		// Use get_home_path() to match how real_path_to_relative() calculates relative paths
+		$base_path = is_main_site() ? get_home_path() : wp_upload_dir()['basedir'] . '/';
 
-		return wp_normalize_path( ABSPATH . $relative_path );
+		return wp_normalize_path( untrailingslashit( $base_path ) . $relative_path );
 	}
 
 	/**

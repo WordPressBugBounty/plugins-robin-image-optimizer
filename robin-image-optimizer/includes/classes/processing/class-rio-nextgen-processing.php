@@ -1,6 +1,6 @@
 <?php
 
-use WBCR\Factory_Processing_113\WP_Background_Process;
+use WBCR\Factory_Processing_759\WP_Background_Process;
 
 // Exit if accessed directly
 if ( ! defined( 'ABSPATH' ) ) {
@@ -10,8 +10,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Класс для работы оптимизации в фоне
  *
- * @author        Artem Prikhodko <webtemyk@yandex.ru>
- * @copyright (c) 2021, Webcraftic
  * @version       1.0
  */
 class WRIO_Nextgen_Processing extends WRIO_Processing {
@@ -42,14 +40,14 @@ class WRIO_Nextgen_Processing extends WRIO_Processing {
 	 */
 	protected function task( $image ) {
 		if ( $image ) {
-			WRIO_Plugin::app()->logger->info( sprintf( "Start optimize attachment: %s", $image ) );
+			WRIO_Plugin::app()->logger->info( sprintf( 'Start optimize attachment: %s', $image ) );
 
 			if ( $this->scope === 'nextgen' ) {
 				$nextgen_gallery = WRIO_Nextgen_Gallery::get_instance();
 				$result          = $nextgen_gallery->optimizeNextgenImage( $image );
 			}
 
-			WRIO_Plugin::app()->logger->info( sprintf( "End optimize attachment: %s", $image ) );
+			WRIO_Plugin::app()->logger->info( sprintf( 'End optimize attachment: %s', $image ) );
 		}
 
 		return false;

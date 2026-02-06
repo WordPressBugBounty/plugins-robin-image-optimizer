@@ -2,8 +2,6 @@
  * A set of tools for creating pop-ups. You can create a popup
  * using a global method call.
  *
- * @author Webcraftic <wordpress.webraftic@gmail.com>
- * @copyright (c) 05.04.2019, Webcraftic
  * @version 1.0
  */
 

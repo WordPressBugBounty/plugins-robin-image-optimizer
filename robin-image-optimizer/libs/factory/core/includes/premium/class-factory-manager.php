@@ -1,9 +1,9 @@
 <?php
 
-namespace WBCR\Factory_480\Premium;
+namespace WBCR\Factory_600\Premium;
 
 use Exception;
-use Wbcr_Factory480_Plugin;
+use Wbcr_Factory600_Plugin;
 
 // Exit if accessed directly
 if ( ! defined( 'ABSPATH' ) ) {
@@ -11,20 +11,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * @author        Alex Kovalev <alex.kovalevv@gmail.com>, repo: https://github.com/alexkovalevv
- * @author        Webcraftic <wordpress.webraftic@gmail.com>, site: https://webcraftic.com
  */
 class Manager {
 
 	/**
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 * @since  4.1.6
 	 * @var array
 	 */
 	public static $providers;
 
 	/**
-	 * @var Wbcr_Factory480_Plugin
+	 * @var Wbcr_Factory600_Plugin
 	 */
 	protected $plugin;
 
@@ -36,24 +33,24 @@ class Manager {
 	/**
 	 * Manager constructor.
 	 *
-	 * @param Wbcr_Factory480_Plugin $plugin
+	 * @param Wbcr_Factory600_Plugin $plugin
 	 * @param array                  $settings
 	 *
 	 * @throws Exception
 	 */
-	public function __construct( Wbcr_Factory480_Plugin $plugin, array $settings ) {
+	public function __construct( Wbcr_Factory600_Plugin $plugin, array $settings ) {
 		$this->plugin   = $plugin;
 		$this->settings = $settings;
 	}
 
 	/**
-	 * @param Wbcr_Factory480_Plugin $plugin
+	 * @param Wbcr_Factory600_Plugin $plugin
 	 * @param array                  $settings
 	 *
-	 * @return \WBCR\Factory_Freemius_170\Premium\Provider
+	 * @return \WBCR\Factory_Freemius_Rio_600\Premium\Provider
 	 * @throws Exception
 	 */
-	public static function instance( Wbcr_Factory480_Plugin $plugin, array $settings ) {
+	public static function instance( Wbcr_Factory600_Plugin $plugin, array $settings ) {
 		$premium_manager = new Manager( $plugin, $settings );
 
 		return $premium_manager->instance_provider();
@@ -62,7 +59,7 @@ class Manager {
 	/**
 	 * @param $provider_name
 	 *
-	 * @return \WBCR\Factory_Freemius_170\Premium\Provider
+	 * @return \WBCR\Factory_Freemius_Rio_600\Premium\Provider
 	 * @throws Exception
 	 */
 	public function instance_provider() {
@@ -70,7 +67,7 @@ class Manager {
 
 		if ( isset( self::$providers[ $provider_name ] ) && class_exists( self::$providers[ $provider_name ] ) ) {
 			if ( self::$providers[ $provider_name ] instanceof Provider ) {
-				throw new Exception( "Provider {$provider_name} must extend the class WBCR\Factory_480\Premium\Provider interface!" );
+				throw new Exception( "Provider {$provider_name} must extend the class WBCR\Factory_600\Premium\Provider interface!" );
 			}
 
 			return new self::$providers[ $provider_name ]( $this->plugin, $this->settings );

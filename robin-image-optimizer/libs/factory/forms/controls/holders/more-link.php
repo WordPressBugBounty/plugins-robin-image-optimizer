@@ -2,26 +2,23 @@
 /**
  * The file contains the class of More Link Holder.
  *
- * @author Alex Kovalev <alex.kovalevv@gmail.com>
- * @copyright (c) 2018, Webcraftic Ltd
- *
  * @package factory-forms
  * @since 1.0.0
  */
 
 // Exit if accessed directly
-if( !defined('ABSPATH') ) {
+if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-if( !class_exists('Wbcr_FactoryForms480_MoreLinkHolder') ) {
+if ( ! class_exists( 'Wbcr_FactoryForms600_MoreLinkHolder' ) ) {
 
 	/**
 	 * Collapsed Group Holder
 	 *
 	 * @since 1.0.0
 	 */
-	class Wbcr_FactoryForms480_MoreLinkHolder extends Wbcr_FactoryForms480_Holder {
+	class Wbcr_FactoryForms600_MoreLinkHolder extends Wbcr_FactoryForms600_Holder {
 
 		/**
 		 * A holder type.
@@ -37,23 +34,22 @@ if( !class_exists('Wbcr_FactoryForms480_MoreLinkHolder') ) {
 		 * @return void
 		 * @since 1.0.0
 		 */
-		public function beforeRendering()
-		{
-			$count = isset($this->options['count']) ? $this->options['count'] : 0;
+		public function beforeRendering() {
+			$count = isset( $this->options['count'] ) ? $this->options['count'] : 0;
 
 			$id = 'factory-more-link-' . $this->getName();
 
 			?>
-			<div <?php $this->attrs() ?>>
+			<div <?php $this->attrs(); ?>>
 			<div class="form-group">
 				<div class="control-label col-sm-4"></div>
 				<div class="control-group col-sm-8">
-					<a href="#<?php echo $id ?>" class="factory-more-link-show btn btn-default"><?php $this->title() ?>
-						(<?php echo $count ?>)</a>
+					<a href="#<?php echo $id; ?>" class="factory-more-link-show btn btn-default"><?php $this->title(); ?>
+						(<?php echo $count; ?>)</a>
 				</div>
 			</div>
-			<div class='factory-more-link-content' id="<?php echo $id ?>" style="display: none;">
-			<a href="#<?php echo $id ?>" class='factory-more-link-hide'><?php _e('hide extra options', 'factory'); ?></a>
+			<div class='factory-more-link-content' id="<?php echo $id; ?>" style="display: none;">
+			<a href="#<?php echo $id; ?>" class='factory-more-link-hide'><?php _e( 'hide extra options', 'robin-image-optimizer' ); ?></a>
 			<?php
 		}
 
@@ -63,8 +59,7 @@ if( !class_exists('Wbcr_FactoryForms480_MoreLinkHolder') ) {
 		 * @return void
 		 * @since 1.0.0
 		 */
-		public function afterRendering()
-		{
+		public function afterRendering() {
 			?>
 			</div></div>
 			<?php

@@ -9,9 +9,6 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Class WRIO_Webp_Hash_Src holds hash data about type, source src and normalized src which is mainly used to compare
  * or replace data.
  *
- * @author Webcraftic <wordpress.webraftic@gmail.com>
- * @author Alexander Teshabaev <sasha.tesh@gmail.com>
- * @copyright (c) 22.09.2018, Webcraftic
  * @version 1.0
  */
 class WRIO_Url {
@@ -19,7 +16,7 @@ class WRIO_Url {
 	 * Check whether URI is valid or not.
 	 *
 	 * @param string $src Image path.
-	 * @param bool $decode Whether to decode src.
+	 * @param bool   $decode Whether to decode src.
 	 *
 	 * @return null|string NULL on failure to get valid uri.
 	 */

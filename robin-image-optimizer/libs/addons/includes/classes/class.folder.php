@@ -8,8 +8,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Класс для работы с кастомными папками.
  *
- * @author        Eugene Jokerov <jokerov@gmail.com>
- * @copyright (c) 2018, Webcraftic
  * @version       1.0
  */
 class WRIO_Folder {
@@ -73,7 +71,7 @@ class WRIO_Folder {
 	 * Set specified object's property.
 	 *
 	 * @param string $property_name Property name.
-	 * @param mixed $value Value to set.
+	 * @param mixed  $value Value to set.
 	 */
 	public function set( $property_name, $value ) {
 		if ( isset( $this->$property_name ) ) {
@@ -116,36 +114,40 @@ class WRIO_Folder {
 			$ext = substr( $file, strrpos( strtolower( $file ), '.' ) + 1 ); // получаем расширение файла
 			if ( in_array( strtolower( $ext ), $allowed ) ) {
 				// сделать путь относительно корня
-				$files[] = $this->realPathToRelative( $file->getPathname() );
+				$files[] = $this->real_path_to_relative( $file->getPathname() );
 			}
 		}
 
 		$files = array_slice( $files, $offset, $max_process_elements );
 		foreach ( $files as $file ) {
 			$file = wp_normalize_path( $file );
-			//$file_path = str_replace( $this->path, '', $file );
+			// $file_path = str_replace( $this->path, '', $file );
 			$file_uid = hash( 'sha256', str_replace( wp_normalize_path( ABSPATH ), '', $file ) );
 			$sql      = $wpdb->prepare( "SELECT * FROM {$db_table} WHERE item_hash_alternative = %s AND item_hash = %s;", $this->uid, $file_uid );
 			$row      = $wpdb->get_row( $sql );
 
 			if ( empty( $row ) ) {
 				// если файла нет в индексе - добавляем
-				$extra_data        = new WRIO_CF_Image_Extra_Data( [
-					'file_path'            => $file,
-					'folder_relative_path' => $this->path,
-				] );
-				$optimization_data = new RIO_Process_Queue( [
-					'item_type'             => 'cf_image',
-					'item_hash'             => $file_uid, // хэш пути к файлу
-					'item_hash_alternative' => $this->uid, // хэш директории будет сделан сеттером
-					'original_size'         => 0,
-					'final_size'            => 0,
-					'original_mime_type'    => '',
-					'final_mime_type'       => '',
-					'result_status'         => 'unoptimized',
-					'processing_level'      => '',
-					'extra_data'            => $extra_data,
-				] );
+				$extra_data        = new WRIO_CF_Image_Extra_Data(
+					[
+						'file_path'            => $file,
+						'folder_relative_path' => $this->path,
+					]
+				);
+				$optimization_data = new RIO_Process_Queue(
+					[
+						'item_type'             => 'cf_image',
+						'item_hash'             => $file_uid, // хэш пути к файлу
+						'item_hash_alternative' => $this->uid, // хэш директории будет сделан сеттером
+						'original_size'         => 0,
+						'final_size'            => 0,
+						'original_mime_type'    => '',
+						'final_mime_type'       => '',
+						'result_status'         => 'unoptimized',
+						'processing_level'      => '',
+						'extra_data'            => $extra_data,
+					]
+				);
 				$optimization_data->save();
 			} else {
 				// делаем апдейт и выставляем ласт индекс дату. Потом у кого в индексе ласт индекс дата меньше заданной, того уже нет на диске
@@ -177,7 +179,7 @@ class WRIO_Folder {
 
 		if ( ! empty( $rows ) ) {
 			foreach ( $rows as $row ) {
-				$processed ++;
+				++$processed;
 				$cf_image = new WRIO_Folder_Image( $row->id, $row );
 				if ( ! $cf_image->isFileExists() ) {
 					if ( $cf_image->isOptimized() ) {
@@ -191,10 +193,14 @@ class WRIO_Folder {
 						$image_statistics->deductFromField( 'original_size', $original_size );
 					}
 					// если файла нет на диске - удаляем из индекса
-					$wpdb->delete( $db_table, [
-						'id' => $cf_image->get( 'id' ),
-					], [ '%d' ] );
-					$deleted ++;
+					$wpdb->delete(
+						$db_table,
+						[
+							'id' => $cf_image->get( 'id' ),
+						],
+						[ '%d' ]
+					);
+					++$deleted;
 				}
 			}
 			$image_statistics->save();
@@ -211,7 +217,7 @@ class WRIO_Folder {
 	 * @return array
 	 */
 	public function getAllowedFilesExt() {
-		$allowed_formats = explode( ',', WRIO_Plugin::app()->getOption( 'allowed_formats', "image/jpeg,image/png,image/gif" ) );
+		$allowed_formats = explode( ',', WRIO_Plugin::app()->getOption( 'allowed_formats', 'image/jpeg,image/png,image/gif' ) );
 		$allowed         = [];
 		foreach ( $allowed_formats as $format ) {
 			if ( $format == 'image/jpeg' ) {
@@ -222,7 +228,7 @@ class WRIO_Folder {
 			}
 		}
 
-		//$allowed = [ 'jpg', 'jpeg', 'png' ];
+		// $allowed = [ 'jpg', 'jpeg', 'png' ];
 
 		return $allowed;
 	}
@@ -239,7 +245,7 @@ class WRIO_Folder {
 		foreach ( $iterator as $file ) {
 			$ext = substr( $file, strrpos( strtolower( $file ), '.' ) + 1 ); // получаем расширение файла
 			if ( in_array( strtolower( $ext ), $allowed ) ) {
-				$count ++;
+				++$count;
 			}
 		}
 
@@ -302,32 +308,52 @@ class WRIO_Folder {
 		$image_statistics->save();
 
 		// Delete from db
-		$wpdb->delete( $db_table, [
-			'item_hash_alternative' => $this->uid,
-			'item_type'             => 'cf_image',
-		], [ '%s', '%s' ] );
+		$wpdb->delete(
+			$db_table,
+			[
+				'item_hash_alternative' => $this->uid,
+				'item_type'             => 'cf_image',
+			],
+			[ '%s', '%s' ]
+		);
 	}
 
 	/**
 	 * Get absolute path from relative.
 	 *
+	 * Same as 'wp_ajax_wriop_browse_dir'.
+	 *
 	 * @return bool|string
 	 */
-	public function realPath() {
-		return realpath( ABSPATH . $this->path );
+	public function real_path() {
+		if ( is_main_site() ) {
+			$base_path = get_home_path();
+		} else {
+			$upload_dir = wp_upload_dir();
+			$base_path  = $upload_dir['basedir'] . '/';
+		}
+		return realpath( $base_path . $this->path );
 	}
 
 	/**
-	 * Возвращает путь к директории относительно корня сайта
-	 * На входе: /home/user/test/wp.com/wp-content/uploads/custom-folder/
-	 * На выходе: /wp-content/uploads/custom-folder/
+	 * Returns the directory path relative to the site root
+	 * Input: /home/user/test/wp.com/wp-content/uploads/custom-folder/
+	 * Output: /wp-content/uploads/custom-folder/
 	 *
 	 * @param string $path Путь к директории. Может быть абсолютным.
 	 *
+	 * Same as 'wp_ajax_wriop_browse_dir'.
+	 *
 	 * @return string $relative_path относительный путь
 	 */
-	public function realPathToRelative( $path ) {
-		$relative_path = str_replace( untrailingslashit( ABSPATH ), '', $path );
+	public function real_path_to_relative( $path ) {
+		if ( is_main_site() ) {
+			$base_path = untrailingslashit( get_home_path() );
+		} else {
+			$upload_dir = wp_upload_dir();
+			$base_path  = untrailingslashit( $upload_dir['basedir'] );
+		}
+		$relative_path = str_replace( $base_path, '', $path );
 
 		return $relative_path;
 	}
@@ -338,7 +364,7 @@ class WRIO_Folder {
 	 * @return RecursiveIteratorIterator
 	 */
 	public function getRecursiveIterator() {
-		$iterator = new RecursiveDirectoryIterator( $this->realPath() );
+		$iterator = new RecursiveDirectoryIterator( $this->real_path() );
 
 		return new RecursiveIteratorIterator( $iterator );
 	}

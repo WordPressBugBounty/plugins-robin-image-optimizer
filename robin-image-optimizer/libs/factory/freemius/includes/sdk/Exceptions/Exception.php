@@ -1,15 +1,14 @@
 <?php
 
-namespace WBCR\Factory_Freemius_170\Sdk;
+namespace WBCR\Factory_Freemius_Rio_600\Sdk;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-if( !class_exists('WBCR\Factory_Freemius_170\Sdk\Freemius_Exception') ) {
+if ( ! class_exists( 'WBCR\Factory_Freemius_Rio_600\Sdk\Freemius_Exception' ) ) {
 	/**
 	 * Thrown when an API call returns an exception.
-	 *
 	 */
 	class Freemius_Exception extends \Exception {
 
@@ -22,22 +21,21 @@ if( !class_exists('WBCR\Factory_Freemius_170\Sdk\Freemius_Exception') ) {
 		 *
 		 * @param array $result The result from the API server.
 		 */
-		public function __construct($result)
-		{
+		public function __construct( $result ) {
 			$this->_result = $result;
 
-			$code = 0;
+			$code    = 0;
 			$message = 'Unknown error, please check GetResult().';
-			$type = '';
+			$type    = '';
 
-			if( isset($result['error']) && is_array($result['error']) ) {
-				if( isset($result['error']['code']) ) {
+			if ( isset( $result['error'] ) && is_array( $result['error'] ) ) {
+				if ( isset( $result['error']['code'] ) ) {
 					$code = $result['error']['code'];
 				}
-				if( isset($result['error']['message']) ) {
+				if ( isset( $result['error']['message'] ) ) {
 					$message = $result['error']['message'];
 				}
-				if( isset($result['error']['type']) ) {
+				if ( isset( $result['error']['type'] ) ) {
 					$type = $result['error']['type'];
 				}
 			}
@@ -45,7 +43,7 @@ if( !class_exists('WBCR\Factory_Freemius_170\Sdk\Freemius_Exception') ) {
 			$this->_type = $type;
 			$this->_code = $code;
 
-			parent::__construct($message, is_numeric($code) ? $code : 0);
+			parent::__construct( $message, is_numeric( $code ) ? $code : 0 );
 		}
 
 		/**
@@ -53,18 +51,15 @@ if( !class_exists('WBCR\Factory_Freemius_170\Sdk\Freemius_Exception') ) {
 		 *
 		 * @return array The result from the API server
 		 */
-		public function getResult()
-		{
+		public function getResult() {
 			return $this->_result;
 		}
 
-		public function getStringCode()
-		{
+		public function getStringCode() {
 			return $this->_code;
 		}
 
-		public function getType()
-		{
+		public function getType() {
 			return $this->_type;
 		}
 
@@ -73,11 +68,10 @@ if( !class_exists('WBCR\Factory_Freemius_170\Sdk\Freemius_Exception') ) {
 		 *
 		 * @return string The string representation of the error
 		 */
-		public function __toString()
-		{
+		public function __toString() {
 			$str = $this->getType() . ': ';
 
-			if( $this->code != 0 ) {
+			if ( $this->code != 0 ) {
 				$str .= $this->getStringCode() . ': ';
 			}
 

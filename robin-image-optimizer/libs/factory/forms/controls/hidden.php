@@ -8,43 +8,39 @@
 	 *  value           => a value to show in the control
 	 *  default         => a default value of the control if the "value" option is not specified
 	 *
-	 * @author Alex Kovalev <alex.kovalevv@gmail.com>
-	 * @copyright (c) 2018, Webcraftic Ltd
-	 *
 	 * @package factory-forms
 	 * @since 1.0.0
 	 */
 
 	// Exit if accessed directly
-	if( !defined('ABSPATH') ) {
-		exit;
-	}
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
 
-	if( !class_exists('Wbcr_FactoryForms480_HiddenControl') ) {
+if ( ! class_exists( 'Wbcr_FactoryForms600_HiddenControl' ) ) {
 
-		class Wbcr_FactoryForms480_HiddenControl extends Wbcr_FactoryForms480_Control {
+	class Wbcr_FactoryForms600_HiddenControl extends Wbcr_FactoryForms600_Control {
 
-			public $type = 'hidden';
+		public $type = 'hidden';
 
-			/**
-			 * Shows the html markup of the control.
-			 *
-			 * @since 1.0.0
-			 * @return void
-			 */
-			public function html()
-			{
-				$value = esc_attr($this->getValue());
-				$name_on_form = $this->getNameOnForm();
+		/**
+		 * Shows the html markup of the control.
+		 *
+		 * @since 1.0.0
+		 * @return void
+		 */
+		public function html() {
+			$value        = esc_attr( $this->getValue() );
+			$name_on_form = $this->getNameOnForm();
 
-				$this->addHtmlAttr('id', $name_on_form);
-				$this->addHtmlAttr('name', $name_on_form);
-				$this->addHtmlAttr('value', $value);
-				$this->addHtmlAttr('type', 'hidden');
+			$this->addHtmlAttr( 'id', $name_on_form );
+			$this->addHtmlAttr( 'name', $name_on_form );
+			$this->addHtmlAttr( 'value', $value );
+			$this->addHtmlAttr( 'type', 'hidden' );
 
-				?>
-				<input <?php $this->attrs() ?>/>
+			?>
+				<input <?php $this->attrs(); ?>/>
 			<?php
-			}
 		}
 	}
+}

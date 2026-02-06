@@ -9,6 +9,10 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Переоптимизация аттачмента
  */
 function wbcr_riop_reoptimizeImage() {
+	if ( ! check_ajax_referer( 'reoptimize', false, false ) || ! current_user_can( 'manage_options' ) ) {
+		wp_send_json_error( [ 'message' => 'Unauthorized' ], 403 );
+	}
+
 	$image_id             = (int) $_POST['id'];
 	$backup               = WRIOP_Backup::get_instance();
 	$backup_origin_images = WRIO_Plugin::app()->getPopulateOption( 'backup_origin_images', false );
@@ -36,6 +40,10 @@ function wbcr_riop_reoptimizeImage() {
  * Восстановление
  */
 function wbcr_riop_restoreImage() {
+	if ( ! check_ajax_referer( 'restore', false, false ) || ! current_user_can( 'manage_options' ) ) {
+		wp_send_json_error( [ 'message' => 'Unauthorized' ], 403 );
+	}
+
 	wp_suspend_cache_addition( true );
 	$image_id = isset( $_POST['id'] ) ? (int) $_POST['id'] : 0;
 
@@ -46,9 +54,9 @@ function wbcr_riop_restoreImage() {
 		$restored = $nextgen_image->restore();
 
 		if ( ! is_wp_error( $restored ) ) {
-			$optimization_data = $nextgen_image->getOptimizationData();
-			$optimized_size    = $optimization_data->get_final_size();
-			$original_size     = $optimization_data->get_original_size();
+			$optimization_data   = $nextgen_image->getOptimizationData();
+			$optimized_size      = $optimization_data->get_final_size();
+			$original_size       = $optimization_data->get_original_size();
 			$webp_optimized_size = $optimization_data->get_extra_data()->get_webp_main_size();
 			$image_statistics->deductFromField( 'webp_optimized_size', $webp_optimized_size );
 			$image_statistics->deductFromField( 'optimized_size', $optimized_size );

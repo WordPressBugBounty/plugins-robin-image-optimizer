@@ -5,19 +5,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /*
- * @author        Alex Kovalev <alex.kovalevv@gmail.com>, repo: https://github.com/alexkovalevv
- * @author        Webcraftic <wordpress.webraftic@gmail.com>, site: https://webcraftic.com
  *
  * @package       factory-core
 */
 
-class Wbcr_Factory480_Request {
+class Wbcr_Factory600_Request {
 
 	/**
-	 * @param null $param
+	 * @param string|null $param
 	 * @param bool|string $sanitize true/false or sanitize function name
-	 * @param bool $default
-	 * @param string $method_name
+	 * @param bool        $default
+	 * @param string      $method_name
 	 *
 	 * @return array|bool|mixed
 	 */
@@ -80,9 +78,9 @@ class Wbcr_Factory480_Request {
 	}
 
 	/**
-	 * @param      $param
-	 * @param bool|string see method getBody
-	 * @param bool $default
+	 * @param string|null $param
+	 * @param mixed $default see method getBody
+	 * @param bool        $sanitize
 	 *
 	 * @return mixed|null
 	 */
@@ -91,9 +89,9 @@ class Wbcr_Factory480_Request {
 	}
 
 	/**
-	 * @param null $param
-	 * @param bool|string see method getBody
-	 * @param bool $default
+	 * @param string|null $param
+	 * @param mixed $default see method getBody
+	 * @param bool        $sanitize
 	 *
 	 * @return mixed|null
 	 */
@@ -102,9 +100,9 @@ class Wbcr_Factory480_Request {
 	}
 
 	/**
-	 * @param      $param
-	 * @param bool|string see method getBody
-	 * @param bool $default
+	 * @param string|null $param
+	 * @param mixed $default see method getBody
+	 * @param bool        $sanitize
 	 *
 	 * @return mixed|null
 	 */
@@ -112,4 +110,3 @@ class Wbcr_Factory480_Request {
 		return $this->getBody( $param, $sanitize, $default, 'post' );
 	}
 }
-	

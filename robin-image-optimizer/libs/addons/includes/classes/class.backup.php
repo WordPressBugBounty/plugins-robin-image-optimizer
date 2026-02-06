@@ -8,14 +8,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Класс для работы с резервным копированием изображений
  *
- * @author        Eugene Jokerov <jokerov@gmail.com>
- * @copyright (c) 2018, Webcraftic
  * @version       1.0
  */
 class WRIOP_Backup extends WIO_Backup {
 
-	CONST CF_BACKUP_DIR_NAME = 'custom-folders';
-	CONST NEXTGEN_BACKUP_DIR_NAME = 'nextgen-gallery';
+	const CF_BACKUP_DIR_NAME      = 'custom-folders';
+	const NEXTGEN_BACKUP_DIR_NAME = 'nextgen-gallery';
 
 	/**
 	 * The single instance of the class.
@@ -34,7 +32,7 @@ class WRIOP_Backup extends WIO_Backup {
 	 * @return string
 	 */
 	public function getNextgenBackupDir( $gallery_meta ) {
-		$backup_dir = $this->getBackupDir();
+		$backup_dir  = $this->getBackupDir();
 		$backup_dir .= self::NEXTGEN_BACKUP_DIR_NAME . '/' . $gallery_meta->gid;
 
 		if ( ! is_dir( $backup_dir ) ) {
@@ -132,7 +130,7 @@ class WRIOP_Backup extends WIO_Backup {
 			$restored = $nextgen_model->restore();
 
 			if ( ! is_wp_error( $restored ) ) {
-				$result['processed'] = $result['processed'] ++;
+				$result['processed'] = $result['processed']++;
 			} else {
 				WRIO_Plugin::app()->logger->error( sprintf( 'Failed to restore nextgen image ID: %s as %s::%s failed with message: %s', $nextgen_image->object_id, get_class( 'WRIO_Image_Nextgen' ), 'restore()', $restored->get_error_message() ) );
 			}
@@ -195,7 +193,7 @@ class WRIOP_Backup extends WIO_Backup {
 			$restored = $cf_model->restore();
 
 			if ( ! is_wp_error( $restored ) ) {
-				$result['processed'] = $result['processed'] ++;
+				$result['processed'] = $result['processed']++;
 			} else {
 				WRIO_Plugin::app()->logger->error( sprintf( 'Failed to restore Custom Folder ID: %s as %s::%s failed with message: %s', $cf_image->object_id, get_class( 'WRIO_Folder_Image' ), 'restore()', $restored->get_error_message() ) );
 			}
@@ -237,7 +235,6 @@ class WRIOP_Backup extends WIO_Backup {
 	 *
 	 * @return bool|WP_Error
 	 */
-
 	public function restoreNextgen( $nextgen_image ) {
 
 		$original_file           = $nextgen_image->get( 'path' );
@@ -252,7 +249,7 @@ class WRIOP_Backup extends WIO_Backup {
 		$backup_thumbnail_file = $backup_dir . $nextgen_image->get( 'thumbnail_file' );
 
 		if ( ! is_file( $backup_file ) ) {
-			$error_msg = sprintf( "Unable to restore from a backup. There is no file (%s).", $backup_file );
+			$error_msg = sprintf( 'Unable to restore from a backup. There is no file (%s).', $backup_file );
 			WRIO_Plugin::app()->logger->error( sprintf( '%s, Nextgen image id: %s', $error_msg, $nextgen_image->get( 'id' ) ) );
 
 			return new WP_Error( 'file_not_exists', $error_msg );
@@ -263,7 +260,7 @@ class WRIOP_Backup extends WIO_Backup {
 			return false;
 		}
 
-		//Restore thumbnail file
+		// Restore thumbnail file
 		if ( ! $this->restore_file( $backup_thumbnail_file, $original_thumbnail_file ) ) {
 			return false;
 		}
@@ -278,7 +275,6 @@ class WRIOP_Backup extends WIO_Backup {
 	 *
 	 * @return string
 	 */
-
 	public function getCFBackupDir( $image_abs_path ) {
 		$backup_dir = $this->getBackupDir();
 

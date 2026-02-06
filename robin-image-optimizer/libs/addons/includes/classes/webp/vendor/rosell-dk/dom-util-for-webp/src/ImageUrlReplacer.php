@@ -48,7 +48,8 @@ class ImageUrlReplacer
      **/
     public function replaceUrl($url)
     {
-        if (!preg_match('#(png|jpe?g)$#', $url)) {
+        // Match .jpg, .jpeg, or .png at end of URL (before optional query string)
+        if (!preg_match('#\.(png|jpe?g)($|\?)#i', $url)) {
             return null;
         }
         return $url . '.webp';
@@ -151,7 +152,7 @@ class ImageUrlReplacer
                     $part = preg_replace_callback($regex, 'self::processCSSRegExCallback', $part);
                     //echo 'result:' . $part . "\n";
                 }
-                $declarations[$i] = implode($parts, ',');
+                $declarations[$i] = implode(',', $parts);
             }
         }
         return implode(';', $declarations);
@@ -188,10 +189,11 @@ class ImageUrlReplacer
         foreach (self::$searchInTags as $tagName) {
             $elems = $dom->find($tagName);
             foreach ($elems as $index => $elem) {
-                $attributes = $elem->getAllAttributes();
                 foreach ($elem->getAllAttributes() as $attrName => $attrValue) {
                     if ($this->attributeFilter($attrName)) {
-                        $elem->setAttribute($attrName, $this->handleAttribute($attrValue));
+                        // Use direct property assignment instead of setAttribute()
+                        // simple_html_dom's setAttribute() may not persist changes properly
+                        $elem->$attrName = $this->handleAttribute($attrValue);
                     }
                 }
             }

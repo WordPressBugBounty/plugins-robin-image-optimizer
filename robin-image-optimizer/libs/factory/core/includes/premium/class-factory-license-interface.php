@@ -1,6 +1,6 @@
 <?php
 
-namespace WBCR\Factory_480\Premium\Interfaces;
+namespace WBCR\Factory_600\Premium\Interfaces;
 
 // Exit if accessed directly
 if ( ! defined( 'ABSPATH' ) ) {
@@ -8,9 +8,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * @author        Alex Kovalev <alex.kovalevv@gmail.com>, repo: https://github.com/alexkovalevv
- * @author        Webcraftic <wordpress.webraftic@gmail.com>, site: https://webcraftic.com
- * @copyright (c) 2018 Webraftic Ltd
  * @version       1.0
  */
 interface License {
@@ -28,5 +25,4 @@ interface License {
 	public function is_valid();
 
 	public function is_lifetime();
-
 }

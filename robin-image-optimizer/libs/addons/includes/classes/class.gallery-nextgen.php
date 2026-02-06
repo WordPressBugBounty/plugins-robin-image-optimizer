@@ -8,8 +8,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Класс для работы с галереей nextgen
  *
- * @author        Eugene Jokerov <jokerov@gmail.com>
- * @copyright (c) 2018, Webcraftic
  * @version       1.0
  */
 class WRIO_Nextgen_Gallery {
@@ -36,9 +34,9 @@ class WRIO_Nextgen_Gallery {
 			return;
 		}
 
-		require_once( WRIOP_PLUGIN_DIR . '/includes/classes/models/class.nextgen-extra-data.php' );
-		require_once( WRIOP_PLUGIN_DIR . '/includes/classes/class.image-nextgen.php' );
-		require_once( WRIOP_PLUGIN_DIR . '/admin/ajax/optimization.php' );
+		require_once WRIOP_PLUGIN_DIR . '/includes/classes/models/class.nextgen-extra-data.php';
+		require_once WRIOP_PLUGIN_DIR . '/includes/classes/class.image-nextgen.php';
+		require_once WRIOP_PLUGIN_DIR . '/admin/ajax/optimization.php';
 
 		add_filter( 'ngg_manage_images_number_of_columns', [ $this, 'addColumns' ] );
 
@@ -50,13 +48,18 @@ class WRIO_Nextgen_Gallery {
 		add_action( 'ngg_delete_picture', [ $this, 'deleteImageHook' ], 10, 2 );
 		add_action( 'ngg_recovered_image', [ $this, 'recoverImageHook' ], 10, 1 );
 
-		add_filter( 'wbcr/rio/optimize_template/reoptimize_ajax_action', [
-			$this,
-			'reoptimizeAjaxAction',
-		], 10, 2 );
+		add_filter(
+			'wbcr/rio/optimize_template/reoptimize_ajax_action',
+			[
+				$this,
+				'reoptimizeAjaxAction',
+			],
+			10,
+			2
+		);
 
 		add_filter( 'wbcr/rio/optimize_template/restore_ajax_action', [ $this, 'restoreAjaxAction' ], 10, 2 );
-		//add_filter( 'wbcr/rio/multisite_blogs', [ $this, 'multisiteBlogs' ], 10, 2 );
+		// add_filter( 'wbcr/rio/multisite_blogs', [ $this, 'multisiteBlogs' ], 10, 2 );
 		add_action( 'wbcr/rio/optimize_template/optimized_percent', [ $this, 'optimizedPercent' ], 10, 2 );
 		add_action( 'wbcr/riop/queue_item_saved', [ $this, 'webpSuccess' ], 10, 1 );
 	}
@@ -64,8 +67,6 @@ class WRIO_Nextgen_Gallery {
 	/**
 	 * @return object|\WRIO_Nextgen_Gallery object Main instance.
 	 * @since  1.3.0
-	 *
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 */
 	public static function get_instance() {
 		if ( ! isset( static::$_instance ) ) {
@@ -84,7 +85,8 @@ class WRIO_Nextgen_Gallery {
 	 *
 	 * @return array сайты, на которых установлен nextgen
 	 */
-	/*public function multisiteBlogs( $blogs, $type ) {
+	/*
+	public function multisiteBlogs( $blogs, $type ) {
 		if ( 'nextgen' == $type ) {
 			$nextgen_basename = 'nextgen-gallery/nggallery.php';
 			if ( is_plugin_active_for_network( $nextgen_basename ) ) {
@@ -143,7 +145,7 @@ class WRIO_Nextgen_Gallery {
 	 * Добавляет колонку оптимизации в галерею nextgen
 	 */
 	public function addColumns( $count ) {
-		$count ++;
+		++$count;
 		add_filter( 'ngg_manage_images_column_' . $count . '_header', [ $this, 'columnTitle' ] );
 		add_filter( 'ngg_manage_images_column_' . $count . '_content', [ $this, 'columnContent' ], 10, 2 );
 
@@ -154,7 +156,7 @@ class WRIO_Nextgen_Gallery {
 	 * Название колонки оптимизации в галерее
 	 */
 	public function columnTitle() {
-		return __( 'Image optimizer', 'image optimizer' );
+		return __( 'Image optimizer', 'robin-image-optimizer' );
 	}
 
 	/**
@@ -239,7 +241,7 @@ class WRIO_Nextgen_Gallery {
 	/**
 	 * Возвращает объект nextgen_image
 	 *
-	 * @param int $image_id
+	 * @param int   $image_id
 	 * @param array $image_meta
 	 *
 	 * @return WRIO_Image_Nextgen
@@ -255,7 +257,7 @@ class WRIO_Nextgen_Gallery {
 	/**
 	 * Оптимизирует nextgen_image
 	 *
-	 * @param int $image_id номер картинки в таблице nextgen
+	 * @param int    $image_id номер картинки в таблице nextgen
 	 * @param string $level качество
 	 *
 	 * @return array
@@ -345,7 +347,7 @@ class WRIO_Nextgen_Gallery {
 		}
 		$image_statistics = WRIO_Image_Statistic_Nextgen::get_instance();
 
-		//выборка неоптимизированных изображений
+		// выборка неоптимизированных изображений
 		$gallery_images       = $image_statistics->getUnoptimized( $max_process_per_request ); // тут будет выборка
 		$total_unoptimized    = $image_statistics->getUnoptimizedCount(); // тут общее кол-во неоптимизированных
 		$gallery_images_count = 0;
@@ -416,17 +418,21 @@ class WRIO_Nextgen_Gallery {
 	 * @return void
 	 */
 	public function resetCurrentErrors() {
-		//do_action( 'wbcr/rio/multisite_current_blog' );
+		// do_action( 'wbcr/rio/multisite_current_blog' );
 
 		global $wpdb;
 
 		$db_table = RIO_Process_Queue::table_name();
 
-		$wpdb->delete( $db_table, [
-			'item_type'     => 'nextgen',
-			'result_status' => 'error',
-		], [ '%s', '%s' ] );
-		//do_action( 'wbcr/rio/multisite_restore_blog' );
+		$wpdb->delete(
+			$db_table,
+			[
+				'item_type'     => 'nextgen',
+				'result_status' => 'error',
+			],
+			[ '%s', '%s' ]
+		);
+		// do_action( 'wbcr/rio/multisite_restore_blog' );
 	}
 
 	/**
@@ -495,17 +501,20 @@ class WRIO_Nextgen_Gallery {
 
 		$db_table = RIO_Process_Queue::table_name();
 
-		$wpdb->delete( $db_table, [
-			'object_id' => $image_id,
-			'item_type' => 'nextgen',
-		] );
+		$wpdb->delete(
+			$db_table,
+			[
+				'object_id' => $image_id,
+				'item_type' => 'nextgen',
+			]
+		);
 	}
 
 	/**
 	 * Возвращает процент оптимизации
 	 * Фильтр wbcr/rio/optimize_template/optimized_percent
 	 *
-	 * @param int $percent процент оптимизации
+	 * @param int    $percent процент оптимизации
 	 * @param string $type тип страницы
 	 *
 	 * @return int процент оптимизации
@@ -552,10 +561,12 @@ class WRIO_Nextgen_Gallery {
 			return false;
 		}
 
-		$optimization_data = new RIO_Process_Queue( [
-			'object_id' => $queue_model->object_id,
-			'item_type' => 'nextgen',
-		] );
+		$optimization_data = new RIO_Process_Queue(
+			[
+				'object_id' => $queue_model->object_id,
+				'item_type' => 'nextgen',
+			]
+		);
 
 		$optimization_data->load();
 

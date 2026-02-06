@@ -15,7 +15,8 @@ class PictureTags
 
     public function replaceUrl($url)
     {
-        if (!preg_match('#(png|jpe?g)$#', $url)) {
+        // Match .jpg, .jpeg, or .png at end of URL (before optional query string)
+        if (!preg_match('#\.(png|jpe?g)($|\?)#i', $url)) {
             return;
         }
         return $url . '.webp';
@@ -58,8 +59,8 @@ class PictureTags
 
     private static function getAttributes($html)
     {
-        if (function_exists("mb_convert_encoding")) {
-            $html = mb_convert_encoding($html, 'HTML-ENTITIES', 'UTF-8');
+        if (function_exists("mb_encode_numericentity")) {
+            $html = mb_encode_numericentity($html, [0x80, 0x10FFFF, 0, ~0], 'UTF-8');
         }
         if (class_exists('\\DOMDocument')) {
             $dom = new \DOMDocument();
@@ -97,7 +98,11 @@ class PictureTags
     {
         $attributes = '';
         foreach ($attribute_array as $attribute => $value) {
-            $attributes .= $attribute . '="' . $value . '" ';
+            if ( 'src' !== $attribute ) {
+                $attributes .= $attribute . '="' . esc_attr( $value ) . '" ';
+            } else {
+                $attributes .= $attribute . '="' . esc_url( $value ) . '" ';
+            }
         }
         if ($attributes == '') {
             return '';
@@ -114,7 +119,7 @@ class PictureTags
         $imgTag = $match[0];
 
         // Do nothing with images that have the 'webpexpress-processed' class.
-        if (strpos($imgTag, 'webpexpress-processed')) {
+        if (strpos($imgTag, 'webpexpress-processed') !== false) {
             return $imgTag;
         }
         $imgAttributes = self::getAttributes($imgTag);

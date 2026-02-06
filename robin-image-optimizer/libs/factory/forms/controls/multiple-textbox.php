@@ -3,118 +3,112 @@
 	/**
 	 * Control multiple textbox
 	 *
-	 * @author Alex Kovalev <alex.kovalevv@gmail.com>
-	 * @copyright (c) 2018, Webcraftic Ltd
-	 *
 	 * @package factory-forms
 	 * @since 1.0.0
 	 */
 
 	// Exit if accessed directly
-	if( !defined('ABSPATH') ) {
-		exit;
-	}
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
 
-	if( !class_exists('Wbcr_FactoryForms480_MultipleTextboxControl') ) {
+if ( ! class_exists( 'Wbcr_FactoryForms600_MultipleTextboxControl' ) ) {
 
-		class Wbcr_FactoryForms480_MultipleTextboxControl extends Wbcr_FactoryForms480_Control {
+	class Wbcr_FactoryForms600_MultipleTextboxControl extends Wbcr_FactoryForms600_Control {
 
-			public $type = 'multiple-textbox';
+		public $type = 'multiple-textbox';
 
-			/**
-			 * Preparing html attributes before rendering html of the control.
-			 *
-			 * @since 1.0.0
-			 * @return void
-			 */
-			protected function beforeHtml()
-			{
+		/**
+		 * Preparing html attributes before rendering html of the control.
+		 *
+		 * @since 1.0.0
+		 * @return void
+		 */
+		protected function beforeHtml() {
 
-				$name_on_form = $this->getNameOnForm();
+			$name_on_form = $this->getNameOnForm();
 
-				if( $this->getOption('maxLength', false) ) {
-					$this->addHtmlAttr('maxlength', intval($this->getOption('maxLength')));
-				}
-
-				if( $this->getOption('placeholder', false) ) {
-					$this->addHtmlAttr('placeholder', $this->getOption('placeholder'));
-				}
-
-				$this->addCssClass('form-control');
-				$this->addHtmlAttr('type', 'text');
-				//$this->addHtmlAttr('id', $name_on_form);
-				$this->addCssClass(str_replace('_', '-', $name_on_form));
-				$this->addHtmlAttr('name', $name_on_form . '[]');
+			if ( $this->getOption( 'maxLength', false ) ) {
+				$this->addHtmlAttr( 'maxlength', intval( $this->getOption( 'maxLength' ) ) );
 			}
 
-			/**
-			 * Shows the html markup of the control.
-			 *
-			 * @since 1.0.0
-			 * @return void
-			 */
-			public function html()
-			{
+			if ( $this->getOption( 'placeholder', false ) ) {
+				$this->addHtmlAttr( 'placeholder', $this->getOption( 'placeholder' ) );
+			}
 
-				$values = $this->getValue();
+			$this->addCssClass( 'form-control' );
+			$this->addHtmlAttr( 'type', 'text' );
+			// $this->addHtmlAttr('id', $name_on_form);
+			$this->addCssClass( str_replace( '_', '-', $name_on_form ) );
+			$this->addHtmlAttr( 'name', $name_on_form . '[]' );
+		}
 
-				if( !empty($values) ) {
-					$values = explode('{%spr%}', $values);
-				} else {
-					$values = array();
-				}
+		/**
+		 * Shows the html markup of the control.
+		 *
+		 * @since 1.0.0
+		 * @return void
+		 */
+		public function html() {
 
-				?>
+			$values = $this->getValue();
+
+			if ( ! empty( $values ) ) {
+				$values = explode( '{%spr%}', $values );
+			} else {
+				$values = [];
+			}
+
+			?>
 				<div class="factory-multiple-textbox-group">
 					<div class="factory-mtextbox-items">
-						<?php if( empty($values) ): ?>
+					<?php if ( empty( $values ) ) : ?>
 							<div class="factory-mtextbox-item">
-								<input <?php $this->attrs() ?>/>
+								<input <?php $this->attrs(); ?>/>
 							</div>
-						<?php else: ?>
+						<?php else : ?>
 							<?php $counter = 0; ?>
-							<?php foreach($values as $value): ?>
+							<?php foreach ( $values as $value ) : ?>
 								<div class="factory-mtextbox-item">
-									<input value="<?php echo esc_attr($value) ?>"<?php $this->attrs() ?>/>
-									<?php if( $counter >= 1 ): ?>
+									<input value="<?php echo esc_attr( $value ); ?>"<?php $this->attrs(); ?>/>
+									<?php if ( $counter >= 1 ) : ?>
 										<button class="btn btn-default btn-small factory-mtextbox-remove-item">
 											<i class="fa fa-times" aria-hidden="true"></i></button>
 									<?php endif; ?>
 								</div>
-								<?php $counter++; ?>
+								<?php ++$counter; ?>
 							<?php endforeach; ?>
 						<?php endif; ?>
 					</div>
 					<button class="btn btn-default btn-small factory-mtextbox-add-item">
-						<i class="fa fa-plus" aria-hidden="true"></i> <?php _e('Add new', 'wbcr_factory_forms_480') ?>
+						<i class="fa fa-plus" aria-hidden="true"></i> <?php _e( 'Add new', 'robin-image-optimizer' ); ?>
 					</button>
 				</div>
 
 			<?php
+		}
+
+		/**
+		 * Returns a submit value of the control by a given name.
+		 *
+		 * @since 1.0.0
+		 * @return mixed
+		 */
+		public function getSubmitValue( $name, $subName ) {
+			$name_on_form = $this->getNameOnForm( $name );
+
+			$value = isset( $_POST[ $name_on_form ] )
+				? $_POST[ $name_on_form ]
+				: null;
+
+			if ( is_array( $value ) ) {
+				$value = array_map( 'sanitize_text_field', $value );
+				$value = implode( '{%spr%}', $value );
 			}
 
-			/**
-			 * Returns a submit value of the control by a given name.
-			 *
-			 * @since 1.0.0
-			 * @return mixed
-			 */
-			public function getSubmitValue($name, $subName)
-			{
-				$name_on_form = $this->getNameOnForm($name);
+			$value = sanitize_text_field( $value );
 
-				$value = isset($_POST[$name_on_form])
-					? $_POST[$name_on_form]
-					: null;
-
-				if( is_array($value) ) {
-					$value = array_map('sanitize_text_field', $value);
-					$value = implode('{%spr%}', $value);
-				}
-
-				$value = sanitize_text_field($value);
-
-				return $value;
-			}
+			return $value;
 		}
 	}
+}

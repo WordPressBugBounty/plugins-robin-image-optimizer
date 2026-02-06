@@ -32,7 +32,7 @@ if ( is_multisite() ) {
 
 // REMOVE Backup dir
 // --------------------------------------------------------------------------
-require_once( dirname( __FILE__ ) . '/includes/functions.php' );
+require_once __DIR__ . '/includes/functions.php';
 
 $wp_upload_dir = wp_upload_dir();
 

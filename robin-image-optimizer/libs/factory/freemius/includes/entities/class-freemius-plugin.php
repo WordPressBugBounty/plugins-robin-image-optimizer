@@ -1,6 +1,6 @@
 <?php
 
-namespace WBCR\Factory_Freemius_170\Entities;
+namespace WBCR\Factory_Freemius_Rio_600\Entities;
 
 use stdClass;
 
@@ -9,9 +9,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * @author        Webcraftic <wordpress.webraftic@gmail.com>, Alex Kovalev <alex.kovalevv@gmail.com>
- * @link          https://webcraftic.com
- * @copyright (c) 2018 Webraftic Ltd, Freemius, Inc.
  * @version       1.0
  */
 class Plugin extends Scope {
@@ -84,7 +81,7 @@ class Plugin extends Scope {
 
 	const AFFILIATE_MODERATION_CUSTOMERS = 'customers';
 
-	#endregion Install Specific Properties
+	// endregion Install Specific Properties
 
 	/**
 	 * @param stdClass|bool $plugin
@@ -99,7 +96,6 @@ class Plugin extends Scope {
 	/**
 	 * Check if plugin is an add-on (has parent).
 	 *
-	 * @author Vova Feldman (@svovaf)
 	 * @since  1.0.6
 	 *
 	 * @return bool

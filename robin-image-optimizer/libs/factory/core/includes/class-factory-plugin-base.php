@@ -1,25 +1,18 @@
 <?php
 // Exit if accessed directly
-if( !defined('ABSPATH') ) {
+if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
 /**
- * Базовый класс для создания нового плагина. Полную реализацию класса смотрите в Wbcr_Factory480_Plugin
- *
- * Документация по классу: https://webcraftic.atlassian.net/wiki/spaces/FFD/pages/392724484
- * Документация по созданию плагина: https://webcraftic.atlassian.net/wiki/spaces/CNCFC/pages/327828
- * Репозиторий: https://github.com/alexkovalevv
- *
- * @author        Alex Kovalev <alex.kovalevv@gmail.com>, repo: https://github.com/alexkovalevv
- * @author        Webcraftic <wordpress.webraftic@gmail.com>, site: https://webcraftic.com
+ * Базовый класс для создания нового плагина. Полную реализацию класса смотрите в Wbcr_Factory600_Plugin
  *
  * @since         1.0.0
  * @package       factory-core
  */
-class  Wbcr_Factory480_Base {
+class Wbcr_Factory600_Base {
 
-	use WBCR\Factory_480\Options;
+	use WBCR\Factory_600\Options;
 
 	/**
 	 * Обязательное свойство. Префикс, используется для создания пространство имен.
@@ -80,10 +73,9 @@ class  Wbcr_Factory480_Base {
 	 * {site}/premium-features, для pages_map в атрибуте features, я указал, что адрес
 	 * страницы со списком функций имеет слаг premium-features. Теперь плагин будет понимать,
 	 * что адрес страницы со списком функций будет таким:
-	 * https://robin-image-optimizer.webcraftic.com/premium-features.
 	 *
 	 * Это свойство заполняется для того, чтобы в процессе разработки вы могли использовать
-	 * экземпляр класса \WBCR\Factory_480\Entities\Support, для получения информации о сайте плагина.
+	 * экземпляр класса \WBCR\Factory_600\Entities\Support, для получения информации о сайте плагина.
 	 * Тем самым вы избавляете себя от жесткого прописывания ссылок на лендинг плагина и
 	 * можете изменить все ссылки в одном месте.
 	 *
@@ -105,7 +97,7 @@ class  Wbcr_Factory480_Base {
 	 * Настройка обновлений для бесплатного плагина. Если вы хотите настроить обновления для
 	 * бесплатного плагина через собственный репозиторий (например: github), вам нужно указать имя
 	 * репозитория и slug плагина. Slug может быть идентичен имени репозитория в github. Для Wordpress.org
-	 * эти настройки не обязательны, так как в wordpress ядре есть встроенные функции для обновлений
+	 * эти настройки не обязательны, так как в WordPress ядре есть встроенные функции для обновлений
 	 * плагинов и тем.
 	 *
 	 * @var array
@@ -129,7 +121,7 @@ class  Wbcr_Factory480_Base {
 	 * к примеру: freemius, codecanyon, templatemonster, вам нужно указать только настройки для
 	 * взаимодействия с выбранным вами провайдером. Каждая реализация провайдера лицензий может иметь
 	 * индивидуальный настройки, в этом примере приведены настройки для freemius провайдера
-	 * WBCR\Factory_480\Premium\Provider > WBCR\Factory_Freemius_170\Premium\Provider
+	 * WBCR\Factory_600\Premium\Provider > WBCR\Factory_Freemius_Rio_600\Premium\Provider
 	 *
 	 * На текущий момент существует только реализация для freemius провайдера.
 	 *
@@ -144,11 +136,10 @@ class  Wbcr_Factory480_Base {
 	/**
 	 * Переключатель внутренней рекламы в плагине
 	 *
-	 * Если установить true, то плагин будет показывать рекламу компании в интерфейсе Wordpress.
+	 * Если установить true, то плагин будет показывать рекламу компании в интерфейсе WordPress.
 	 * Рекламный модуль может отображать рекламу внутри инрефейса плагина, на странице dashboard
-	 * и создавать сквозные уведомления на всех страницах админ панели Wordpress.
+	 * и создавать сквозные уведомления на всех страницах админ панели WordPress.
 	 *
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 * @since  4.1.9
 	 * @var bool
 	 */
@@ -157,7 +148,6 @@ class  Wbcr_Factory480_Base {
 	/**
 	 * Настройки внутренней рекламы компании
 	 *
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 * @since  4.1.9
 	 * @var array
 	 */
@@ -179,9 +169,9 @@ class  Wbcr_Factory480_Base {
 	 * }
 	 */
 	protected $load_factory_modules = [
-		['libs/factory/bootstrap', 'factory_bootstrap_482', 'admin'],
-		['libs/factory/forms', 'factory_forms_480', 'admin'],
-		['libs/factory/pages', 'factory_pages_480', 'admin'],
+		[ 'libs/factory/bootstrap', 'factory_bootstrap_500', 'admin' ],
+		[ 'libs/factory/forms', 'factory_forms_600', 'admin' ],
+		[ 'libs/factory/pages', 'factory_pages_600', 'admin' ],
 	];
 
 	/**
@@ -191,8 +181,6 @@ class  Wbcr_Factory480_Base {
 	 * Вы должны указать файл для автозагрузки компонента и префикс плагина, чтобы фреймворк
 	 * мог обращаться к классам и константам компонентов.
 	 *
-	 *
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 * @since  4.2.0 Добавлен
 	 * @var array Пример данных
 	 *    array(
@@ -211,20 +199,20 @@ class  Wbcr_Factory480_Base {
 
 
 	/**
-	 * Экземпляр класса \WBCR\Factory_480\Entities\Support используется для получения информации
+	 * Экземпляр класса \WBCR\Factory_600\Entities\Support используется для получения информации
 	 * о сайте плагина. Чаще всего используется для получения ссылки на страницу с тарифами или
 	 * ссылки на форму обратной связи. Встроен механизм отслеживания по utm меткам.
 	 *
-	 * @var \WBCR\Factory_480\Entities\Support
+	 * @var \WBCR\Factory_600\Entities\Support
 	 */
 	protected $support;
 
 	/**
-	 * Экземпляр класса \WBCR\Factory_480\Entities\Paths используется для получения информации о
+	 * Экземпляр класса \WBCR\Factory_600\Entities\Paths используется для получения информации о
 	 * путях плагина. Часто используется для получения путей или ссылок на место хранения плагина
 	 * или его входного файла.
 	 *
-	 * @var \WBCR\Factory_480\Entities\Paths
+	 * @var \WBCR\Factory_600\Entities\Paths
 	 */
 	protected $paths;
 
@@ -250,7 +238,7 @@ class  Wbcr_Factory480_Base {
 	 * - Инициализирует сущности support и paths
 	 *
 	 * @param string $plugin_file
-	 * @param array $data
+	 * @param array  $data
 	 *
 	 * @throws Exception
 	 * @since 4.0.8 - добавлена дополнительная логика
@@ -258,26 +246,25 @@ class  Wbcr_Factory480_Base {
 	 * @since 4.1.1 - добавил две сущности support, paths. Удалил свойства, plugin_build
 	 *                plugin_assembly, main_file, plugin_root, relative_path, plugin_url
 	 */
-	public function __construct($plugin_file, $data)
-	{
+	public function __construct( $plugin_file, $data ) {
 		$this->plugin_file = $plugin_file;
 		$this->plugin_data = $data;
 
-		foreach((array)$data as $option_name => $option_value) {
-			if( property_exists($this, $option_name) ) {
+		foreach ( (array) $data as $option_name => $option_value ) {
+			if ( property_exists( $this, $option_name ) ) {
 				$this->$option_name = $option_value;
 			}
 		}
 
-		if( empty($this->prefix) || empty($this->plugin_name) || empty($this->plugin_title) || empty($this->plugin_version) || empty($this->plugin_text_domain) ) {
-			throw new Exception('One of the required attributes has not been passed (prefix, plugin_title, plugin_name, plugin_version, plugin_text_domain).');
+		if ( empty( $this->prefix ) || empty( $this->plugin_name ) || empty( $this->plugin_title ) || empty( $this->plugin_version ) || empty( $this->plugin_text_domain ) ) {
+			throw new Exception( 'One of the required attributes has not been passed (prefix, plugin_title, plugin_name, plugin_version, plugin_text_domain).' );
 		}
 
-		$this->support = new \WBCR\Factory_480\Entities\Support($this->support_details);
-		$this->paths = new \WBCR\Factory_480\Entities\Paths($plugin_file);
+		$this->support = new \WBCR\Factory_600\Entities\Support( $this->support_details );
+		$this->paths   = new \WBCR\Factory_600\Entities\Paths( $plugin_file );
 
 		// used only in the module 'updates'
-		$this->plugin_slug = !empty($this->plugin_name) ? $this->plugin_name : basename($plugin_file);
+		$this->plugin_slug = ! empty( $this->plugin_name ) ? $this->plugin_name : basename( $plugin_file );
 	}
 
 	/**
@@ -290,8 +277,7 @@ class  Wbcr_Factory480_Base {
 	 *
 	 * @return mixed
 	 */
-	public function __get($name)
-	{
+	public function __get( $name ) {
 
 		$deprecated_props = [
 			'plugin_build',
@@ -299,16 +285,16 @@ class  Wbcr_Factory480_Base {
 			'main_file',
 			'plugin_root',
 			'relative_path',
-			'plugin_url'
+			'plugin_url',
 		];
 
-		if( in_array($name, $deprecated_props) ) {
-			$deprecated_message = 'In version 4.1.1 of the Factory framework, the class properties ';
-			$deprecated_message .= '(' . implode(',', $deprecated_props) . ')';
+		if ( in_array( $name, $deprecated_props ) ) {
+			$deprecated_message  = 'In version 4.1.1 of the Factory framework, the class properties ';
+			$deprecated_message .= '(' . implode( ',', $deprecated_props ) . ')';
 			$deprecated_message .= 'have been removed. To get plugin paths, use the new paths property.' . PHP_EOL;
 
 			$backtrace = debug_backtrace();
-			if( !empty($backtrace) && isset($backtrace[1]) ) {
+			if ( ! empty( $backtrace ) && isset( $backtrace[1] ) ) {
 				$deprecated_message .= 'BACKTRACE:(';
 				$deprecated_message .= 'File: ' . $backtrace[1]['file'];
 				$deprecated_message .= 'Function: ' . $backtrace[1]['function'];
@@ -316,9 +302,9 @@ class  Wbcr_Factory480_Base {
 				$deprecated_message .= ')';
 			}
 
-			_deprecated_argument(__METHOD__, '4.1.1', $deprecated_message);
+			_deprecated_argument( __METHOD__, '4.1.1', $deprecated_message );
 
-			switch( $name ) {
+			switch ( $name ) {
 				case 'plugin_build':
 					return null;
 					break;
@@ -349,25 +335,24 @@ class  Wbcr_Factory480_Base {
 	 * со старыми плагинами, но при этом выводим предупреждение, что нужно обновить некоторые методы.
 	 *
 	 * @param string $name Имя метода класса.
-	 * @param array $arguments Массив аргументов метода класса.
+	 * @param array  $arguments Массив аргументов метода класса.
 	 *
 	 * @return stdClass|null
 	 * @throws Exception
 	 */
-	public function __call($name, $arguments)
-	{
+	public function __call( $name, $arguments ) {
 
 		$deprecated_methods = [
 			'getPluginBuild',
 			'getPluginAssembly',
-			'getPluginPathInfo'
+			'getPluginPathInfo',
 		];
 
-		if( in_array($name, $deprecated_methods) ) {
-			$deprecated_message = 'In version 4.1.1 of the Factory framework, methods (' . implode(',', $deprecated_methods) . ') have been removed.';
+		if ( in_array( $name, $deprecated_methods ) ) {
+			$deprecated_message = 'In version 4.1.1 of the Factory framework, methods (' . implode( ',', $deprecated_methods ) . ') have been removed.';
 
 			$backtrace = debug_backtrace();
-			if( !empty($backtrace) && isset($backtrace[1]) ) {
+			if ( ! empty( $backtrace ) && isset( $backtrace[1] ) ) {
 				$deprecated_message .= 'BACKTRACE:(';
 				$deprecated_message .= 'File: ' . $backtrace[1]['file'];
 				$deprecated_message .= 'Function: ' . $backtrace[1]['function'];
@@ -375,71 +360,66 @@ class  Wbcr_Factory480_Base {
 				$deprecated_message .= ')';
 			}
 
-			_deprecated_argument(__METHOD__, '4.1.1', $deprecated_message);
+			_deprecated_argument( __METHOD__, '4.1.1', $deprecated_message );
 
-			if( 'getPluginPathInfo' == $name ) {
-				$object = new stdClass;
+			if ( 'getPluginPathInfo' == $name ) {
+				$object = new stdClass();
 
-				$object->main_file = $this->get_paths()->main_file;
-				$object->plugin_root = $this->get_paths()->absolute;
+				$object->main_file     = $this->get_paths()->main_file;
+				$object->plugin_root   = $this->get_paths()->absolute;
 				$object->relative_path = $this->get_paths()->basename;
-				$object->plugin_url = $this->get_paths()->url;
+				$object->plugin_url    = $this->get_paths()->url;
 
 				return $object;
 			}
 		}
 
-		throw new Exception("Method {$name} does not exist");
+		throw new Exception( "Method {$name} does not exist" );
 	}
 
 	/**
 	 * Проверяет, включен ли премиум для этого плагина или нет.
 	 *
 	 * @return bool Возвращает true, если премиум пакет включен для этого плагина.
-	 * См. Wbcr_Factory480_Base::has_premium
+	 * См. Wbcr_Factory600_Base::has_premium
 	 */
-	public function has_premium()
-	{
+	public function has_premium() {
 		return $this->has_premium;
 	}
 
 	/**
 	 * Позволяет получить заголовок плагина.
 	 *
-	 * @return string Возвращает заголовок плагина. См. Wbcr_Factory480_Base::plugin_title
+	 * @return string Возвращает заголовок плагина. См. Wbcr_Factory600_Base::plugin_title
 	 */
-	public function getPluginTitle()
-	{
-		return apply_filters('wbcr/factory/plugin_title', $this->plugin_title, $this->getPluginName());
+	public function getPluginTitle() {
+		return apply_filters( 'wbcr/factory/plugin_title', $this->plugin_title, $this->getPluginName() );
 	}
 
 	/**
 	 * Позволяет получить префикс плагина.
 	 *
-	 * @return string Возвращает префикс плагина.См. Wbcr_Factory480_Base::prefix
+	 * @return string Возвращает префикс плагина.См. Wbcr_Factory600_Base::prefix
 	 */
-	public function getPrefix()
-	{
+	public function getPrefix() {
 		return $this->prefix;
 	}
 
 	/**
 	 * Позволяет получить имя плагина.
 	 *
-	 * @return string Возвращает имя плагина. См. Wbcr_Factory480_Base::plugin_name
+	 * @return string Возвращает имя плагина. См. Wbcr_Factory600_Base::plugin_name
 	 */
-	public function getPluginName()
-	{
+	public function getPluginName() {
 		return $this->plugin_name;
 	}
 
 	/**
 	 * Позволяет получить версию плагина.
 	 *
-	 * @return string Возвращает версию плагина. См. Wbcr_Factory480_Base::plugin_version
+	 * @return string Возвращает версию плагина. См. Wbcr_Factory600_Base::plugin_version
 	 */
-	public function getPluginVersion()
-	{
+	public function getPluginVersion() {
 		return $this->plugin_version;
 	}
 
@@ -448,10 +428,8 @@ class  Wbcr_Factory480_Base {
 	 *
 	 * @return array
 	 * @since  4.2.0
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 */
-	public function get_load_plugin_components()
-	{
+	public function get_load_plugin_components() {
 		return $this->load_plugin_components;
 	}
 
@@ -460,47 +438,43 @@ class  Wbcr_Factory480_Base {
 	 * какие-то данные не описанные в интерфейсе этого плагина.
 	 *
 	 * @param string $attr_name Имя атрибута, который нужно получить. Идентично ключу в массиве
-	 *                            Wbcr_Factory480_Base::plugin_data
+	 *                            Wbcr_Factory600_Base::plugin_data
 	 *
 	 * @return null
 	 */
-	public function getPluginInfoAttr($attr_name)
-	{
-		if( isset($this->plugin_data[$attr_name]) ) {
-			return $this->plugin_data[$attr_name];
+	public function getPluginInfoAttr( $attr_name ) {
+		if ( isset( $this->plugin_data[ $attr_name ] ) ) {
+			return $this->plugin_data[ $attr_name ];
 		}
 
 		return null;
 	}
 
 	/**
-	 * Предоставляет доступ к экземпляру класса \WBCR\Factory_480\Entities\Support.
+	 * Предоставляет доступ к экземпляру класса \WBCR\Factory_600\Entities\Support.
 	 *
-	 * @return \WBCR\Factory_480\Entities\Support
+	 * @return \WBCR\Factory_600\Entities\Support
 	 */
-	public function get_support()
-	{
+	public function get_support() {
 		return $this->support;
 	}
 
 	/**
-	 * Предоставляет доступ к экземпляру класса \WBCR\Factory_480\Entities\Paths.
+	 * Предоставляет доступ к экземпляру класса \WBCR\Factory_600\Entities\Paths.
 	 *
-	 * @return \WBCR\Factory_480\Entities\Paths
+	 * @return \WBCR\Factory_600\Entities\Paths
 	 */
-	public function get_paths()
-	{
+	public function get_paths() {
 		return $this->paths;
 	}
 
 	/**
 	 * Позволяет получить сырые данные плагина в виде объекта StdClass.
 	 *
-	 * @return object Возвращает объект с сырыми данными плагина. См. Wbcr_Factory480_Base::plugin_data
+	 * @return object Возвращает объект с сырыми данными плагина. См. Wbcr_Factory600_Base::plugin_data
 	 */
-	public function getPluginInfo()
-	{
-		return (object)$this->plugin_data;
+	public function getPluginInfo() {
+		return (object) $this->plugin_data;
 	}
 
 	/**
@@ -508,19 +482,17 @@ class  Wbcr_Factory480_Base {
 	 *
 	 * @return bool
 	 * @since  4.2.0 Добавлен
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 */
-	public function current_user_can($capability = 'manage_options')
-	{
+	public function current_user_can( $capability = 'manage_options' ) {
 		// Просмотр страниц: read_pages
 		// Просмотр уведомлений: read_notices
 		// Редактирование: edit_forms
 
-		if( 'manage_options' == $capability && is_multisite() && $this->isNetworkActive() ) {
+		if ( 'manage_options' == $capability && is_multisite() && $this->isNetworkActive() ) {
 			$capability = 'manage_network';
 		}
 
-		return current_user_can($capability);
+		return current_user_can( $capability );
 	}
 
 	/**
@@ -528,10 +500,8 @@ class  Wbcr_Factory480_Base {
 	 *
 	 * @return bool
 	 * @since 4.0.8 Добавлен
-	 *
 	 */
-	public function isNetworkAdmin()
-	{
+	public function isNetworkAdmin() {
 		return is_multisite() && is_network_admin();
 	}
 
@@ -541,17 +511,16 @@ class  Wbcr_Factory480_Base {
 	 * @return bool Если true, плагин активирован для сети или в текущий момент активируется для сети.
 	 * @since 4.0.8 Добавлен
 	 */
-	public function isNetworkActive()
-	{
+	public function isNetworkActive() {
 		// Makes sure the plugin is defined before trying to use it
-		if( !function_exists('is_plugin_active_for_network') ) {
-			require_once(ABSPATH . '/wp-admin/includes/plugin.php');
+		if ( ! function_exists( 'is_plugin_active_for_network' ) ) {
+			require_once ABSPATH . '/wp-admin/includes/plugin.php';
 		}
 
-		$activate = is_plugin_active_for_network($this->get_paths()->basename);
+		$activate = is_plugin_active_for_network( $this->get_paths()->basename );
 
-		if( !$activate && $this->isNetworkAdmin() && isset($_GET['action']) && $_GET['action'] == 'activate' ) {
-			return isset($_GET['networkwide']) && 1 == (int)$_GET['networkwide'];
+		if ( ! $activate && $this->isNetworkAdmin() && isset( $_GET['action'] ) && $_GET['action'] == 'activate' ) {
+			return isset( $_GET['networkwide'] ) && 1 == (int) $_GET['networkwide'];
 		}
 
 		return $activate;
@@ -563,27 +532,31 @@ class  Wbcr_Factory480_Base {
 	 * @return array|int
 	 * @since 4.0.8
 	 */
-	public function getActiveSites($args = ['archived' => 0, 'mature' => 0, 'spam' => 0, 'deleted' => 0])
-	{
+	public function getActiveSites( $args = [
+		'archived' => 0,
+		'mature'   => 0,
+		'spam'     => 0,
+		'deleted'  => 0,
+	]) {
 		global $wp_version;
 
-		if( version_compare($wp_version, '4.6', '>=') ) {
-			return get_sites($args);
+		if ( version_compare( $wp_version, '4.6', '>=' ) ) {
+			return get_sites( $args );
 		} else {
 			$converted_array = [];
 
-			$sites = wp_get_sites($args);
+			$sites = wp_get_sites( $args );
 
-			if( empty($sites) ) {
+			if ( empty( $sites ) ) {
 				return $converted_array;
 			}
 
-			foreach((array)$sites as $key => $site) {
+			foreach ( (array) $sites as $key => $site ) {
 				$obj = new stdClass();
-				foreach($site as $attr => $value) {
+				foreach ( $site as $attr => $value ) {
 					$obj->$attr = $value;
 				}
-				$converted_array[$key] = $obj;
+				$converted_array[ $key ] = $obj;
 			}
 
 			return $converted_array;

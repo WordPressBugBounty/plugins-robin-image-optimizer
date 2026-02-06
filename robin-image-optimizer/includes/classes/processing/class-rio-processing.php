@@ -1,6 +1,6 @@
 <?php
 
-use WBCR\Factory_Processing_113\WP_Background_Process;
+use WBCR\Factory_Processing_759\WP_Background_Process;
 
 // Exit if accessed directly
 if ( ! defined( 'ABSPATH' ) ) {
@@ -10,8 +10,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Класс для работы оптимизации в фоне
  *
- * @author        Artem Prikhodko <webtemyk@yandex.ru>
- * @copyright (c) 2021, Webcraftic
  * @version       1.0
  */
 abstract class WRIO_Processing extends WP_Background_Process {
@@ -48,21 +46,22 @@ abstract class WRIO_Processing extends WP_Background_Process {
 	 * Fire before start handle the tasks
 	 */
 	protected function handle_before() {
-		WRIO_Plugin::app()->logger->info( "START auto optimize process." );
+		WRIO_Plugin::app()->logger->info( 'START auto optimize process.' );
 	}
 
 	/**
 	 * Fire after end handle the tasks
 	 */
 	protected function handle_after() {
-		WRIO_Plugin::app()->logger->info( "END auto optimize process." );
+		WRIO_Plugin::app()->logger->info( 'END auto optimize process.' );
 	}
 
 	/**
 	 * Fire after complete handle
+	 *
+	 * @return void
 	 */
 	protected function handle_after_complete() {
 		WRIO_Plugin::app()->updatePopulateOption( 'process_running', false );
-
 	}
 }

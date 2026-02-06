@@ -8,8 +8,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Класс используется для вывода страницы лендинга
- * @author Eugene Jokerov <jokerov@gmail.com>
- * @copyright (c) 2018, Webcraftic
+ *
  * @version 1.0
  */
 class WIO_NextgenLanding {
@@ -18,8 +17,8 @@ class WIO_NextgenLanding {
 	 * Инициализация лендинга
 	 */
 	public function __construct() {
-		add_action( 'admin_menu', array( $this, 'removeSubMenu' ), 99999 );
-		add_action( 'admin_menu', array( $this, 'addSubMenu' ), 20 );
+		add_action( 'admin_menu', [ $this, 'removeSubMenu' ], 99999 );
+		add_action( 'admin_menu', [ $this, 'addSubMenu' ], 20 );
 	}
 
 	/**
@@ -39,7 +38,7 @@ class WIO_NextgenLanding {
 			__( 'Image optimizer', 'robin-image-optimizer' ),
 			'manage_options',
 			'ngg_robin', // если взять старый слаг ngg_imagify, то на странице выведет оба лендинга
-			array( $this, 'nngLandingPage' )
+			[ $this, 'nngLandingPage' ]
 		);
 	}
 
@@ -53,9 +52,9 @@ class WIO_NextgenLanding {
 			die();
 		}
 		?>
-       рекламма установки премиум аддона
+		рекламма установки премиум аддона
 		<?php
 	}
 }
 
-new WIO_NextgenLanding;
+new WIO_NextgenLanding();

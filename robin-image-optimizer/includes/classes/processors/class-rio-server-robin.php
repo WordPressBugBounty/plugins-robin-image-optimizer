@@ -6,9 +6,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Класс для оптимизации изображений через API Robin (beta).
- *
- * @author        Artem Prihodko <webtemyk@yandex.ru>
- * @copyright (c) 2020, Webcraftic
  */
 class WIO_Image_Processor_Robin extends WIO_Image_Processor_Abstract {
 
@@ -47,19 +44,26 @@ class WIO_Image_Processor_Robin extends WIO_Image_Processor_Abstract {
 	 */
 	public function process( $settings ) {
 
-		$settings = wp_parse_args( $settings, [
-			'image_url' => '',
-			'quality'   => 100,
-			'save_exif' => false,
-		] );
+		$settings = wp_parse_args(
+			$settings,
+			[
+				'image_url' => '',
+				'quality'   => 100,
+				'save_exif' => false,
+			]
+		);
 
 		$query_args = [
 			'quality'     => $settings['quality'],
-			'progressive' => true
+			'progressive' => true,
 		];
 
 		if ( $settings['save_exif'] ) {
 			$query_args['strip-exif'] = true;
+		}
+
+		if ( ! empty( $settings['image_url'] ) ) {
+			$query_args['image_url'] = esc_url_raw( $settings['image_url'] );
 		}
 
 		$file = wp_normalize_path( $settings['image_path'] );
@@ -68,21 +72,26 @@ class WIO_Image_Processor_Robin extends WIO_Image_Processor_Abstract {
 			return new WP_Error( 'http_request_failed', sprintf( "File %s isn't exists.", $file ) );
 		}
 
-		WRIO_Plugin::app()->logger->info( sprintf( "Preparing to upload a file (%s) to a remote server (%s).", $settings['image_path'], $this->server_name ) );
+		WRIO_Plugin::app()->logger->info( sprintf( 'Preparing to upload a file (%s) to a remote server (%s).', $settings['image_path'], $this->api_url ) );
 
 		$max_size_in_bytes = 10 * 1024 * 1024; // 10MB
 		if ( filesize( $file ) > $max_size_in_bytes ) {
-			$error_message = "Image exceeds the maximum allowed size of 10MB! Enable the 'Resizing large images' option to reduce the image size or switch to a premium server without limitations.";
+			$error_message = sprintf(
+				// translators: %1$s: max size in MB, %2$s: option name.
+				__( 'Image exceeds the maximum allowed size of %1$sMB! Enable the \'%2$s\' option to reduce the image size or upgrade to a Pro plan.', 'robin-image-optimizer' ),
+				10,
+				__( 'Resizing large images', 'robin-image-optimizer' )
+			);
 			WRIO_Plugin::app()->logger->error( $error_message );
 
 			return new WP_Error( 'image_size_limit_exceeded', $error_message );
 		}
 
-		$boundary = wp_generate_password( 24 ); // Just a random string, use something better than wp_generate_password() though.
+		$boundary = '--------------------------' . md5( microtime( true ) . wp_rand() );
 		$host     = get_option( 'siteurl' );
 		$headers  = [
 			'Authorization' => 'Bearer ' . base64_encode( $host ),
-			'content-type'  => 'multipart/form-data; boundary=' . $boundary
+			'content-type'  => 'multipart/form-data; boundary=' . $boundary,
 		];
 
 		$payload = '';
@@ -95,12 +104,13 @@ class WIO_Image_Processor_Robin extends WIO_Image_Processor_Abstract {
 			$payload .= $value;
 			$payload .= "\r\n";
 		}
+
 		// Upload the file
 		if ( $file ) {
 			$payload .= '--' . $boundary;
 			$payload .= "\r\n";
 			$payload .= 'Content-Disposition: form-data; name="file"; filename="' . basename( $file ) . '"' . "\r\n";
-			//$payload .= 'Content-Type: image/jpeg' . "\r\n"; // If you know the mime-type
+			// $payload .= 'Content-Type: image/jpeg' . "\r\n"; // If you know the mime-type
 			$payload .= "\r\n";
 			$payload .= @file_get_contents( $file );
 			$payload .= "\r\n";
@@ -112,12 +122,15 @@ class WIO_Image_Processor_Robin extends WIO_Image_Processor_Abstract {
 
 		wp_raise_memory_limit( 'image' );
 
-		$response = wp_remote_request( $this->api_url, [
-			'method'  => 'POST',
-			'headers' => $headers,
-			'body'    => $payload,
-			'timeout' => 150 // it make take some time for large images and slow Internet connections
-		] );
+		$response = wp_remote_request(
+			$this->api_url,
+			[
+				'method'  => 'POST',
+				'headers' => $headers,
+				'body'    => $payload,
+				'timeout' => 150, // it make take some time for large images and slow Internet connections
+			]
+		);
 
 		if ( is_wp_error( $response ) ) {
 			$ss = $response->get_error_code();
@@ -132,7 +145,7 @@ class WIO_Image_Processor_Robin extends WIO_Image_Processor_Abstract {
 		if ( $response_code !== 200 ) {
 			WRIO_Plugin::app()->logger->error( sprintf( '%s, responded Http error (%s)', $error_message, $response_code ) );
 
-			return new WP_Error( 'http_request_failed', sprintf( "Server responded an HTTP error %s", $response_code ) );
+			return new WP_Error( 'http_request_failed', sprintf( 'Server responded an HTTP error %s', $response_code ) );
 		}
 
 		$response_text = wp_remote_retrieve_body( $response );
@@ -141,21 +154,22 @@ class WIO_Image_Processor_Robin extends WIO_Image_Processor_Abstract {
 		if ( ! isset( $data->status ) ) {
 			WRIO_Plugin::app()->logger->error( sprintf( '%s responded an empty request body.', $error_message ) );
 
-			return new WP_Error( 'http_request_failed', "Server responded an empty request body." );
+			return new WP_Error( 'http_request_failed', 'Server responded an empty request body.' );
 		}
 
 		if ( $data->status != 'ok' ) {
-			WRIO_Plugin::app()->logger->error( sprintf( "Pending status \"ok\", bot received \"%s\"", $data->status ) );
+			WRIO_Plugin::app()->logger->error( sprintf( 'Pending status "ok", bot received "%s"', $data->status ) );
 
 			if ( isset( $data->error ) && is_string( $data->error ) ) {
 				return new WP_Error( 'http_request_failed', $data->error );
 			}
 
-			return new WP_Error( 'http_request_failed', sprintf( "Server responded an %s status", $response_code ) );
+			return new WP_Error( 'http_request_failed', sprintf( 'Server responded an %s status', $response_code ) );
 		}
 
 		if ( ! empty( $data->response->quota ) ) {
 			$this->set_quota_limit( $data->response->quota );
+			WRIO_Plugin::app()->updatePopulateOption( 'quota_fetched', true );
 		}
 
 		return [
@@ -163,7 +177,7 @@ class WIO_Image_Processor_Robin extends WIO_Image_Processor_Abstract {
 			'src_size'          => $data->response->src_size,
 			'optimized_size'    => $data->response->dest_size,
 			'optimized_percent' => $data->response->percent,
-			'not_need_download' => false
+			'not_need_download' => false,
 		];
 	}
 
@@ -206,5 +220,4 @@ class WIO_Image_Processor_Robin extends WIO_Image_Processor_Abstract {
 	public function has_quota_limit() {
 		return true;
 	}
-
 }

@@ -2,21 +2,18 @@
 /**
  * Admin page class
  *
- * @author        Alex Kovalev <alex.kovalevv@gmail.com>
  * @since         1.0.0
  * @package       factory-core
- * @copyright (c) 2018, Webcraftic Ltd
- *
  */
 
 // Exit if accessed directly
-if( !defined('ABSPATH') ) {
+if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-if( !class_exists('Wbcr_FactoryPages480_AdminPage') ) {
+if ( ! class_exists( 'Wbcr_FactoryPages600_AdminPage' ) ) {
 
-	class Wbcr_FactoryPages480_AdminPage extends Wbcr_FactoryPages480_Page {
+	class Wbcr_FactoryPages600_AdminPage extends Wbcr_FactoryPages600_Page {
 
 		/**
 		 * Visible page title.
@@ -59,7 +56,7 @@ if( !class_exists('Wbcr_FactoryPages480_AdminPage') ) {
 		 * Позиция в главном меню админ панели
 		 *
 		 * Если эта страница была добавлена в главное меню админ панели (левый сайдбар).
-		 * Вы можете установить позицию меню. Подробнее смотрите в Wordpress кодексе.
+		 * Вы можете установить позицию меню. Подробнее смотрите в WordPress кодексе.
 		 *
 		 * @link http://codex.wordpress.org/Function_Reference/add_menu_page
 		 *
@@ -136,7 +133,7 @@ if( !class_exists('Wbcr_FactoryPages480_AdminPage') ) {
 		 * Разрешения пользователя, чтобы иметь доступ к странице.
 		 *
 		 * Этот параметр отвечает и за доступ к странице этого пункта меню. Подробнее
-		 * смотрите в кодексе Wordpress:
+		 * смотрите в кодексе WordPress:
 		 *
 		 * @link http://codex.wordpress.org/Roles_and_Capabilities
 		 *
@@ -209,26 +206,31 @@ if( !class_exists('Wbcr_FactoryPages480_AdminPage') ) {
 		 */
 		public $add_link_to_plugin_actions = false;
 
-		public function __construct(Wbcr_Factory480_Plugin $plugin)
-		{
-			parent::__construct($plugin);
+		public function __construct( Wbcr_Factory600_Plugin $plugin ) {
+			parent::__construct( $plugin );
 			$this->configure();
 
-			$this->id = empty($this->id) ? str_replace('adminpage', '', strtolower(get_class($this))) : $this->id;
+			$this->id = empty( $this->id ) ? str_replace( 'adminpage', '', strtolower( get_class( $this ) ) ) : $this->id;
 
-			if( $this->add_link_to_plugin_actions ) {
-				if( $plugin->isNetworkActive() ) {
+			if ( $this->add_link_to_plugin_actions ) {
+				if ( $plugin->isNetworkActive() ) {
 					// plugin settings link
-					add_filter("network_admin_plugin_action_links_" . $this->plugin->get_paths()->basename, [
-						$this,
-						'addLinkToPluginActions'
-					]);
+					add_filter(
+						'network_admin_plugin_action_links_' . $this->plugin->get_paths()->basename,
+						[
+							$this,
+							'addLinkToPluginActions',
+						]
+					);
 				} else {
 					// plugin settings link
-					add_filter("plugin_action_links_" . $this->plugin->get_paths()->basename, [
-						$this,
-						'addLinkToPluginActions'
-					]);
+					add_filter(
+						'plugin_action_links_' . $this->plugin->get_paths()->basename,
+						[
+							$this,
+							'addLinkToPluginActions',
+						]
+					);
 				}
 			}
 		}
@@ -236,8 +238,7 @@ if( !class_exists('Wbcr_FactoryPages480_AdminPage') ) {
 		/**
 		 * May be used to configure the page before uts usage.
 		 */
-		public function configure()
-		{
+		public function configure() {
 		}
 
 		/**
@@ -247,10 +248,9 @@ if( !class_exists('Wbcr_FactoryPages480_AdminPage') ) {
 		 *
 		 * @return void
 		 */
-		public function actionAdminBootstrapScripts($hook)
-		{
-			$this->scripts->connect('bootstrap');
-			$this->styles->connect('bootstrap');
+		public function actionAdminBootstrapScripts( $hook ) {
+			$this->scripts->connect( 'bootstrap' );
+			$this->styles->connect( 'bootstrap' );
 		}
 
 		/**
@@ -260,8 +260,7 @@ if( !class_exists('Wbcr_FactoryPages480_AdminPage') ) {
 		 *
 		 * @return void
 		 */
-		public function actionAdminScripts($hook)
-		{
+		public function actionAdminScripts( $hook ) {
 			$this->scripts->connect();
 			$this->styles->connect();
 		}
@@ -269,8 +268,7 @@ if( !class_exists('Wbcr_FactoryPages480_AdminPage') ) {
 		/**
 		 * @return string
 		 */
-		public function getMenuScope()
-		{
+		public function getMenuScope() {
 			return $this->plugin->getPluginName();
 		}
 
@@ -278,28 +276,26 @@ if( !class_exists('Wbcr_FactoryPages480_AdminPage') ) {
 		/**
 		 * @return string
 		 */
-		public function getMenuTitle()
-		{
-			$menu_title = !$this->menu_title ? $this->page_title : $this->menu_title;
+		public function getMenuTitle() {
+			$menu_title = ! $this->menu_title ? $this->page_title : $this->menu_title;
 
 			/**
 			 * @since 4.0.9 - добавлен
 			 */
-			return apply_filters('wbcr/factory/pages/impressive/menu_title', $menu_title, $this->plugin->getPluginName(), $this->id);
+			return apply_filters( 'wbcr/factory/pages/impressive/menu_title', $menu_title, $this->plugin->getPluginName(), $this->id );
 		}
 
 		/**
 		 * @return string
 		 */
-		public function getPageTitle()
-		{
+		public function getPageTitle() {
 
-			$page_title = !$this->page_title ? $this->getMenuTitle() : $this->page_title;
+			$page_title = ! $this->page_title ? $this->getMenuTitle() : $this->page_title;
 
 			/**
 			 * @since 4.0.9 - добавлен
 			 */
-			return apply_filters('wbcr/factory/pages/impressive/page_title', $page_title, $this->plugin->getPluginName(), $this->id);
+			return apply_filters( 'wbcr/factory/pages/impressive/page_title', $page_title, $this->plugin->getPluginName(), $this->id );
 		}
 
 		/**
@@ -307,11 +303,10 @@ if( !class_exists('Wbcr_FactoryPages480_AdminPage') ) {
 		 *
 		 * @return mixed|string
 		 */
-		public function getResultId($id = null)
-		{
-			$id = !empty($id) ? $id : $this->id;
+		public function getResultId( $id = null ) {
+			$id = ! empty( $id ) ? $id : $this->id;
 
-			if( $this->plugin ) {
+			if ( $this->plugin ) {
 				return $id . '-' . $this->getMenuScope();
 			}
 
@@ -321,120 +316,143 @@ if( !class_exists('Wbcr_FactoryPages480_AdminPage') ) {
 		/**
 		 * Registers admin page for the admin menu.
 		 */
-		public function connect()
-		{
+		public function connect() {
 			$result_id = $this->getResultId();
 
-			$this->hidden = apply_filters('wbcr_factory_480_page_is_hidden_' . $result_id, $this->hidden);
+			$this->hidden = apply_filters( 'wbcr_factory_600_page_is_hidden_' . $result_id, $this->hidden );
 
-			if( $this->hidden ) {
+			if ( $this->hidden ) {
 				return;
 			}
 
-			$this->internal = apply_filters('wbcr_factory_480_page_is_internal_' . $result_id, $this->internal);
+			$this->internal = apply_filters( 'wbcr_factory_600_page_is_internal_' . $result_id, $this->internal );
 
-			if( $this->internal ) {
-				$this->menu_target = null;
+			if ( $this->internal ) {
+				$this->menu_target    = null;
 				$this->menu_post_type = null;
 			}
 
 			// makes redirect to the page
-			$controller = $this->request->get('fy_page', null, true);
+			$controller = $this->request->get( 'fy_page', null, true );
 
-			if( $controller && $controller == $this->id ) {
-				$plugin = $this->request->get('fy_plugin', null, true);
+			if ( $controller && $controller == $this->id ) {
+				$plugin = $this->request->get( 'fy_plugin', null, true );
 
-				if( $this->plugin->getPluginName() == $plugin ) {
+				if ( $this->plugin->getPluginName() == $plugin ) {
 
-					$action = $this->request->get('fy_action', 'index', true);
-					$is_ajax = $this->request->get('fy_ajax', false);
+					$action  = $this->request->get( 'fy_action', 'index', true );
+					$is_ajax = $this->request->get( 'fy_ajax', false );
 
-					if( $is_ajax ) {
-						$this->executeByName($action);
+					if ( $is_ajax ) {
+						$this->executeByName( $action );
 						exit;
 					} else {
 
-						$params = (array)$this->request->getAll(true);
+						$params = (array) $this->request->getAll( true );
 
-						unset($params['fy_page']);
-						unset($params['fy_plugin']);
-						unset($params['fy_action']);
+						unset( $params['fy_page'] );
+						unset( $params['fy_plugin'] );
+						unset( $params['fy_action'] );
 
-						$this->redirectToAction($action, $params);
+						$this->redirectToAction( $action, $params );
 					}
 				}
 			}
 
 			// calls scripts and styles, adds pages to menu
-			if( $this->request->get('page', 'none') == $result_id ) {
-				$this->assets($this->scripts, $this->styles);
+			if ( $this->request->get( 'page', 'none' ) == $result_id ) {
+				$this->assets( $this->scripts, $this->styles );
 
-				if( !$this->scripts->isEmpty('bootstrap') || !$this->styles->isEmpty('bootstrap') ) {
-					add_action('wbcr_factory_480_bootstrap_enqueue_scripts_' . $this->plugin->getPluginName(), [
-						$this,
-						'actionAdminBootstrapScripts'
-					]);
+				if ( ! $this->scripts->isEmpty( 'bootstrap' ) || ! $this->styles->isEmpty( 'bootstrap' ) ) {
+					add_action(
+						'wbcr_factory_600_bootstrap_enqueue_scripts_' . $this->plugin->getPluginName(),
+						[
+							$this,
+							'actionAdminBootstrapScripts',
+						]
+					);
 				}
 
 				// includes styles and scripts
-				if( !$this->scripts->isEmpty() || !$this->styles->isEmpty() ) {
-					add_action('admin_enqueue_scripts', [$this, 'actionAdminScripts']);
+				if ( ! $this->scripts->isEmpty() || ! $this->styles->isEmpty() ) {
+					add_action( 'admin_enqueue_scripts', [ $this, 'actionAdminScripts' ] );
 				}
 			}
 
 			// if this page for a custom menu page
-			if( $this->menu_post_type ) {
+			if ( $this->menu_post_type ) {
 				$this->menu_target = 'edit.php?post_type=' . $this->menu_post_type;
 
-				if( empty($this->capabilitiy) ) {
+				if ( empty( $this->capabilitiy ) ) {
 					$this->capabilitiy = 'edit_' . $this->menu_post_type;
 				}
 			}
 
 			// sets default capabilities
-			if( empty($this->capabilitiy) ) {
+			if ( empty( $this->capabilitiy ) ) {
 				$this->capabilitiy = 'manage_options';
 			}
 
 			// submenu
-			if( $this->menu_target ) {
-				add_submenu_page($this->menu_target, $this->getPageTitle(), $this->getMenuTitle(), $this->capabilitiy, $result_id, [
-					$this,
-					'show'
-				]);
+			if ( $this->menu_target ) {
+				add_submenu_page(
+					$this->menu_target,
+					$this->getPageTitle(),
+					$this->getMenuTitle(),
+					$this->capabilitiy,
+					$result_id,
+					[
+						$this,
+						'show',
+					]
+				);
 				// global menu
 			} else {
-				add_menu_page($this->getPageTitle(), $this->getMenuTitle(), $this->capabilitiy, $result_id, [
-					$this,
-					'show'
-				], null, $this->menu_position);
-
-				if( !empty($this->menu_sub_title) ) {
-
-					add_submenu_page($result_id, $this->menu_sub_title, $this->menu_sub_title, $this->capabilitiy, $result_id, [
+				add_menu_page(
+					$this->getPageTitle(),
+					$this->getMenuTitle(),
+					$this->capabilitiy,
+					$result_id,
+					[
 						$this,
-						'show'
-					]);
+						'show',
+					],
+					null,
+					$this->menu_position
+				);
+
+				if ( ! empty( $this->menu_sub_title ) ) {
+
+					add_submenu_page(
+						$result_id,
+						$this->menu_sub_title,
+						$this->menu_sub_title,
+						$this->capabilitiy,
+						$result_id,
+						[
+							$this,
+							'show',
+						]
+					);
 				}
 
-				add_action('admin_head', [$this, 'actionAdminHead']);
+				add_action( 'admin_head', [ $this, 'actionAdminHead' ] );
 			}
 
 			// executes an action
-			if( $this->current() ) {
+			if ( $this->current() ) {
 				ob_start();
-				$action = $this->request->get('action', 'index', true);
-				$this->executeByName($action);
+				$action = $this->request->get( 'action', 'index', true );
+				$this->executeByName( $action );
 				$this->result = ob_get_contents();
 				ob_end_clean();
 			}
 		}
 
-		protected function current()
-		{
+		protected function current() {
 			$result_id = $this->getResultId();
 
-			if( $result_id == $this->request->get('page', 'none') ) {
+			if ( $result_id == $this->request->get( 'page', 'none' ) ) {
 				return true;
 			}
 
@@ -443,36 +461,33 @@ if( !class_exists('Wbcr_FactoryPages480_AdminPage') ) {
 
 		/**
 		 * @param string $action
-		 * @param array $query_args
+		 * @param array  $query_args
 		 */
-		public function redirectToAction($action, $query_args = [])
-		{
+		public function redirectToAction( $action, $query_args = [] ) {
 
-			wp_safe_redirect($this->getActionUrl($action, $query_args));
+			wp_safe_redirect( $this->getActionUrl( $action, $query_args ) );
 			exit;
 		}
 
 		/**
 		 * @param string $action
-		 * @param array $query_args
+		 * @param array  $query_args
 		 */
-		public function actionUrl($action = null, $query_args = [])
-		{
-			echo $this->getActionUrl($action, $query_args);
+		public function actionUrl( $action = null, $query_args = [] ) {
+			echo $this->getActionUrl( $action, $query_args );
 		}
 
 		/**
-		 * @param null $action
+		 * @param null  $action
 		 * @param array $query_args
 		 *
 		 * @return string
 		 */
-		public function getActionUrl($action = null, $query_args = [])
-		{
-			$url = $this->getBaseUrl(null, $query_args);
+		public function getActionUrl( $action = null, $query_args = [] ) {
+			$url = $this->getBaseUrl( null, $query_args );
 
-			if( !empty($action) ) {
-				$url = add_query_arg('action', $action, $url);
+			if ( ! empty( $action ) ) {
+				$url = add_query_arg( 'action', $action, $url );
 			}
 
 			return $url;
@@ -481,75 +496,82 @@ if( !class_exists('Wbcr_FactoryPages480_AdminPage') ) {
 		/**
 		 * @return string
 		 */
-		public function getBaseUrl($id = null, $query_args = [])
-		{
-			$result_id = $this->getResultId($id);
+		public function getBaseUrl( $id = null, $query_args = [] ) {
+			$result_id = $this->getResultId( $id );
 
-			if( $this->menu_target && !$this->custom_target ) {
-				$url = $this->network ? network_admin_url($this->menu_target) : admin_url($this->menu_target);
+			if ( $this->menu_target && ! $this->custom_target ) {
+				$url = $this->network ? network_admin_url( $this->menu_target ) : admin_url( $this->menu_target );
 
-				return add_query_arg(array_merge(['page' => $result_id], $query_args), $url);
+				return add_query_arg( array_merge( [ 'page' => $result_id ], $query_args ), $url );
 			}
 
-			$url = $this->network ? network_admin_url('admin.php') : admin_url('admin.php');
+			$url = $this->network ? network_admin_url( 'admin.php' ) : admin_url( 'admin.php' );
 
-			return add_query_arg(array_merge(['page' => $result_id, $query_args]), $url);
+			return add_query_arg(
+				array_merge(
+					[
+						'page' => $result_id,
+						$query_args,
+					]
+				),
+				$url
+			);
 		}
 
-		public function actionAdminHead()
-		{
+		public function actionAdminHead() {
 			$result_id = $this->getResultId();
 
-			if( !empty($this->menu_icon) ) {
+			if ( ! empty( $this->menu_icon ) ) {
 
-				if( preg_match('/\\\f\d{3}/', $this->menu_icon) ) {
+				if ( preg_match( '/\\\f\d{3}/', $this->menu_icon ) ) {
 					$icon_code = $this->menu_icon;
 				} else {
-					$icon_url = str_replace('~/', $this->plugin->get_paths()->url . '/', $this->menu_icon);
+					$icon_url = str_replace( '~/', $this->plugin->get_paths()->url . '/', $this->menu_icon );
 				}
 			}
 
 			global $wp_version;
 
-			if( version_compare($wp_version, '3.7.3', '>') ) {
+			if ( version_compare( $wp_version, '3.7.3', '>' ) ) {
 				?>
 				<style type="text/css" media="screen">
-					<?php if ( !empty($icon_url) ) { ?>
+					<?php if ( ! empty( $icon_url ) ) { ?>
 
-					a.toplevel_page_<?php echo $result_id ?> .wp-menu-image {
-						background: url('<?php echo $icon_url ?>') no-repeat 10px -30px !important;
+					a.toplevel_page_<?php echo esc_attr( $result_id ); ?> .wp-menu-image {
+						background: url('<?php echo esc_url( $icon_url ); ?>') no-repeat center center !important;
 					}
 
 					<?php } ?>
 
-					a.toplevel_page_<?php echo $result_id ?> .wp-menu-image:before {
-						content: "<?php echo !empty($icon_code) ? $icon_code : ''; ?>" !important;
+					a.toplevel_page_<?php echo esc_attr( $result_id ); ?> .wp-menu-image:before {
+						content: "<?php echo ! empty( $icon_code ) ? esc_attr( $icon_code ) : ''; ?>" !important;
 					}
 
-					a.toplevel_page_<?php echo $result_id ?>:hover .wp-menu-image,
-					a.toplevel_page_<?php echo $result_id ?>.wp-has-current-submenu .wp-menu-image,
-					a.toplevel_page_<?php echo $result_id ?>.current .wp-menu-image {
-						background-position: 10px 2px !important;
+					a.toplevel_page_<?php echo esc_attr( $result_id ); ?> .wp-menu-image,
+					a.toplevel_page_<?php echo esc_attr( $result_id ); ?>.wp-has-current-submenu .wp-menu-image,
+					a.toplevel_page_<?php echo esc_attr( $result_id ); ?>.current .wp-menu-image {
+						background-position: 8x 6px !important;
+						background-size: 20px 20px !important
 					}
 				</style>
 			<?php } else { ?>
 				<style type="text/css" media="screen">
-					a.toplevel_page_<?php echo $result_id ?> .wp-menu-image {
-						background: url('<?php echo $icon_url ?>') no-repeat 6px -33px !important;
+					a.toplevel_page_<?php echo esc_attr( $result_id ); ?> .wp-menu-image {
+						background: url('<?php echo esc_url( $icon_url ); ?>') no-repeat 6px -33px !important;
 					}
 
-					a.toplevel_page_<?php echo $result_id ?>:hover .wp-menu-image,
-					a.toplevel_page_<?php echo $result_id ?>.current .wp-menu-image {
+					a.toplevel_page_<?php echo esc_attr( $result_id ); ?>:hover .wp-menu-image,
+					a.toplevel_page_<?php echo esc_attr( $result_id ); ?>.current .wp-menu-image {
 						background-position: 6px -1px !important;
 					}
 				</style>
 				<?php
 			}
 
-			if( $this->internal ) {
+			if ( $this->internal ) {
 				?>
 				<style type="text/css" media="screen">
-					li.toplevel_page_<?php echo $result_id ?> {
+					li.toplevel_page_<?php echo esc_attr( $result_id ); ?> {
 						display: none;
 					}
 				</style>
@@ -565,12 +587,11 @@ if( !class_exists('Wbcr_FactoryPages480_AdminPage') ) {
 		 *
 		 * @return mixed
 		 */
-		function addLinkToPluginActions($links)
-		{
-			$link_title = !empty($this->title_plugin_action_link) ? $this->title_plugin_action_link : $this->getMenuTitle();
+		function addLinkToPluginActions( $links ) {
+			$link_title = ! empty( $this->title_plugin_action_link ) ? $this->title_plugin_action_link : $this->getMenuTitle();
 
 			$settings_link = '<a href="' . $this->getBaseUrl() . '">' . $link_title . '</a>';
-			array_unshift($links, $settings_link);
+			array_unshift( $links, $settings_link );
 
 			return $links;
 		}

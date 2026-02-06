@@ -5,14 +5,14 @@
 	 *
 	 * Main options:
 	 *  name            => a name of the control
-	 *  // see FactoryForms480_DropdownControl
+	 *  // see FactoryForms600_DropdownControl
 	 * 'dropdown' => array(
 	 *    // a callback to return items or an array of items to select
 	 *      'data' => OPanda_ThemeManager::getThemes(OPanda_Items::getCurrentItemName(), 'dropdown'),
 	 *      'default' => 'default',
 	 *      'value' => 'value' // a value to show in the control
 	 *    ),
-	 * // see FactoryForms480_RadioColorsControl
+	 * // see FactoryForms600_RadioColorsControl
 	 * 'colors' => array(
 	 *   // a callback to return items or an array of items to select
 	 *   'data' => array(
@@ -25,92 +25,93 @@
 	 *    'default' => 'default', // a default value of the control if the "value" option is not specified
 	 *  ),
 	 *
-	 * @author Alex Kovalev <alex.kovalevv@gmail.com>
-	 * @copyright (c) 2018, Webcraftic Ltd
-	 *
 	 * @package factory-forms
 	 * @since 1.0.0
 	 */
 
 	// Exit if accessed directly
-	if( !defined('ABSPATH') ) {
-		exit;
-	}
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
 
-	if( !class_exists('Wbcr_FactoryForms480_DropdownAndColorsControl') ) {
-		
-		class Wbcr_FactoryForms480_DropdownAndColorsControl extends Wbcr_FactoryForms480_ComplexControl {
+if ( ! class_exists( 'Wbcr_FactoryForms600_DropdownAndColorsControl' ) ) {
 
-			public $type = 'dropdown-and-colors';
+	class Wbcr_FactoryForms600_DropdownAndColorsControl extends Wbcr_FactoryForms600_ComplexControl {
 
-			public function __construct($options, $form, $provider = null)
-			{
-				parent::__construct($options, $form, $provider);
+		public $type = 'dropdown-and-colors';
 
-				if( !isset($options['dropdown']) ) {
-					$options['dropdown'] = array();
-				}
+		public function __construct( $options, $form, $provider = null ) {
+			parent::__construct( $options, $form, $provider );
 
-				$options['dropdown'] = array_merge($options['dropdown'], array(
-					'scope' => isset($options['scope'])
+			if ( ! isset( $options['dropdown'] ) ) {
+				$options['dropdown'] = [];
+			}
+
+			$options['dropdown'] = array_merge(
+				$options['dropdown'],
+				[
+					'scope' => isset( $options['scope'] )
 						? $options['scope']
 						: 'opanda',
-					'name' => $this->options['name'] . '__dropdown',
-				));
+					'name'  => $this->options['name'] . '__dropdown',
+				]
+			);
 
-				if( !isset($options['colors']) ) {
-					$options['colors'] = array();
-				}
+			if ( ! isset( $options['colors'] ) ) {
+				$options['colors'] = [];
+			}
 
-				$options['colors'] = array_merge($options['colors'], array(
-					'scope' => isset($options['scope'])
+			$options['colors'] = array_merge(
+				$options['colors'],
+				[
+					'scope' => isset( $options['scope'] )
 						? $options['scope']
 						: 'opanda',
-					'name' => $this->options['name'] . '__colors',
-				));
+					'name'  => $this->options['name'] . '__colors',
+				]
+			);
 
-				$this->dropdown = new Wbcr_FactoryForms480_DropdownControl($options['dropdown'], $form, $provider);
-				$this->colors = new Wbcr_FactoryForms480_RadioColorsControl($options['colors'], $form, $provider);
-				$this->inner_controls = array($this->dropdown, $this->colors);
+			$this->dropdown       = new Wbcr_FactoryForms600_DropdownControl( $options['dropdown'], $form, $provider );
+			$this->colors         = new Wbcr_FactoryForms600_RadioColorsControl( $options['colors'], $form, $provider );
+			$this->inner_controls = [ $this->dropdown, $this->colors ];
 
-				$colors = $this->colors->getOption('data');
+			$colors = $this->colors->getOption( 'data' );
 
-				if( empty($colors) ) {
-					$dropdown_value = $this->dropdown->getValue();
-					$dOptions = $this->dropdown->getOption('data', array());
+			if ( empty( $colors ) ) {
+				$dropdown_value = $this->dropdown->getValue();
+				$dOptions       = $this->dropdown->getOption( 'data', [] );
 
-					foreach($dOptions as $option) {
-						if( $option['value'] == $dropdown_value && isset($option['data']['colors']) ) {
-							$colors_options = json_decode(htmlspecialchars_decode($option['data']['colors']));
-							$this->colors->setOption('data', $colors_options);
-						}
+				foreach ( $dOptions as $option ) {
+					if ( $option['value'] == $dropdown_value && isset( $option['data']['colors'] ) ) {
+						$colors_options = json_decode( htmlspecialchars_decode( $option['data']['colors'] ) );
+						$this->colors->setOption( 'data', $colors_options );
 					}
 				}
 			}
+		}
 
-			/**
-			 * Shows the html markup of the control.
-			 *
-			 * @since 1.0.0
-			 * @return void
-			 */
-			public function html()
-			{
-				?>
+		/**
+		 * Shows the html markup of the control.
+		 *
+		 * @since 1.0.0
+		 * @return void
+		 */
+		public function html() {
+			?>
 				<script>
 				</script>
-				<div <?php $this->attrs() ?>>
+				<div <?php $this->attrs(); ?>>
 					<div class="factory-control-row">
 						<div class="factory-dropdown-wrap">
-							<?php $this->dropdown->render(); ?>
+						<?php $this->dropdown->render(); ?>
 						</div>
 						<div class="factory-colors-wrap">
-							<?php $this->colors->render(); ?>
+						<?php $this->colors->render(); ?>
 						</div>
 					</div>
 					<div class="factory-picker-target"></div>
 				</div>
 			<?php
-			}
 		}
 	}
+}

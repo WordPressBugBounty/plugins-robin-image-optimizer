@@ -1,6 +1,6 @@
 <?php
 
-namespace WBCR\Factory_Freemius_170\Entities;
+namespace WBCR\Factory_Freemius_Rio_600\Entities;
 
 use stdClass;
 
@@ -9,9 +9,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * @author        Webcraftic <wordpress.webraftic@gmail.com>, Alex Kovalev <alex.kovalevv@gmail.com>
- * @link          https://webcraftic.com
- * @copyright (c) 2018 Webraftic Ltd, Freemius, Inc.
  * @version       1.0
  */
 class Entity {
@@ -54,7 +51,6 @@ class Entity {
 	}
 
 	/**
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 * @since  1.1
 	 *
 	 * @param object|array $data
@@ -80,7 +76,6 @@ class Entity {
 	}
 
 	/**
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 * @since  1.0.0
 	 * @return array
 	 */
@@ -93,7 +88,6 @@ class Entity {
 	}
 
 	/**
-	 * @author Vova Feldman (@svovaf)
 	 * @since  1.0.6
 	 *
 	 * @param Entity $entity1
@@ -104,9 +98,9 @@ class Entity {
 	static function equals( $entity1, $entity2 ) {
 		if ( is_null( $entity1 ) && is_null( $entity2 ) ) {
 			return true;
-		} else if ( is_object( $entity1 ) && is_object( $entity2 ) ) {
+		} elseif ( is_object( $entity1 ) && is_object( $entity2 ) ) {
 			return ( $entity1->id == $entity2->id );
-		} else if ( is_object( $entity1 ) ) {
+		} elseif ( is_object( $entity1 ) ) {
 			return is_null( $entity1->id );
 		} else {
 			return is_null( $entity2->id );
@@ -117,11 +111,10 @@ class Entity {
 	/**
 	 * Update object property.
 	 *
-	 * @author Vova Feldman (@svovaf)
 	 * @since  1.0.9
 	 *
 	 * @param string|array[string]mixed $key
-	 * @param string|bool $val
+	 * @param string|bool               $val
 	 *
 	 * @return bool
 	 */
@@ -155,7 +148,6 @@ class Entity {
 	/**
 	 * Checks if entity was updated.
 	 *
-	 * @author Vova Feldman (@svovaf)
 	 * @since  1.0.9
 	 *
 	 * @return bool
@@ -165,7 +157,6 @@ class Entity {
 	}
 
 	/**
-	 * @author Vova Feldman (@svovaf)
 	 * @since  1.1.2
 	 *
 	 * @param $id

@@ -105,3 +105,89 @@
 {
     padding: 10px 0;
 }
+
+/* Error Log Support Banner */
+#WBCR .wrio-errorlog-support-banner {
+    background: #E3F2FD;
+    border: 1px solid #90CAF9;
+    border-left: 3px solid #2196F3;
+    border-radius: 4px;
+    padding: 14px 16px;
+    margin: 0 0 20px 0;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+#WBCR .wrio-errorlog-support-icon {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #BBDEFB;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+}
+
+#WBCR .wrio-errorlog-support-content {
+    flex: 1;
+}
+
+#WBCR .wrio-errorlog-support-title {
+    margin: 0 0 2px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #1565C0;
+}
+
+#WBCR .wrio-errorlog-support-subtitle {
+    margin: 0;
+    font-size: 12px;
+    color: #1976D2;
+}
+
+#WBCR .wrio-errorlog-support-button {
+    background: #2271b1;
+    color: #fff;
+    text-decoration: none;
+    padding: 6px 14px;
+    border-radius: 3px;
+    font-weight: 400;
+    font-size: 13px;
+    line-height: 1.6;
+    transition: background 0.3s ease;
+    white-space: nowrap;
+    border: 1px solid #2271b1;
+    cursor: pointer;
+    display: inline-block;
+    box-shadow: 0 1px 0 #2271b1;
+    vertical-align: top;
+}
+
+#WBCR .wrio-errorlog-support-button:hover {
+    background: #135e96;
+    border-color: #135e96;
+    color: #fff;
+}
+
+@media (max-width: 768px) {
+    #WBCR .wrio-errorlog-support-banner {
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    #WBCR .wrio-errorlog-support-button {
+        width: 100%;
+        text-align: center;
+    }
+}
+
+/* Hide custom folder sidebar tabs */
+#WBCR #io_folders_statistic-wbcr_clearfy-tab,
+#WBCR #io_nextgen_gallery_statistic-wbcr_clearfy-tab,
+#WBCR #io_folders_statistic-robin-image-optimizer-tab,
+#WBCR #io_nextgen_gallery_statistic-robin-image-optimizer-tab {
+    display: none !important;
+}

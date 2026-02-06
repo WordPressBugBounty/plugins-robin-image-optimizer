@@ -2,9 +2,6 @@
 /**
  * The file contains a class to manage style assets.
  *
- * @author        Alex Kovalev <alex.kovalevv@gmail.com>, repo: https://github.com/alexkovalevv
- * @author        Webcraftic <wordpress.webraftic@gmail.com>, site: https://webcraftic.com
- *
  * @package       factory-core
  * @since         1.0.0
  */
@@ -20,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * @since 1.0.0
  */
-class Wbcr_Factory480_StyleList extends Wbcr_Factory480_AssetsList {
+class Wbcr_Factory600_StyleList extends Wbcr_Factory600_AssetsList {
 
 	/**
 	 * Adds new items to the collection (default place).
@@ -47,14 +44,14 @@ class Wbcr_Factory480_StyleList extends Wbcr_Factory480_AssetsList {
 		return $this;
 	}
 
-	public function connect( $source = 'wordpress' ) {
+	public function connect( $source = 'WordPress' ) {
 		// register all global required scripts
 		if ( ! empty( $this->required[ $source ] ) ) {
 
 			foreach ( $this->required[ $source ] as $style ) {
-				if ( 'wordpress' === $source ) {
+				if ( 'WordPress' === $source ) {
 					wp_enqueue_style( $style );
-				} else if ( 'bootstrap' === $source ) {
+				} elseif ( 'bootstrap' === $source ) {
 					$this->plugin->bootstrap->enqueueStyle( $style );
 				}
 			}
@@ -83,4 +80,3 @@ class Wbcr_Factory480_StyleList extends Wbcr_Factory480_AssetsList {
 		}
 	}
 }
-

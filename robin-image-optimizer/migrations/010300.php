@@ -9,10 +9,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Updates for altering the table used to store statistics data.
  * Adds new columns and renames existing ones in order to add support for the new social buttons.
  */
-class WIOUpdate010300 extends Wbcr_Factory480_Update {
+class WIOUpdate010300 extends Wbcr_Factory600_Update {
 
 	/**
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 * @since  1.3.6
 	 * @throws \Exception
 	 */
@@ -39,7 +38,7 @@ class WIOUpdate010300 extends Wbcr_Factory480_Update {
 			WRIO_Cron::stop();
 		}
 
-		WBCR\Factory_Templates_134\Helpers::flushPageCache();
+		WBCR\Factory_Templates_759\Helpers::flushPageCache();
 
 		WRIO_Plugin::app()->logger->info( 'Plugin migration was successfull!' );
 	}
@@ -47,7 +46,6 @@ class WIOUpdate010300 extends Wbcr_Factory480_Update {
 	/**
 	 * Get previous plugin version
 	 *
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 * @since  1.3.8
 	 * @return number
 	 */
@@ -63,7 +61,6 @@ class WIOUpdate010300 extends Wbcr_Factory480_Update {
 	 * Since version 1.3.0, we use a different path and a different algorithm for
 	 * accumulating log files. Therefore, if there is an old log file, you need to clear it.
 	 *
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 * @since  1.3.6
 	 */
 	public function clear_log() {

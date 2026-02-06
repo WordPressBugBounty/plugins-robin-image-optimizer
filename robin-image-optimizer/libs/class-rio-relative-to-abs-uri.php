@@ -19,7 +19,6 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Licensed under The MIT License
  * Redistributions of files must retain the above copyright notice.
  *
- * @author  P Guardiario <pguardiario@gmail.com>
  * @version 1.0
  */
 class phpUri {
@@ -62,7 +61,6 @@ class phpUri {
 		/**
 		 * CHANGE:
 		 *
-		 * @author Dominik Habichtsberg <Dominik.Habichtsberg@Hbg-IT.de>
 		 * @since  24 Mai 2015 10:02 Uhr
 		 *
 		 * Former code:  $this->path = ( empty( $m[ 5 ][ 0 ] ) ) ? '/' : $m[ 5 ][ 0 ];
@@ -104,7 +102,6 @@ class phpUri {
 		/**
 		 * CHANGE:
 		 *
-		 * @author Dominik Habichtsberg <Dominik.Habichtsberg@Hbg-IT.de>
 		 * @since  24 Mai 2015 10:05 Uhr
 		 * changed limit form -1 to 1, because climbing up the directory-tree failed
 		 */
@@ -126,7 +123,6 @@ class phpUri {
 		/**
 		 * CHANGE:
 		 *
-		 * @author Dominik Habichtsberg <Dominik.Habichtsberg@Hbg-IT.de>
 		 * @since  24 Mai 2015 10:25 Uhr
 		 * The base-url should always have a path
 		 */

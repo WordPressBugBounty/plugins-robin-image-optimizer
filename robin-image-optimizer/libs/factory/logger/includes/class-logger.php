@@ -1,6 +1,6 @@
 <?php
 
-namespace WBCR\Factory_Logger_149;
+namespace WBCR\Factory_Logger_359;
 
 // Exit if accessed directly
 if ( ! defined( 'ABSPATH' ) ) {
@@ -36,19 +36,17 @@ if ( ! defined( 'ABSPATH' ) ) {
  * $this->debug('Some message used for debug purposed. Could be stack trace.');
  * ```
  *
- * @author        Artem Prihodko <webtemyk@yandex.ru>
- * @copyright (c) 2020, Webcraftic
  * @version       1.0
  */
 class Logger {
 
-	const LEVEL_INFO = 'info';
+	const LEVEL_INFO    = 'info';
 	const LEVEL_WARNING = 'warning';
-	const LEVEL_ERROR = 'error';
-	const LEVEL_DEBUG = 'debug';
+	const LEVEL_ERROR   = 'error';
+	const LEVEL_DEBUG   = 'debug';
 
 	/**
-	 * @var \Wbcr_Factory480_Plugin Plugin class.
+	 * @var \Wbcr_Factory600_Plugin Plugin class.
 	 */
 	public $plugin;
 
@@ -92,8 +90,8 @@ class Logger {
 	/**
 	 * Logger constructor.
 	 *
-	 * @param \Wbcr_Factory480_Plugin $plugin
-	 * @param array $settings
+	 * @param \Wbcr_Factory600_Plugin $plugin
+	 * @param array                   $settings
 	 */
 	public function __construct( $plugin, $settings = [] ) {
 		$this->plugin = $plugin;
@@ -141,7 +139,7 @@ class Logger {
 			if ( ! empty( $name_split ) && isset( $name_split[0] ) ) {
 				$name_split[0] = trim( $name_split[0] );
 
-				for ( $i = $this->rotate_limit; $i >= 0; $i -- ) {
+				for ( $i = $this->rotate_limit; $i >= 0; $i-- ) {
 					$cur_name = $name_split[0] . $i;
 					$cur_path = $base_dir . $cur_name . '.log';
 
@@ -282,7 +280,7 @@ class Logger {
 
 		foreach ( $files as $file ) {
 			if ( @unlink( $file ) ) {
-				$unlinked_count ++;
+				++$unlinked_count;
 			}
 		}
 
@@ -312,10 +310,9 @@ class Logger {
 
 	/**
 	 * Flush all messages.
-	 *
 	 */
 	public function shutdown_flush() {
-		$end_line = "-------------------------------";
+		$end_line = '-------------------------------';
 		if ( ! empty( $this->_logs ) ) {
 			$this->_logs[] = $end_line;
 		}
@@ -421,7 +418,6 @@ class Logger {
 	/**
 	 * Writes information to log about memory.
 	 *
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 * @since  1.3.6
 	 */
 	public function memory_usage() {
@@ -429,7 +425,7 @@ class Logger {
 		$memory_used  = number_format( memory_get_usage( true ) / ( 1024 * 1024 ), 2 );
 		$memory_peak  = number_format( memory_get_peak_usage( true ) / ( 1024 * 1024 ), 2 );
 
-		$this->info( sprintf( "Memory: %s (avail) / %sM (used) / %sM (peak)", $memory_avail, $memory_used, $memory_peak ) );
+		$this->info( sprintf( 'Memory: %s (avail) / %sM (used) / %sM (peak)', $memory_avail, $memory_used, $memory_peak ) );
 	}
 
 	/**
@@ -444,11 +440,11 @@ class Logger {
 	public function prettify() {
 		$content = $this->get_content();
 
-		if(!empty($content)) {
+		if ( ! empty( $content ) ) {
 			$replace = "<div class='wbcr-log-row wbcr_logger_level_$4'><strong>$1 $2</strong> [$3]<div class='wbcr_logger_level'>$4</div>$5</div>";
 
-			$content = str_replace( [ "\n", "\r<br>" ], [ "<br>", "\r\n" ], $content );
-			$content = preg_replace( "/^(\S+)\s*(\S+)\s*\[(.+)\]\s*\[(.+)\]\s*(.*)$/m", $replace, $content );
+			$content = str_replace( [ "\n", "\r<br>" ], [ '<br>', "\r\n" ], $content );
+			$content = preg_replace( '/^(\S+)\s*(\S+)\s*\[(.+)\]\s*\[(.+)\]\s*(.*)$/m', $replace, $content );
 		}
 		return $content;
 	}

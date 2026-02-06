@@ -1,13 +1,13 @@
 <?php
 /**
- * Plugin Name: Webcraftic Robin image optimizer premium
- * Plugin URI: https://robin-image-optimizer.webcraftic.com
- * Description: This is an extension for the plugin Robin image optimizer. Adds additional functions: Converting images to Webp, optimization of arbitrary directories, optimization of the Nextgen gallery.
- * Author: Webcraftic <wordpress.webraftic@gmail.com>
+ * Plugin Name: Robin image optimizer premium
+ * Plugin URI: https://themeisle.com
+ * Description: This is an extension for Robin Image Optimizer. Adds additional features: converting images to WebP, optimization of custom directories, and NextGen gallery optimization.
+ * Author: Themeisle
  * Version: 1.0.8
  * Text Domain: robin-image-optimizer
  * Domain Path: /languages/ Author
- * URI: https://robin-image-optimizer.webcraftic.com
+ * URI: https://themeisle.com
  */
 
 // Выход при непосредственном доступе
@@ -31,7 +31,7 @@ if ( ! function_exists( 'wrio_premium_load' ) ) {
 		define( 'WRIOP_PLUGIN_VERSION', '1.0.8' );
 
 		// Директория плагина
-		define( 'WRIOP_PLUGIN_DIR', dirname( __FILE__ ) );
+		define( 'WRIOP_PLUGIN_DIR', __DIR__ );
 
 		// Относительный путь к плагину
 		define( 'WRIOP_PLUGIN_BASE', plugin_basename( __FILE__ ) );
@@ -41,35 +41,41 @@ if ( ! function_exists( 'wrio_premium_load' ) ) {
 
 		// Global scripts
 		// ---------------------------------------------------------
-		require_once( WRIOP_PLUGIN_DIR . '/includes/functions.php' );
-		require_once( WRIOP_PLUGIN_DIR . '/includes/classes/class.backup.php' );
-		require_once( WRIOP_PLUGIN_DIR . '/includes/classes/class.image-statistic-folders.php' );
+		require_once WRIOP_PLUGIN_DIR . '/includes/functions.php';
+		require_once WRIOP_PLUGIN_DIR . '/includes/classes/class.backup.php';
+		require_once WRIOP_PLUGIN_DIR . '/includes/classes/class.image-statistic-folders.php';
 
-		require_once( WRIOP_PLUGIN_DIR . '/includes/classes/class.folder.php' );
-		require_once( WRIOP_PLUGIN_DIR . '/includes/classes/models/class.folders-extra-data.php' );
-		require_once( WRIOP_PLUGIN_DIR . '/includes/classes/class.folder-image.php' );
-		require_once( WRIOP_PLUGIN_DIR . '/includes/classes/class.custom-folders.php' );
+		require_once WRIOP_PLUGIN_DIR . '/includes/classes/class.folder.php';
+		require_once WRIOP_PLUGIN_DIR . '/includes/classes/models/class.folders-extra-data.php';
+		require_once WRIOP_PLUGIN_DIR . '/includes/classes/class.folder-image.php';
+		require_once WRIOP_PLUGIN_DIR . '/includes/classes/class.custom-folders.php';
 
 		if ( wrio_is_active_nextgen_gallery() ) {
-			require_once( WRIOP_PLUGIN_DIR . '/includes/classes/class.gallery-nextgen.php' );
-			require_once( WRIOP_PLUGIN_DIR . '/includes/classes/class.image-nextgen.php' );
-			require_once( WRIOP_PLUGIN_DIR . '/includes/classes/class.image-statistic-nextgen.php' );
+			require_once WRIOP_PLUGIN_DIR . '/includes/classes/class.gallery-nextgen.php';
+			require_once WRIOP_PLUGIN_DIR . '/includes/classes/class.image-nextgen.php';
+			require_once WRIOP_PLUGIN_DIR . '/includes/classes/class.image-statistic-nextgen.php';
 		}
 
 		// Utils
-		require_once( WRIOP_PLUGIN_DIR . '/includes/classes/helpers/class.url.php' ); // URL helper
+		require_once WRIOP_PLUGIN_DIR . '/includes/classes/helpers/class.url.php'; // URL helper
 
-		// WebP format
-		require_once( WRIOP_PLUGIN_DIR . '/includes/classes/webp/vendor/autoload.php' );
-		require_once( WRIOP_PLUGIN_DIR . '/includes/classes/webp/class-webp-api.php' );
-		require_once( WRIOP_PLUGIN_DIR . '/includes/classes/webp/class-webp-listener.php' );
-		require_once( WRIOP_PLUGIN_DIR . '/includes/classes/webp/class-webp-delivery.php' );
+		// Format conversion (WebP, AVIF, etc.)
+		require_once WRIOP_PLUGIN_DIR . '/includes/classes/format/class-format-converter-api.php';
+		require_once WRIOP_PLUGIN_DIR . '/includes/classes/format/class-format-converter-webp.php';
+		require_once WRIOP_PLUGIN_DIR . '/includes/classes/format/class-format-converter-avif.php';
+		require_once WRIOP_PLUGIN_DIR . '/includes/classes/format/class-format-converter-factory.php';
+
+		// WebP format (legacy)
+		require_once WRIOP_PLUGIN_DIR . '/includes/classes/webp/vendor/autoload.php';
+		require_once WRIOP_PLUGIN_DIR . '/includes/classes/webp/class-webp-api.php';
+		require_once WRIOP_PLUGIN_DIR . '/includes/classes/webp/class-webp-listener.php';
+		require_once WRIOP_PLUGIN_DIR . '/includes/classes/webp/class-webp-delivery.php';
 
 		new WRIO\WEBP\HTML\Delivery();
 		new WRIO\WEBP\Listener();
 
 		if ( defined( 'WP_CLI' ) && WP_CLI ) {
-			require_once( WRIOP_PLUGIN_DIR . '/includes/classes/class.wpcli-optimize.php' );
+			require_once WRIOP_PLUGIN_DIR . '/includes/classes/class.wpcli-optimize.php';
 		}
 		// Admin scripts
 		// ---------------------------------------------------------
@@ -77,44 +83,47 @@ if ( ! function_exists( 'wrio_premium_load' ) ) {
 			WRIO_Custom_Folders::get_instance();
 
 			// Register hooks
-			require_once( WRIOP_PLUGIN_DIR . '/admin/filters/backup.php' );
-			require_once( WRIOP_PLUGIN_DIR . '/admin/filters/settings-page.php' );
+			require_once WRIOP_PLUGIN_DIR . '/admin/filters/backup.php';
+			require_once WRIOP_PLUGIN_DIR . '/admin/filters/settings-page.php';
 
-			require_once( WRIOP_PLUGIN_DIR . '/admin/ajax/folders.php' );
-			require_once( WRIOP_PLUGIN_DIR . '/includes/classes/webp/class-webp-server.php' );
-			require_once( WRIOP_PLUGIN_DIR . '/admin/boot.php' );
+			require_once WRIOP_PLUGIN_DIR . '/admin/ajax/folders.php';
+			require_once WRIOP_PLUGIN_DIR . '/includes/classes/webp/class-webp-server.php';
+			require_once WRIOP_PLUGIN_DIR . '/admin/boot.php';
 
-			add_action( 'init', function () {
-				try {
-					$admin_path = WRIOP_PLUGIN_DIR . '/admin/pages';
-					WRIO_Plugin::app()->registerPage( 'WRIO_StatisticFolders', $admin_path . '/class-rio-statistic-folders-page.php' );
+			add_action(
+				'init',
+				function () {
+					try {
+						$admin_path = WRIOP_PLUGIN_DIR . '/admin/pages';
+						WRIO_Plugin::app()->registerPage( 'WRIO_StatisticFolders', $admin_path . '/class-rio-statistic-folders-page.php' );
 
-					if ( wrio_is_active_nextgen_gallery() ) {
-						WRIO_Plugin::app()->registerPage( 'WRIO_StatisticNextgenPage', $admin_path . '/class-rio-statistic-nextgen-page.php' );
+						if ( wrio_is_active_nextgen_gallery() ) {
+							WRIO_Plugin::app()->registerPage( 'WRIO_StatisticNextgenPage', $admin_path . '/class-rio-statistic-nextgen-page.php' );
+						}
+					} catch ( Exception $e ) {
+						// nothing
 					}
-				} catch ( Exception $e ) {
-					//nothing
 				}
-			});
+			);
 		}
 	}
-	//add_action( 'plugins_loaded', 'wrio_premium_load', 20 );
+	// add_action( 'plugins_loaded', 'wrio_premium_load', 20 );
 }
 
 /**
  * Function is performed when the parent plugin Robin image optimizer is activated.
  *
- * @author Alexander Kovalev <alex.kovalevv@gmail.com>
  * @since  1.0.4
  */
 function wrio_premium_activate() {
-	require_once( dirname( __FILE__ ) . '/includes/classes/webp/class-webp-server.php' );
-	require_once( dirname( __FILE__ ) . '/includes/classes/webp/class-webp-delivery.php' );
+	require_once __DIR__ . '/includes/classes/format/class-format-converter-factory.php';
+	require_once __DIR__ . '/includes/classes/webp/class-webp-server.php';
+	require_once __DIR__ . '/includes/classes/webp/class-webp-delivery.php';
 
 	$is_apache       = WRIO\WEBP\Server::is_apache();
 	$is_use_htaccess = WRIO\WEBP\Server::server_use_htaccess();
 
-	if ( WRIO\WEBP\HTML\Delivery::is_webp_enabled() && WRIO\WEBP\HTML\Delivery::is_redirect_delivery_mode() ) {
+	if ( WRIO\WEBP\HTML\Delivery::should_use_converted_images() && WRIO\WEBP\HTML\Delivery::is_redirect_delivery_mode() ) {
 		if ( $is_apache && $is_use_htaccess ) {
 
 			WRIO\WEBP\Server::htaccess_update_webp_rules();
@@ -125,11 +134,10 @@ function wrio_premium_activate() {
 /**
  * Function is performed when the parent plugin Robin image optimizer is deactivated.
  *
- * @author Alexander Kovalev <alex.kovalevv@gmail.com>
  * @since  1.0.4
  */
 function wrio_premium_deactivate() {
-	require_once( dirname( __FILE__ ) . '/includes/classes/webp/class-webp-server.php' );
+	require_once __DIR__ . '/includes/classes/webp/class-webp-server.php';
 
 	$is_apache       = WRIO\WEBP\Server::is_apache();
 	$is_use_htaccess = WRIO\WEBP\Server::server_use_htaccess();

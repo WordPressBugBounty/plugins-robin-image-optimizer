@@ -1,6 +1,6 @@
 <?php
 
-namespace WBCR\Factory_Freemius_170\Entities;
+namespace WBCR\Factory_Freemius_Rio_600\Entities;
 
 use stdClass;
 
@@ -9,13 +9,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * @author Webcraftic <wordpress.webraftic@gmail.com>, Alex Kovalev <alex.kovalevv@gmail.com>
- * @link https://webcraftic.com
- * @copyright (c) 2018 Webraftic Ltd, Freemius, Inc.
  * @version 1.0
  */
 class Scope extends Entity {
-	
+
 	/**
 	 * @var string
 	 */
@@ -24,7 +21,7 @@ class Scope extends Entity {
 	 * @var string
 	 */
 	public $secret_key;
-	
+
 	/**
 	 * @param bool|stdClass $scope_entity
 	 */

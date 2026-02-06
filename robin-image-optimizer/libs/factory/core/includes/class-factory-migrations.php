@@ -1,9 +1,9 @@
 <?php
 
-namespace WBCR\Factory_480;
+namespace WBCR\Factory_600;
 
 use Exception;
-use Wbcr_Factory480_Plugin;
+use Wbcr_Factory600_Plugin;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -22,10 +22,6 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * todo: get_option and get_site_option are used because some caching plugins caching options, which causes problems
  *
- *
- * @author        Alex Kovalev <alex.kovalevv@gmail.com>, repo: https://github.com/alexkovalevv
- * @author        Webcraftic <wordpress.webraftic@gmail.com>, site: https://webcraftic.com
- *
  * @since         4.1.1
  */
 class Migrations {
@@ -35,11 +31,11 @@ class Migrations {
 	/**
 	 * Migrations constructor.
 	 *
-	 * @param Wbcr_Factory480_Plugin $plugin
+	 * @param Wbcr_Factory600_Plugin $plugin
 	 *
 	 * @throws Exception
 	 */
-	public function __construct( Wbcr_Factory480_Plugin $plugin ) {
+	public function __construct( Wbcr_Factory600_Plugin $plugin ) {
 
 		$this->plugin = $plugin;
 		$plugin_name  = $plugin->getPluginName();
@@ -49,16 +45,15 @@ class Migrations {
 		}
 
 		if ( is_admin() ) {
-			add_action( "admin_init", [ $this, "check_migrations" ] );
+			add_action( 'admin_init', [ $this, 'check_migrations' ] );
 
 			add_action( "wbcr/factory/plugin_{$plugin_name}_activated", [ $this, 'activation_hook' ] );
-			add_action( "wbcr/factory/admin_notices", [ $this, "debug_bar_notice" ], 10, 2 );
-			add_action( "wbcr/factory/admin_notices", [ $this, "migration_error_notice" ], 10, 2 );
+			add_action( 'wbcr/factory/admin_notices', [ $this, 'debug_bar_notice' ], 10, 2 );
+			add_action( 'wbcr/factory/admin_notices', [ $this, 'migration_error_notice' ], 10, 2 );
 		}
 	}
 
 	/**
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 * @since  4.1.1
 	 * @return mixed|void
 	 */
@@ -77,13 +72,13 @@ class Migrations {
 	public function check_migrations() {
 		if ( $this->is_migration_error() && isset( $_GET['wbcr_factory_fix_migration_error'] ) ) {
 			$this->fix_migration_error();
-			wp_safe_redirect( esc_url_raw(remove_query_arg( 'wbcr_factory_fix_migration_error' )) );
+			wp_safe_redirect( esc_url_raw( remove_query_arg( 'wbcr_factory_fix_migration_error' ) ) );
 			die();
 		}
 
 		if ( $this->is_debug() && isset( $_GET['wbcr_factory_test_migration'] ) ) {
 			$this->make_migration();
-			wp_safe_redirect( esc_url_raw(remove_query_arg( 'wbcr_factory_test_migration' )) );
+			wp_safe_redirect( esc_url_raw( remove_query_arg( 'wbcr_factory_test_migration' ) ) );
 			die();
 		}
 
@@ -126,17 +121,17 @@ class Migrations {
 			$migration_error_text = get_option( $this->plugin->getOptionName( 'plugin_migration_error' ), '' );
 		}
 
-		$fix_migration_error_url = esc_url(add_query_arg( 'wbcr_factory_fix_migration_error', 1 ));
+		$fix_migration_error_url = esc_url( add_query_arg( 'wbcr_factory_fix_migration_error', 1 ) );
 
-		$notice_text = $migration_error_text;
-		$notice_text .= "<br><br><a href='{$fix_migration_error_url}' class='button button-default'>" . __( 'I fixed, confirm migration', 'wbcr_factory_480' ) . "</a>";
+		$notice_text  = $migration_error_text;
+		$notice_text .= "<br><br><a href='{$fix_migration_error_url}' class='button button-default'>" . __( 'I fixed, confirm migration', 'robin-image-optimizer' ) . '</a>';
 
 		$notices[] = [
 			'id'              => 'migration_debug_bar',
 			'type'            => 'error',
 			'dismissible'     => false,
 			'dismiss_expires' => 0,
-			'text'            => '<p><b>' . $this->plugin->getPluginTitle() . ' ' . __( 'migration error', 'wbcr_factory_480' ) . '</b><br>' . $notice_text . '</p>'
+			'text'            => '<p><b>' . $this->plugin->getPluginTitle() . ' ' . __( 'migration error', 'robin-image-optimizer' ) . '</b><br>' . $notice_text . '</p>',
 		];
 
 		return $notices;
@@ -160,21 +155,21 @@ class Migrations {
 			return $notices;
 		}
 
-		$migrate_url = esc_url(add_query_arg( 'wbcr_factory_test_migration', 1 ));
+		$migrate_url = esc_url( add_query_arg( 'wbcr_factory_test_migration', 1 ) );
 
-		$notice_text = __( "Plugin activated:", "wbcr_factory_480" ) . ' ' . date( "Y-m-d H:i:s", $this->get_plugin_activated_time() ) . "<br>";
+		$notice_text = __( 'Plugin activated:', 'robin-image-optimizer' ) . ' ' . date( 'Y-m-d H:i:s', $this->get_plugin_activated_time() ) . '<br>';
 
-		$notice_text .= __( "Old plugin version (debug):", "wbcr_factory_480" ) . ' ' . $this->get_old_plugin_version() . "<br>";
-		$notice_text .= __( "Current plugin version:", "wbcr_factory_480" ) . ' ' . $this->get_current_plugin_version() . "<br>";
-		$notice_text .= __( "Need migration:", "wbcr_factory_480" ) . ' ' . ( $this->need_migration() ? "true" : "false" ) . "<br><br>";
-		$notice_text .= "<a href='{$migrate_url}' class='button button-default'>" . __( "Migrate now", "wbcr_factory_480" ) . "</a><br>";
+		$notice_text .= __( 'Old plugin version (debug):', 'robin-image-optimizer' ) . ' ' . $this->get_old_plugin_version() . '<br>';
+		$notice_text .= __( 'Current plugin version:', 'robin-image-optimizer' ) . ' ' . $this->get_current_plugin_version() . '<br>';
+		$notice_text .= __( 'Need migration:', 'robin-image-optimizer' ) . ' ' . ( $this->need_migration() ? 'true' : 'false' ) . '<br><br>';
+		$notice_text .= "<a href='{$migrate_url}' class='button button-default'>" . __( 'Migrate now', 'robin-image-optimizer' ) . '</a><br>';
 
 		$notices[] = [
 			'id'              => 'migration_debug_bar',
 			'type'            => 'warning',
 			'dismissible'     => false,
 			'dismiss_expires' => 0,
-			'text'            => '<p><b style="color:red;">' . $this->plugin->getPluginTitle() . ' ' . __( 'migrations DEBUG bar', 'wbcr_factory_480' ) . '</b><br>' . $notice_text . '</p>'
+			'text'            => '<p><b style="color:red;">' . $this->plugin->getPluginTitle() . ' ' . __( 'migrations DEBUG bar', 'robin-image-optimizer' ) . '</b><br>' . $notice_text . '</p>',
 		];
 
 		return $notices;
@@ -186,7 +181,8 @@ class Migrations {
 	 * was activated for the first time.
 	 */
 	public function activation_hook() {
-		/*if ( $this->need_migration() && ! $this->is_debug() ) {
+		/*
+		if ( $this->need_migration() && ! $this->is_debug() ) {
 			$this->make_migration();
 		}*/
 
@@ -234,9 +230,9 @@ class Migrations {
 			return $plugin_version;
 		}
 
-		# TODO: Remove after few releases
-		# This block for compatibility code with old version of framework < 4.1.1
-		#-------------------------------------------
+		// TODO: Remove after few releases
+		// This block for compatibility code with old version of framework < 4.1.1
+		// -------------------------------------------
 		if ( $this->plugin->isNetworkActive() ) {
 			$plugin_versions = get_site_option( 'factory_plugin_versions', [] );
 		} else {
@@ -249,7 +245,7 @@ class Migrations {
 			$plugin_version = str_replace( [ 'free-', 'premium-', 'offline-' ], '', $plugin_version );
 		}
 
-		#-------------------------------------------
+		// -------------------------------------------
 
 		return $plugin_version;
 	}
@@ -311,7 +307,6 @@ class Migrations {
 	 * migrations are stored in wp-content/plugins/plugin-name/migrations and have names
 	 * 0x0x0x.php, which corresponds to the version x.x.x. Method executes those migration files
 	 * versions of which are between the previous version of plugin and current one.
-	 *
 	 */
 	protected function make_migration() {
 
@@ -357,7 +352,7 @@ class Migrations {
 					}
 
 					foreach ( $classes as $path => $class_data ) {
-						include_once( $path );
+						include_once $path;
 						$update_class = $class_data['name'];
 
 						$update = new $update_class( $this->plugin );
@@ -367,7 +362,7 @@ class Migrations {
 			}
 
 			$this->update_plugin_version_in_db();
-		} catch( Exception $e ) {
+		} catch ( Exception $e ) {
 			if ( $this->plugin->isNetworkActive() ) {
 				update_site_option( $this->plugin->getOptionName( 'plugin_migration_error' ), $e->getMessage() );
 
@@ -384,10 +379,10 @@ class Migrations {
 	 */
 	protected function update_plugin_version_in_db() {
 
-		# TODO: Delete after few releases
-		# This block for compatibility code with the old version of framework.
-		# Cleans up old data, after the transition to new version of framework.
-		#-------------------------------------------
+		// TODO: Delete after few releases
+		// This block for compatibility code with the old version of framework.
+		// Cleans up old data, after the transition to new version of framework.
+		// -------------------------------------------
 		if ( $this->plugin->isNetworkActive() ) {
 			$plugin_versions = get_site_option( 'factory_plugin_versions', [] );
 		} else {
@@ -431,7 +426,7 @@ class Migrations {
 			return false;
 		}
 
-		$number = '';
+		$number  = '';
 		$number .= ( strlen( $matches[1] ) == 1 ) ? '0' . $matches[1] : $matches[1];
 		$number .= ( strlen( $matches[2] ) == 1 ) ? '0' . $matches[2] : $matches[2];
 		$number .= ( strlen( $matches[3] ) == 1 ) ? '0' . $matches[3] : $matches[3];
@@ -453,7 +448,8 @@ class Migrations {
 	 *
 	 * @param string $path   path for search
 	 */
-	/*private function find_folders( $path ) {
+	/*
+	private function find_folders( $path ) {
 		return $this->find_file_or_folders( $path, false );
 	}*/
 
@@ -482,8 +478,8 @@ class Migrations {
 			$filename = $path . '/' . $entryName;
 			if ( ( $areFiles && is_file( $filename ) ) || ( ! $areFiles && is_dir( $filename ) ) ) {
 				$files[] = [
-					'path' => str_replace( "\\", "/", $filename ),
-					'name' => $areFiles ? str_replace( '.php', '', $entryName ) : $entryName
+					'path' => str_replace( '\\', '/', $filename ),
+					'name' => $areFiles ? str_replace( '.php', '', $entryName ) : $entryName,
 				];
 			}
 		}
@@ -505,13 +501,16 @@ class Migrations {
 		$classes = [];
 
 		if ( ! function_exists( 'token_get_all' ) ) {
-			throw new Exception( __( 'There is no PHP Tokenizer extension installed on your server, you cannot use the token_get_all function.', 'wbcr_factory_480' ) );
+			throw new Exception(
+				// translators: %s is the function name.
+				sprintf( __( 'There is no PHP Tokenizer extension installed on your server, you cannot use the %s function.', 'robin-image-optimizer' ), 'token_get_all' )
+			);
 		}
 
 		$tokens = token_get_all( $phpCode );
 
 		$count = count( $tokens );
-		for ( $i = 2; $i < $count; $i ++ ) {
+		for ( $i = 2; $i < $count; $i++ ) {
 			if ( is_array( $tokens ) && $tokens[ $i - 2 ][0] == T_CLASS && $tokens[ $i - 1 ][0] == T_WHITESPACE && $tokens[ $i ][0] == T_STRING ) {
 
 				$extends = null;
@@ -522,7 +521,7 @@ class Migrations {
 				$class_name       = $tokens[ $i ][1];
 				$classes[ $path ] = [
 					'name'    => $class_name,
-					'extends' => $extends
+					'extends' => $extends,
 				];
 			}
 		}

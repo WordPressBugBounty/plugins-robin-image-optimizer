@@ -1,77 +1,103 @@
 <?php
-defined( 'ABSPATH' ) || die( 'Cheatin’ uh?' );
+defined( 'ABSPATH' ) || die( 'Cheatin\' uh?' );
 
 use WRIO\WEBP\HTML\Delivery as WEBP_Delivery;
 
 /**
  * @var array $data
  */
+
+$webp_enabled = WRIO_Format_Converter_Factory::is_webp_enabled();
+$avif_enabled = WRIO_Format_Converter_Factory::is_avif_enabled();
+$show_options = $webp_enabled || $avif_enabled;
 ?>
 
-<?php if($data['optimization_server'] !== 'server_5'): ?>
-    <div class="form-group">
-        <label class="col-sm-4 control-label"></label>
-        <div class="control-group col-sm-8">
-            <div class="factory-hints">
-                <div class="factory-hint factory-hint-normal" style="background-color: #fdd">
-					<?php _e( 'To convert to WebP, select the premium optimization server in the settings above.', 'robin-image-optimizer' ) ?>
-                </div>
-            </div>
-        </div>
-    </div>
-<?php endif ?>
-
-<div class="form-group">
-    <label class="col-sm-4 control-label"></label>
-    <div class="control-group col-sm-8">
-        <div id="wrio-webp-options">
-            <h3><?php _e( 'Select delivery mode', 'robin-image-optimizer' ) ?>:</h3>
-            <p class="wrio-webp-options-info">
-				<?php printf( __( 'Deliver the WebP versions of the images in the front-end <a href="%s" target="_blank">Read more</a>', 'robin-image-optimizer' ), $data['docs_url'] ) ?>
-            </p>
-            <ul>
-                <li>
-                    <label for="wrio-webp-options-radio-redirection"><input type="radio" id="wrio-webp-options-radio-redirection" name="wrio_webp_delivery_mode" class="wrio-webp-options-radio" value="<?php echo WEBP_Delivery::REDIRECT_DELIVERY_MODE ?>"<?php disabled( ! $data['allow_redirection_mode'] ) ?><?php checked( WEBP_Delivery::REDIRECT_DELIVERY_MODE, $data['delivery_mode'] ) ?>>
-						<?php _e( 'Redirection (via .htaccess)', 'robin-image-optimizer' ) ?>
-                    </label>
-                    <p class="wrio-webp-options-info">
-						<?php printf( __( 'This will add rules in the .htaccess that redirects directly to existing converted files. Best performance is achieved by redirecting in .htaccess. Based on testing your particular hosting configuration, we determined that your server <img width="30" src="%s"> serve the WEBP versions of the JPEG files seamlessly, via .htaccess.', 'robin-image-optimizer' ), WRIOP_PLUGIN_URL . '/assets/img/test.jpg' ) ?>
-                        <br>
-						<?php _e( 'Server', 'robin-image-optimizer' ) ?>: <?php
-						if ( "apache" === $data['server'] ) {
-							echo "<span style='color:green'>" . $data['server'] . "</span>";
+<div class="form-group factory-control-webp_delivery_mode wrio-conversion-delivery-options"<?php echo ! $show_options ? ' style="display:none;"' : ''; ?>>
+	<label class="col-sm-4 control-label">
+		<?php esc_html_e( 'Delivery mode for converted images', 'robin-image-optimizer' ); ?>
+	</label>
+	<div class="control-group col-sm-8">
+		<div class="factory-control factory-control-dropdown">
+			<ul>
+				<li>
+					<label for="wrio-webp-options-radio-redirection">
+						<input
+							type="radio"
+							id="wrio-webp-options-radio-redirection"
+							name="wrio_webp_delivery_mode"
+							class="wrio-webp-options-radio"
+							value="<?php echo esc_attr( WEBP_Delivery::REDIRECT_DELIVERY_MODE ); ?>"
+							<?php disabled( ! $data['allow_redirection_mode'] ); ?>
+							<?php checked( WEBP_Delivery::REDIRECT_DELIVERY_MODE, $data['delivery_mode'] ); ?>
+						>
+						<?php esc_html_e( 'Redirection (via .htaccess)', 'robin-image-optimizer' ); ?>
+					</label>
+					<p class="wrio-webp-options-info">
+						<?php
+						echo wp_kses_post(
+							sprintf(
+								// translators: %1$s and %2$s are opening and closing bold tags.
+								__( 'This will add rules in the .htaccess that redirects directly to existing converted files. Best performance is achieved by redirecting in .htaccess. Based on testing your particular hosting configuration, we determined that your server %1$scan\'t%2$s serve the WebP/AVIF versions of the JPEG files seamlessly, via .htaccess.', 'robin-image-optimizer' ),
+								'<b style="color:red">',
+								'</b>'
+							)
+						);
+						?>
+						<br>
+						<?php esc_html_e( 'Server', 'robin-image-optimizer' ); ?>: 
+						<?php
+						if ( 'apache' === $data['server'] ) {
+							echo wp_kses_post( "<span style='color:green'>" . $data['server'] . '</span>' );
 						} else {
-							echo "<span style='color:red'>" . $data['server'] . " (unsupported)</span>";
+							echo wp_kses_post( "<span style='color:red'>" . $data['server'] . ' (' . __( 'Unsupported', 'robin-image-optimizer' ) . ')</span>' );
 						}
 						?>
-                    </p>
-                </li>
-                <li>
-                    <label for="wrio-webp-options-radio-picture"><input type="radio" id="wrio-webp-options-radio-picture" name="wrio_webp_delivery_mode" class="wrio-webp-options-radio" value="<?php echo WEBP_Delivery::PICTURE_DELIVERY_MODE ?>"<?php checked( WEBP_Delivery::PICTURE_DELIVERY_MODE, $data['delivery_mode'] ) ?>>
-						<?php _e( 'Replace &lt;img&gt; tags with &lt;picture&gt; tags, adding the webp to srcset.', 'robin-image-optimizer' ) ?>
-                    </label>
-                    <p class="wrio-webp-options-info">
-						<?php _e( ' Each &lt;img&gt; will be replaced with a &lt;picture&gt; tag that will also provide the WebP image as a choice for browsers that support it. Also loads the picturefill.js for browsers that don\'t support the &lt;picture&gt; tag. You don\'t need to activate this if you\'re using the Cache Enabler plugin because your WebP images are already handled by this plugin. <strong>Please make a test before using this option</strong>, as if the styles that your theme is using rely on the position of your &lt;img&gt; tag, you might experience display problems. <strong>You can revert anytime to the previous state by just deactivating the option.</strong>', 'robin-image-optimizer' ) ?>
-                    </p>
-                </li>
-                <li>
-                    <label for="wrio-webp-options-radio-url"><input type="radio" id="wrio-webp-options-radio-url" name="wrio_webp_delivery_mode" class="wrio-webp-options-radio" value="<?php echo WEBP_Delivery::URL_DELIVERY_MODE ?>"<?php checked( WEBP_Delivery::URL_DELIVERY_MODE, $data['delivery_mode'] ) ?>>
-						<?php _e( 'Replace image URLs', 'robin-image-optimizer' ) ?>
-                    </label>
-                    <p class="wrio-webp-options-info">
-						<?php _e( '"Image URLs" replaces the image URLs to point to the webp <i>rather than</i> the original. Handles src, srcset, common lazy-load attributes and even inline styles.', 'robin-image-optimizer' ) ?>
-                    </p>
-                </li>
-                <li>
-                    <label for="wrio-webp-options-radio-none"><input type="radio" id="wrio-webp-options-radio-none" name="wrio_webp_delivery_mode" class="wrio-webp-options-radio" value="<?php echo WEBP_Delivery::DEFAULT_DELIVERY_MODE ?>"<?php checked( WEBP_Delivery::DEFAULT_DELIVERY_MODE, $data['delivery_mode'] ) ?>>
-						<?php _e( 'No delivery', 'robin-image-optimizer' ) ?>
-                    </label>
-                    <p class="wrio-webp-options-info">
-						<?php _e( ' Plugin will not replace the source JPEG, PNG image on Webp version of the image in
-                        front-end.', 'robin-image-optimizer' ) ?>
-                    </p>
-                </li>
-            </ul>
-        </div>
-    </div>
+					</p>
+				</li>
+				<li>
+					<label for="wrio-webp-options-radio-picture">
+						<input
+						type="radio"
+						id="wrio-webp-options-radio-picture"
+						name="wrio_webp_delivery_mode"
+						class="wrio-webp-options-radio"
+						value="<?php echo esc_attr( WEBP_Delivery::PICTURE_DELIVERY_MODE ); ?>"
+						<?php checked( WEBP_Delivery::PICTURE_DELIVERY_MODE, $data['delivery_mode'] ); ?>
+					>
+						<?php esc_html_e( 'Replace <img> tags with <picture> tags, adding the Webp/AVIF to srcset.', 'robin-image-optimizer' ); ?>
+					</label>
+					<p class="wrio-webp-options-info">
+						<?php
+						echo wp_kses(
+							sprintf(
+								// translators: %1$s is 'picturefill.js', %2$s and %3$s are opening and closing strong tags.
+								__( 'Each &lt;img&gt; will be replaced with a &lt;picture&gt; tag that will also provide the WebP/AVIF image as a choice for browsers that support it. Also loads the %1$s for browsers that don\'t support the &lt;picture&gt; tag. You don\'t need to activate this if you\'re using the Cache Enabler plugin because your WebP/AVIF images are already handled by this plugin.%2$s Please make a test before using this option%3$s, as if the styles that your theme is using rely on the position of your <img> tag, you might experience display problems. %2$sYou can revert anytime to the previous state by just deactivating the option.%3$s', 'robin-image-optimizer' ),
+								'picturefill.js',
+								'<strong>',
+								'</strong>'
+							),
+							[ 'strong' => [] ]
+						);
+						?>
+					</p>
+				</li>
+				<li>
+					<label for="wrio-webp-options-radio-url">
+						<input
+							type="radio"
+							id="wrio-webp-options-radio-url"
+							name="wrio_webp_delivery_mode"
+							class="wrio-webp-options-radio"
+							value="<?php echo esc_attr( WEBP_Delivery::URL_DELIVERY_MODE ); ?>"
+							<?php checked( WEBP_Delivery::URL_DELIVERY_MODE, $data['delivery_mode'] ); ?>
+						>
+						<?php esc_html_e( 'Replace image URLs', 'robin-image-optimizer' ); ?>
+					</label>
+					<p class="wrio-webp-options-info">
+						<?php echo wp_kses_post( __( '"Image URLs" replaces the image URLs to point to the WebP/AVIF rather than the original. Handles src, srcset, common lazy-load attributes and even inline styles.', 'robin-image-optimizer' ) ); ?>
+					</p>
+				</li>
+			</ul>
+		</div>
+	</div>
 </div>

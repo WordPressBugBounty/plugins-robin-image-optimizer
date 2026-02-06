@@ -12,6 +12,6 @@ use DOMUtilForWebP\PictureTags;
 class Picture_Tags extends PictureTags {
 
 	public function replaceUrl( $url ) {
-		return Delivery::get_webp_url( $url, null );
+		return Delivery::get_converted_url( $url, null );
 	}
 }

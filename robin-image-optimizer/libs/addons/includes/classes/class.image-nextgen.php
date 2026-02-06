@@ -8,8 +8,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Класс для работы с nextgen image
  *
- * @author        Eugene Jokerov <jokerov@gmail.com>
- * @copyright (c) 2018, Webcraftic
  * @version       1.0
  */
 class WRIO_Image_Nextgen {
@@ -67,7 +65,7 @@ class WRIO_Image_Nextgen {
 	/**
 	 * Инициализация картинки из nextgen gallery
 	 *
-	 * @param int $image_id номер картинки в таблице nextgen
+	 * @param int   $image_id номер картинки в таблице nextgen
 	 * @param array $image_data метаданные картинки
 	 */
 	public function __construct( $image_id, $image_data = false ) {
@@ -82,15 +80,15 @@ class WRIO_Image_Nextgen {
 		}
 
 		$this->file           = $this->meta->filename;
-		$this->thumbnail_file = 'thumbs_' . $this->meta->filename;
+		$this->thumbnail_file = 'thumbs-' . $this->meta->filename;
 
 		global $wpdb;
 		$this->gallery_meta = $wpdb->get_row( "SELECT * FROM {$wpdb->prefix}ngg_gallery WHERE gid = " . intval( $this->meta->galleryid ) );
 
 		$this->path           = wp_normalize_path( ABSPATH . trailingslashit( $this->gallery_meta->path ) . $this->meta->filename );
 		$this->thumbnail_path = wp_normalize_path( ABSPATH . trailingslashit( $this->gallery_meta->path ) . 'thumbs/' . $this->thumbnail_file );
-		$this->url            = home_url( trailingslashit( $this->gallery_meta->path ) . $this->meta->filename );
-		$this->thumbnail_url  = home_url( trailingslashit( $this->gallery_meta->path ) . 'thumbs/' . $this->thumbnail_file );
+		$this->url            = site_url( trailingslashit( $this->gallery_meta->path ) . $this->meta->filename );
+		$this->thumbnail_url  = site_url( trailingslashit( $this->gallery_meta->path ) . 'thumbs/' . $this->thumbnail_file );
 	}
 
 	/**
@@ -145,10 +143,12 @@ class WRIO_Image_Nextgen {
 	 * @return RIO_Process_Queue
 	 */
 	public function createOptimizationData() {
-		return new RIO_Process_Queue( [
-			'object_id' => $this->id,
-			'item_type' => 'nextgen',
-		] );
+		return new RIO_Process_Queue(
+			[
+				'object_id' => $this->id,
+				'item_type' => 'nextgen',
+			]
+		);
 	}
 
 	/**
@@ -190,9 +190,9 @@ class WRIO_Image_Nextgen {
 		$results['original_mime_type'] = '';
 		$results['final_mime_type']    = '';
 
-		//$gallery_path   = trailingslashit( $this->gallery_meta->path );
-		//$main_file_path = wp_normalize_path( ABSPATH . $gallery_path . $this->meta->filename );
-		//$main_file_url  = home_url( $gallery_path . $this->meta->filename );
+		// $gallery_path   = trailingslashit( $this->gallery_meta->path );
+		// $main_file_path = wp_normalize_path( ABSPATH . $gallery_path . $this->meta->filename );
+		// $main_file_url  = home_url( $gallery_path . $this->meta->filename );
 
 		$main_file_path = $this->path;
 		$main_file_url  = $this->url;
@@ -219,12 +219,14 @@ class WRIO_Image_Nextgen {
 		}
 		$original_main_size = filesize( $main_file_path ); // оптимизированный размер только главной картинки
 
-		$optimized_img_data = $image_processor->process( [
-			'image_url'  => $main_file_url,
-			'image_path' => $main_file_path,
-			'quality'    => $image_processor->quality( $optimization_level ),
-			'save_exif'  => WRIO_Plugin::app()->getPopulateOption( 'save_exif_data', false ),
-		] );
+		$optimized_img_data = $image_processor->process(
+			[
+				'image_url'  => $main_file_url,
+				'image_path' => $main_file_path,
+				'quality'    => $image_processor->quality( $optimization_level ),
+				'save_exif'  => WRIO_Plugin::app()->getPopulateOption( 'save_exif_data', false ),
+			]
+		);
 
 		if ( is_wp_error( $optimized_img_data ) ) {
 			$results['result_status'] = 'error';
@@ -247,12 +249,14 @@ class WRIO_Image_Nextgen {
 		}
 
 		// оптимизируем thumbnail
-		$optimized_thumbnail_data = $image_processor->process( [
-			'image_url'  => $this->thumbnail_url,
-			'image_path' => $this->thumbnail_path,
-			'quality'    => $image_processor->quality( $optimization_level ),
-			'save_exif'  => WRIO_Plugin::app()->getPopulateOption( 'save_exif_data', false ),
-		] );
+		$optimized_thumbnail_data = $image_processor->process(
+			[
+				'image_url'  => $this->thumbnail_url,
+				'image_path' => $this->thumbnail_path,
+				'quality'    => $image_processor->quality( $optimization_level ),
+				'save_exif'  => WRIO_Plugin::app()->getPopulateOption( 'save_exif_data', false ),
+			]
+		);
 
 		// отложенная оптимизация
 		if ( isset( $optimized_img_data['status'] ) && $optimized_img_data['status'] == 'processing' ) {
@@ -381,9 +385,11 @@ class WRIO_Image_Nextgen {
 			$thumbnails_count   = 0;
 			$original_main_size = filesize( $this->get( 'path' ) );
 			$original_size      = $original_size + $original_main_size;
-			$this->replaceOriginalFile( [
-				'optimized_img_url' => $main_image_url,
-			] );
+			$this->replaceOriginalFile(
+				[
+					'optimized_img_url' => $main_image_url,
+				]
+			);
 			clearstatcache();
 			$optimized_main_size = filesize( $this->get( 'path' ) );
 			// при отрицательной оптимизации ставим значение оригинала
@@ -393,23 +399,28 @@ class WRIO_Image_Nextgen {
 			$optimized_size = $optimized_size + $optimized_main_size;
 			$thumbnail_file = $this->get( 'thumbnail_path' );
 			$original_size  = $original_size + filesize( $thumbnail_file );
-			$this->replaceOriginalFile( [
-				'optimized_img_url' => $thumbnail_optimized_data['optimized_img_url'],
-			], 'thumbnail' );
+			$this->replaceOriginalFile(
+				[
+					'optimized_img_url' => $thumbnail_optimized_data['optimized_img_url'],
+				],
+				'thumbnail'
+			);
 			clearstatcache();
 			$optimized_size = $optimized_size + filesize( $thumbnail_file );
-			$thumbnails_count ++;
+			++$thumbnails_count;
 			$mime_type = '';
 			if ( function_exists( 'wp_get_image_mime' ) ) {
 				$mime_type = wp_get_image_mime( $this->get( 'path' ) );
 			}
-			$optimization_data->configure( [
-				'final_size'         => $optimized_size,
-				'original_size'      => $original_size,
-				'result_status'      => 'success',
-				'original_mime_type' => $mime_type,
-				'final_mime_type'    => $mime_type,
-			] );
+			$optimization_data->configure(
+				[
+					'final_size'         => $optimized_size,
+					'original_size'      => $original_size,
+					'result_status'      => 'success',
+					'original_mime_type' => $mime_type,
+					'final_mime_type'    => $mime_type,
+				]
+			);
 			$extra_data->set_original_main_size( $original_main_size );
 			// удаляем промежуточные данные
 			$extra_data->set_main_optimized_data( null );
@@ -429,7 +440,7 @@ class WRIO_Image_Nextgen {
 	/**
 	 * Заменяет оригинальный файл на оптимизированный
 	 *
-	 * @param array $optimized_img_data результат оптимизации ввиде массива данных
+	 * @param array  $optimized_img_data результат оптимизации ввиде массива данных
 	 * @param string $image_size Размер(thumbnail, medium ... )
 	 */
 	public function replaceOriginalFile( $optimized_img_data, $image_size = '' ) {
@@ -516,10 +527,13 @@ class WRIO_Image_Nextgen {
 
 		$io_db_table = RIO_Process_Queue::table_name();
 
-		$wpdb->delete( $io_db_table, [
-			'object_id' => $this->id,
-			'item_type' => 'nextgen',
-		] );
+		$wpdb->delete(
+			$io_db_table,
+			[
+				'object_id' => $this->id,
+				'item_type' => 'nextgen',
+			]
+		);
 
 		/**
 		 * Хук срабатывает после восстановления nextgen image
@@ -527,7 +541,6 @@ class WRIO_Image_Nextgen {
 		 * @param RIO_Process_Queue $optimization_data
 		 *
 		 * @since 1.2.0
-		 *
 		 */
 		do_action( 'wbcr/rio/nextgen_image_restored', $this->optimization_data );
 

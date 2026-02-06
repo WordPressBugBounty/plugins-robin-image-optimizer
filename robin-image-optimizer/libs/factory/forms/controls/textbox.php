@@ -17,67 +17,68 @@
 	 * 'data-date-autoclose' => 'true'
 	 * )
 	 *
-	 * @author Alex Kovalev <alex.kovalevv@gmail.com>
-	 * @copyright (c) 2018, Webcraftic Ltd
-	 *
 	 * @package factory-forms
 	 * @since 1.0.0
 	 */
 
 	// Exit if accessed directly
-	if( !defined('ABSPATH') ) {
-		exit;
-	}
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
 
-	if( !class_exists('Wbcr_FactoryForms480_TextboxControl') ) {
+if ( ! class_exists( 'Wbcr_FactoryForms600_TextboxControl' ) ) {
 
-		class Wbcr_FactoryForms480_TextboxControl extends Wbcr_FactoryForms480_Control {
+	class Wbcr_FactoryForms600_TextboxControl extends Wbcr_FactoryForms600_Control {
 
-			public $type = 'textbox';
+		public $type = 'textbox';
 
-			/**
-			 * Preparing html attributes before rendering html of the control.
-			 *
-			 * @since 1.0.0
-			 * @return void
-			 */
-			protected function beforeHtml()
-			{
-				$value = esc_attr($this->getValue());
-				$name_on_form = $this->getNameOnForm();
+		/**
+		 * Preparing html attributes before rendering html of the control.
+		 *
+		 * @since 1.0.0
+		 * @return void
+		 */
+		protected function beforeHtml() {
+			$value        = esc_attr( $this->getValue() );
+			$name_on_form = $this->getNameOnForm();
 
-				if( $this->getOption('maxLength', false) ) {
-					$this->addHtmlAttr('maxlength', intval($this->getOption('maxLength')));
-				}
-
-				if( $this->getOption('placeholder', false) ) {
-					$this->addHtmlAttr('placeholder', $this->getOption('placeholder'));
-				}
-
-				$this->addCssClass('form-control');
-				$this->addHtmlAttr('type', 'text');
-				$this->addHtmlAttr('id', $name_on_form);
-				$this->addHtmlAttr('name', $name_on_form);
-				$this->addHtmlAttr('value', $value);
+			if ( $this->getOption( 'maxLength', false ) ) {
+				$this->addHtmlAttr( 'maxlength', intval( $this->getOption( 'maxLength' ) ) );
 			}
 
-			/**
-			 * Shows the html markup of the control.
-			 *
-			 * @since 1.0.0
-			 * @return void
-			 */
-			public function html()
-			{
-				$units = $this->getOption('units', false);
-				?>
-				<?php if( $units ) { ?><div class="input-group"><?php } ?>
-				<input <?php $this->attrs() ?>/>
-				<?php if( $units ) { ?>
-				<span class="input-group-addon"><?php echo esc_html($units); ?></span>
-			<?php } ?>
-				<?php if( $units ) { ?></div><?php } ?>
+			if ( $this->getOption( 'placeholder', false ) ) {
+				$this->addHtmlAttr( 'placeholder', $this->getOption( 'placeholder' ) );
+			}
+
+			$this->addCssClass( 'form-control' );
+			$this->addHtmlAttr( 'type', 'text' );
+			$this->addHtmlAttr( 'id', $name_on_form );
+			$this->addHtmlAttr( 'name', $name_on_form );
+			$this->addHtmlAttr( 'value', $value );
+		}
+
+		/**
+		 * Shows the html markup of the control.
+		 *
+		 * @since 1.0.0
+		 * @return void
+		 */
+		public function html() {
+			$units = $this->getOption( 'units', false );
+			?>
 			<?php
-			}
+			if ( $units ) {
+				?>
+				<div class="input-group"><?php } ?>
+				<input <?php $this->attrs(); ?>/>
+				<?php if ( $units ) { ?>
+				<span class="input-group-addon"><?php echo esc_html( $units ); ?></span>
+			<?php } ?>
+				<?php
+				if ( $units ) {
+					?>
+					</div><?php } ?>
+			<?php
 		}
 	}
+}

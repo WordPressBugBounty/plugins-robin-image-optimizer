@@ -8,11 +8,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Класс отвечает за работу страницы логов.
  *
- * @author        Artem Prihodko <webtemyk@yandex.ru>
- * @copyright (c) 2020, Webcraftic
  * @version       1.0
  */
-class Wbcr_FactoryLogger149_AdminPage extends Wbcr_FactoryPages480_AdminPage {
+class Wbcr_FactoryLogger359_AdminPage extends Wbcr_FactoryPages600_AdminPage {
 
 	/**
 	 * {@inheritdoc}
@@ -30,16 +28,16 @@ class Wbcr_FactoryLogger149_AdminPage extends Wbcr_FactoryPages480_AdminPage {
 	public $type = 'page';
 
 	/**
-	 * @param Wbcr_Factory480_Plugin $plugin
+	 * @param Wbcr_Factory600_Plugin $plugin
 	 */
 	public function __construct( $plugin ) {
-		$this->id = $plugin->getPrefix() . "logger";
+		$this->id = $plugin->getPrefix() . 'logger';
 
-		$this->menu_title  = __( 'Plugin Log', 'wbcr_factory_logger_149' );
-		$this->page_title  = __( 'Plugin log', 'wbcr_factory_logger_149' );
-		$this->capabilitiy = "manage_options";
+		$this->menu_title  = __( 'Plugin Log', 'robin-image-optimizer' );
+		$this->page_title  = __( 'Plugin log', 'robin-image-optimizer' );
+		$this->capabilitiy = 'manage_options';
 
-		add_action( 'wp_ajax_wbcr_factory_logger_149_'.$plugin->getPrefix().'logs_cleanup', [ $this, 'ajax_cleanup' ] );
+		add_action( 'wp_ajax_wbcr_factory_logger_359_' . $plugin->getPrefix() . 'logs_cleanup', [ $this, 'ajax_cleanup' ] );
 
 		parent::__construct( $plugin );
 	}
@@ -53,19 +51,23 @@ class Wbcr_FactoryLogger149_AdminPage extends Wbcr_FactoryPages480_AdminPage {
 	public function assets( $scripts, $styles ) {
 		parent::assets( $scripts, $styles );
 
-		$this->styles->add( FACTORY_LOGGER_149_URL . '/assets/css/logger.css' );
-		$this->scripts->add( FACTORY_LOGGER_149_URL . '/assets/js/logger.js', [ 'jquery' ], 'wbcr_factory_logger_149', FACTORY_LOGGER_149_VERSION );
-		wp_localize_script( 'wbcr_factory_logger_149', 'wbcr_factory_logger_149', [
-			'clean_logs_nonce' => wp_create_nonce( 'wbcr_factory_logger_149_clean_logs' ),
-			'plugin_prefix' => $this->plugin->getPrefix(),
-		] );
+		$this->styles->add( FACTORY_LOGGER_359_URL . '/assets/css/logger.css' );
+		$this->scripts->add( FACTORY_LOGGER_359_URL . '/assets/js/logger.js', [ 'jquery' ], 'wbcr_factory_logger_359', FACTORY_LOGGER_359_VERSION );
+		wp_localize_script(
+			'wbcr_factory_logger_359',
+			'wbcr_factory_logger_359',
+			[
+				'clean_logs_nonce' => wp_create_nonce( 'wbcr_factory_logger_359_clean_logs' ),
+				'plugin_prefix'    => $this->plugin->getPrefix(),
+			]
+		);
 	}
 
 	/**
 	 * {@inheritdoc}
 	 */
 	public function getMenuTitle() {
-		return __( 'Plugin Log', 'wbcr_factory_logger_149' );
+		return __( 'Plugin Log', 'robin-image-optimizer' );
 	}
 
 	/**
@@ -82,63 +84,76 @@ class Wbcr_FactoryLogger149_AdminPage extends Wbcr_FactoryPages480_AdminPage {
 		$buttons = "
             <div class='wbcr_factory_logger_buttons'>
                 <a href='" . wp_nonce_url( $this->getActionUrl( 'export' ), 'export-' . $this->plugin->getPluginName() ) . "'
-                   class='button button-primary'>" . __( 'Export Debug Information', 'wbcr_factory_logger_149' ) . "</a>
+                   class='button button-primary'>" . __( 'Export Debug Information', 'robin-image-optimizer' ) . "</a>
                 <a href='#'
                    class='button button-secondary'
-                   onclick='wbcr_factory_logger_149_LogCleanup(this);return false;'
-                   data-working='" . __( 'Working...', 'wbcr_factory_logger_149' ) . "'>" .
-		           sprintf( __( 'Clean-up Logs (<span id="wbcr-log-size">%s</span>)', 'wbcr_factory_logger_149' ), $this->get_log_size_formatted() ) . "
-                   </a>
-            </div>";
+                   onclick='wbcr_factory_logger_359_LogCleanup(this);return false;'
+                   data-working='" . __( 'Working...', 'robin-image-optimizer' ) . "'>" .
+					sprintf(
+						'%1$s %2$s',
+						__( 'Clear Logs', 'robin-image-optimizer' ),
+						'(<span id="wbcr-log-size">' . $this->get_log_size_formatted() . '</span>)'
+					) .
+				'</a>
+            </div>';
 
 		?>
-        <div class="wbcr_factory_logger_container">
-            <div class="wbcr_factory_logger_page_title">
-                <h1><?php _e( 'Logs of the', 'wbcr_factory_logger_149' ) ?>
-                    &nbsp;<?php echo $this->plugin->getPluginTitle() . " " . $this->plugin->getPluginVersion(); ?></h1>
-                <p>
-					<?php _e( 'In this section, you can track how the plugin works. Sending this log to the developer will help you resolve possible issues.', 'wbcr_factory_logger_149' ) ?>
-                </p>
-            </div>
+		<div class="wbcr_factory_logger_container">
+			<div class="wbcr_factory_logger_page_title">
+				<h1>
+					<?php
+					// translators: %s is the plugin title and version.
+					echo esc_html( sprintf( __( 'Logs of the %s', 'robin-image-optimizer' ), $this->plugin->getPluginTitle() . ' ' . $this->plugin->getPluginVersion() ) );
+					?>
+				</h1>
+				<p>
+					<?php _e( 'Track plugin activity here. Share this log with support to troubleshoot issues.', 'robin-image-optimizer' ); ?>
+				</p>
+			</div>
 			<?php echo $buttons; ?>
-            <div class="wbcr-log-viewer" id="wbcr-log-viewer">
-				<?php echo $this->plugin->logger->prettify() ?>
-            </div>
-			<?php echo $buttons; ?>
-        </div>
+			<div class="wbcr-log-viewer" id="wbcr-log-viewer">
+				<?php echo $this->plugin->logger->prettify(); ?>
+			</div>
+		</div>
 		<?php
 	}
 
 	public function ajax_cleanup() {
-		check_admin_referer( 'wbcr_factory_logger_149_clean_logs', 'nonce' );
+		check_admin_referer( 'wbcr_factory_logger_359_clean_logs', 'nonce' );
 
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_die( - 1 );
 		}
 
 		if ( ! $this->plugin->logger->clean_up() ) {
-			wp_send_json_error( [
-				'message' => esc_html__( 'Failed to clean-up logs. Please try again later.', 'wbcr_factory_logger_149' ),
-				'type'    => 'danger',
-			] );
+			wp_send_json_error(
+				[
+					'message' => esc_html__( 'Failed to clear logs. Please try again later.', 'robin-image-optimizer' ),
+					'type'    => 'danger',
+				]
+			);
 		}
 
-		wp_send_json( [
-			'message' => esc_html__( 'Logs clean-up successfully', 'wbcr_factory_logger_149' ),
-			'type'    => 'success',
-		] );
+		wp_send_json(
+			[
+				'message' => esc_html__( 'Logs cleared successfully.', 'robin-image-optimizer' ),
+				'type'    => 'success',
+			]
+		);
 	}
 
 	/**
 	 * Processing log export action in form of ZIP archive.
 	 */
 	public function exportAction() {
-        if( !(isset( $_GET[ '_wpnonce' ] ) && wp_verify_nonce( $_GET[ '_wpnonce' ], 'export-' . $this->plugin->getPluginName() ))
-            || !$this->plugin->currentUserCan() ) {
-	        wp_die(__('You do not have sufficient permissions to perform this action!', 'wbcr_factory_logger_149'));
-        }
+		if (
+			! ( isset( $_GET['_wpnonce'] ) && wp_verify_nonce( $_GET['_wpnonce'], 'export-' . $this->plugin->getPluginName() ) )
+			|| ! $this->plugin->current_user_can()
+		) {
+			wp_die( esc_html__( 'You do not have sufficient permissions to perform this action!', 'robin-image-optimizer' ) );
+		}
 
-		$export = new WBCR\Factory_Logger_149\Log_Export( $this->plugin->logger );
+		$export = new WBCR\Factory_Logger_359\Log_Export( $this->plugin->logger );
 
 		if ( $export->prepare() ) {
 			$export->download( true );

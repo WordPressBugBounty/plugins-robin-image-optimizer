@@ -2,117 +2,114 @@
 	/**
 	 * The file contains the class of Tab Control Holder.
 	 *
-	 * @author Alex Kovalev <alex.kovalevv@gmail.com>
-	 * @copyright (c) 2018, Webcraftic Ltd
-	 *
 	 * @package factory-forms
 	 * @since 1.0.0
 	 */
 
 	// Exit if accessed directly
-	if( !defined('ABSPATH') ) {
-		exit;
-	}
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
 
-	if( !class_exists('Wbcr_FactoryForms480_TabHolder') ) {
+if ( ! class_exists( 'Wbcr_FactoryForms600_TabHolder' ) ) {
+
+	/**
+	 * Tab Control Holder
+	 *
+	 * @since 1.0.0
+	 */
+	class Wbcr_FactoryForms600_TabHolder extends Wbcr_FactoryForms600_Holder {
 
 		/**
-		 * Tab Control Holder
+		 * A holder type.
 		 *
 		 * @since 1.0.0
+		 * @var string
 		 */
-		class Wbcr_FactoryForms480_TabHolder extends Wbcr_FactoryForms480_Holder {
+		public $type = 'tab';
 
-			/**
-			 * A holder type.
-			 *
-			 * @since 1.0.0
-			 * @var string
-			 */
-			public $type = 'tab';
+		/**
+		 * An align of a tab (horizontal or vertical).
+		 *
+		 * @since 1.0.0
+		 * @var string
+		 */
+		public $align = 'horizontal';
 
-			/**
-			 * An align of a tab (horizontal or vertical).
-			 *
-			 * @since 1.0.0
-			 * @var string
-			 */
-			public $align = 'horizontal';
+		/**
+		 * Creates a new instance of control holder.
+		 *
+		 * @since 1.0.0
+		 * @param mixed[]              $options A holder options.
+		 * @param FactoryForms600_Form $form A parent form.
+		 */
+		public function __construct( $options, $form ) {
+			parent::__construct( $options, $form );
+			$this->align = isset( $options['align'] )
+				? $options['align']
+				: 'horizontal';
+		}
 
-			/**
-			 * Creates a new instance of control holder.
-			 *
-			 * @since 1.0.0
-			 * @param mixed[] $options A holder options.
-			 * @param FactoryForms480_Form $form A parent form.
-			 */
-			public function __construct($options, $form)
-			{
-				parent::__construct($options, $form);
-				$this->align = isset($options['align'])
-					? $options['align']
-					: 'horizontal';
+		/**
+		 * Here we should render a beginning html of the tab.
+		 *
+		 * @since 1.0.0
+		 * @return void
+		 */
+		public function beforeRendering() {
+
+			$is_first_tab = true;
+			$tab_class    = $this->getOption( 'class' );
+
+			if ( ! empty( $tab_class ) ) {
+				$this->addCssClass( $tab_class );
 			}
 
-			/**
-			 * Here we should render a beginning html of the tab.
-			 *
-			 * @since 1.0.0
-			 * @return void
-			 */
-			public function beforeRendering()
-			{
+			$this->addCssClass( 'factory-align-' . $this->align );
 
-				$is_first_tab = true;
-				$tab_class = $this->getOption('class');
-
-				if( !empty($tab_class) ) {
-					$this->addCssClass($tab_class);
-				}
-
-				$this->addCssClass('factory-align-' . $this->align);
-
-				?>
-				<div <?php $this->attrs() ?>>
+			?>
+				<div <?php $this->attrs(); ?>>
 				<div class="factory-headers">
 					<ul class="nav nav-tabs">
-						<?php foreach($this->elements as $element) {
-							if( $element->options['type'] !== 'tab-item' ) {
-								continue;
-							}
+					<?php
+					foreach ( $this->elements as $element ) {
+						if ( $element->options['type'] !== 'tab-item' ) {
+							continue;
+						}
 
-							$tab_icon = '';
-							$has_icon = isset($element->options['icon']);
+						$tab_icon = '';
+						$has_icon = isset( $element->options['icon'] );
 
-							if( $has_icon ) {
-								$tab_icon = $element->options['icon'];
-							}
+						if ( $has_icon ) {
+							$tab_icon = $element->options['icon'];
+						}
 
-							$builder = new Wbcr_FactoryForms480_HtmlAttributeBuilder();
+						$builder = new Wbcr_FactoryForms600_HtmlAttributeBuilder();
 
-							$builder->addCssClass('factory-tab-item-header');
-							$builder->addCssClass('factory-tab-item-header-' . $element->getName());
+						$builder->addCssClass( 'factory-tab-item-header' );
+						$builder->addCssClass( 'factory-tab-item-header-' . $element->getName() );
 
-							if( $has_icon ) {
-								$builder->addCssClass('factory-tab-item-header-with-icon');
-							}
-							if( $is_first_tab ) {
-								$builder->addCssClass('active');
-							}
+						if ( $has_icon ) {
+							$builder->addCssClass( 'factory-tab-item-header-with-icon' );
+						}
+						if ( $is_first_tab ) {
+							$builder->addCssClass( 'active' );
+						}
 
-							$builder->addHtmlData('tab-id', $element->getName());
-							$is_first_tab = false;
+						$builder->addHtmlData( 'tab-id', $element->getName() );
+						$is_first_tab = false;
 
-							if( $has_icon ) { ?>
+						if ( $has_icon ) {
+							?>
 								<style>
-									.factory-form-tab-item-header-<?php $element->name() ?> a {
-										background-image: url("<?php echo $tab_icon ?>");
+									.factory-form-tab-item-header-<?php $element->name(); ?> a {
+										background-image: url("<?php echo $tab_icon; ?>");
 									}
 								</style>
 							<?php } ?>
-							<li <?php $builder->printAttrs() ?>>
-								<a href="#<?php $element->name() ?>" data-toggle="tab">
-									<?php $element->title() ?>
+							<li <?php $builder->printAttrs(); ?>>
+								<a href="#<?php $element->name(); ?>" data-toggle="tab">
+								<?php $element->title(); ?>
 								</a>
 							</li>
 						<?php } ?>
@@ -120,20 +117,19 @@
 				</div>
 				<div class='tab-content factory-bodies'>
 			<?php
-			}
+		}
 
-			/**
-			 * Here we should render an end html of the tab.
-			 *
-			 * @since 1.0.0
-			 * @return void
-			 */
-			public function afterRendering()
-			{
-				?>
+		/**
+		 * Here we should render an end html of the tab.
+		 *
+		 * @since 1.0.0
+		 * @return void
+		 */
+		public function afterRendering() {
+			?>
 				</div>
 				</div>
 			<?php
-			}
 		}
 	}
+}

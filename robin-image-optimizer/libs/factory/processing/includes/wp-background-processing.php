@@ -1,6 +1,6 @@
 <?php
 
-use WBCR\Factory_Processing_113;
+use WBCR\Factory_Processing_759;
 
 /**
  * WP-Background Processing
@@ -12,9 +12,8 @@ use WBCR\Factory_Processing_113;
 Plugin Name: WP Background Processing
 Plugin URI: https://github.com/A5hleyRich/wp-background-processing
 Description: Asynchronous requests and background processing in WordPress.
-Author: Delicious Brains Inc.
 Version: 1.0
-Author URI: https://deliciousbrains.com/
+Text Domain: robin-image-optimizer
 GitHub Plugin URI: https://github.com/A5hleyRich/wp-background-processing
 GitHub Branch: master
 */

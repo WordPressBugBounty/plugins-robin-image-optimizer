@@ -2,8 +2,6 @@
 /**
  * Ajax действие, которое выполняется для смены текущего multisite блога
  *
- * @author Webcraftic <wordpress.webraftic@gmail.com>
- * @copyright (c) 2018 Webraftic Ltd
  * @version 1.0
  */
 
@@ -12,7 +10,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-/*add_action( 'wp_ajax_wbcr_rio_update_current_blog', function () {
+/*
+add_action( 'wp_ajax_wbcr_rio_update_current_blog', function () {
 	check_ajax_referer( 'update_blog_id', 'wpnonce' );
 	$blog_id = (int) WRIO_Plugin::app()->request->post( 'current_blog_id' );
 	$context = sanitize_text_field( WRIO_Plugin::app()->request->post( 'context' ) );

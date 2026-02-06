@@ -1,77 +1,75 @@
 <?php
 
-namespace WBCR\Factory_Freemius_170\Updates;
+namespace WBCR\Factory_Freemius_Rio_600\Updates;
 
 // Exit if accessed directly
 use Exception;
-use Wbcr_Factory480_Plugin;
-use WBCR\Factory_480\Updates\Repository;
+use Wbcr_Factory600_Plugin;
+use WBCR\Factory_600\Updates\Repository;
 
-if( !defined('ABSPATH') ) {
+if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
 /**
- * @author Webcraftic <wordpress.webraftic@gmail.com>, Alex Kovalev <alex.kovalevv@gmail.com>
- * @link https://webcraftic.com
- * @copyright (c) 2018 Webraftic Ltd
  * @version 1.0
  */
 class Freemius_Repository extends Repository {
 
 	/**
-	 * @var \WBCR\Factory_Freemius_170\Premium\Provider
+	 * @var \WBCR\Factory_Freemius_Rio_600\Premium\Provider
 	 */
 	private $premium;
 
 	/**
 	 * Freemius constructor.
-	 * @param Wbcr_Factory480_Plugin $plugin
+	 *
+	 * @param Wbcr_Factory600_Plugin $plugin
 	 *
 	 * @throws Exception
 	 * @since 4.0.0
-	 *
 	 */
-	public function __construct(Wbcr_Factory480_Plugin $plugin, array $settings = [])
-	{
-		$this->plugin = $plugin;
+	public function __construct( Wbcr_Factory600_Plugin $plugin, array $settings = [] ) {
+		$this->plugin  = $plugin;
 		$this->premium = $this->plugin->premium;
 	}
 
 	/**
 	 * @throws Exception
 	 */
-	public function init()
-	{
-		if( !$this->premium instanceof \WBCR\Factory_Freemius_170\Premium\Provider ) {
-			throw new Exception("This repository type requires Freemius premium provider.");
+	public function init() {
+		if ( ! $this->premium instanceof \WBCR\Factory_Freemius_Rio_600\Premium\Provider ) {
+			throw new Exception( 'This repository type requires Freemius premium provider.' );
 		}
 
-		if( !$this->premium->is_activate() ) {
-			throw new Exception("Only premium plugins can check or receive updates via Freemius repository.");
+		if ( ! $this->premium->is_activate() ) {
+			throw new Exception( 'Only premium plugins can check or receive updates via Freemius repository.' );
 		}
 
 		$this->initialized = true;
 
-		add_filter('http_request_host_is_external', array(
-			$this,
-			'http_request_host_is_external_filter'
-		), 10, 3);
+		add_filter(
+			'http_request_host_is_external',
+			[
+				$this,
+				'http_request_host_is_external_filter',
+			],
+			10,
+			3
+		);
 	}
 
 	/**
 	 * @return bool
 	 */
-	public function need_check_updates()
-	{
+	public function need_check_updates() {
 		return true;
 	}
 
 	/**
 	 * @return bool|mixed
 	 */
-	public function is_support_premium()
-	{
+	public function is_support_premium() {
 		return true;
 	}
 
@@ -79,8 +77,7 @@ class Freemius_Repository extends Repository {
 	 * @return string|null
 	 * @throws Exception
 	 */
-	public function get_download_url()
-	{
+	public function get_download_url() {
 		return $this->premium->get_package_download_url();
 	}
 
@@ -88,17 +85,16 @@ class Freemius_Repository extends Repository {
 	 * @return string|null
 	 * @throws Exception
 	 */
-	public function get_last_version()
-	{
+	public function get_last_version() {
 		try {
 			$last_package = $this->premium->get_downloadable_package_info();
 
-			if( empty($last_package->version) ) {
+			if ( empty( $last_package->version ) ) {
 				return null;
 			}
-		} catch( Exception $e ) {
-			if( defined('FACTORY_UPDATES_DEBUG') && FACTORY_UPDATES_DEBUG ) {
-				throw new Exception($e->getMessage());
+		} catch ( Exception $e ) {
+			if ( defined( 'FACTORY_UPDATES_DEBUG' ) && FACTORY_UPDATES_DEBUG ) {
+				throw new Exception( $e->getMessage() );
 			}
 
 			return null;
@@ -114,17 +110,15 @@ class Freemius_Repository extends Repository {
 	 *
 	 * @link   http://www.emanueletessore.com/wordpress-download-failed-valid-url-provided/
 	 *
-	 * @author Vova Feldman (@svovaf)
 	 * @since  1.0.4
 	 *
-	 * @param bool $allow
+	 * @param bool   $allow
 	 * @param string $host
 	 * @param string $url
 	 *
 	 * @return bool
 	 */
-	function http_request_host_is_external_filter($allow, $host, $url)
-	{
-		return (false !== strpos($host, 'freemius')) ? true : $allow;
+	function http_request_host_is_external_filter( $allow, $host, $url ) {
+		return ( false !== strpos( $host, 'freemius' ) ) ? true : $allow;
 	}
 }

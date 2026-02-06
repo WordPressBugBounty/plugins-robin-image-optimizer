@@ -1,8 +1,5 @@
 /**
- * This code provides tools for downloading, installing external add-ons for the Clearfy plugin
  *
- * @author Alex Kovalev <alex.kovalevv@gmail.com>
- * @copyright (c) 10.09.2017, Webcraftic
  * @version 1.0
  */
 
@@ -20,7 +17,7 @@
 			 * This event is intended for installation, removal, activation, deactivation of external add-ons
 			 */
 
-			$(document).on('click', '.wfactory-480-process-button', function() {
+			$(document).on('click', '.wfactory-600-process-button', function() {
 				var $this = $(this),
 					button_i18n = $(this).data('i18n'),
 					plugin_slug = $(this).data('slug'),
@@ -30,11 +27,11 @@
 					wpnonce = $(this).data('wpnonce');
 
 				var action = ('creativemotion' === storage)
-				             ? 'wfactory-480-creativemotion-install-plugin'
+				             ? 'wfactory-600-creativemotion-install-plugin'
 				             : 'install-plugin';
 
 				if( storage === 'freemius' || ((storage === 'wordpress' || storage === 'creativemotion' || storage === 'internal') && (plugin_action === 'activate' || plugin_action === 'deactivate')) ) {
-					action = 'wfactory-480-intall-component';
+					action = 'wfactory-600-intall-component';
 				} else if( storage === 'wordpress' && plugin_action === 'delete' ) {
 					action = 'delete-plugin';
 				}
@@ -54,11 +51,11 @@
 
 				$this.addClass('disabled').text(button_i18n.loading);
 
-				$.wfactory_480.hooks.run('core/components/pre_update', [$this, data]);
+				$.wfactory_600.hooks.run('core/components/pre_update', [$this, data]);
 
 				self.sendRequest(data, function(response) {
 					if( !response || !response.success ) {
-						$.wfactory_480.hooks.run('core/components/update_error', [
+						$.wfactory_600.hooks.run('core/components/update_error', [
 							$this,
 							data,
 							response
@@ -80,7 +77,7 @@
 								$this.removeClass('button-default').addClass('button-primary');
 							}
 
-							$.wfactory_480.hooks.run('core/components/installed', [
+							$.wfactory_600.hooks.run('core/components/installed', [
 								$this,
 								data,
 								response
@@ -96,7 +93,7 @@
 								$this.removeClass('button-primary').addClass('button-default');
 							}
 
-							$.wfactory_480.hooks.run('core/components/pre_activate', [
+							$.wfactory_600.hooks.run('core/components/pre_activate', [
 								$this,
 								data,
 								response
@@ -124,7 +121,7 @@
 								$this.removeClass('button-default').addClass('button-primary');
 							}
 
-							$.wfactory_480.hooks.run('core/components/deactivated', [
+							$.wfactory_600.hooks.run('core/components/deactivated', [
 								$this,
 								data,
 								response
@@ -134,7 +131,7 @@
 
 							plugin_action = 'install';
 
-							$.wfactory_480.hooks.run('core/components/deleted', [$this, data, response]);
+							$.wfactory_600.hooks.run('core/components/deleted', [$this, data, response]);
 						}
 					} else {
 						if( plugin_action === 'install' ) {
@@ -144,7 +141,7 @@
 
 					$this.text(button_i18n[plugin_action]);
 
-					$.wfactory_480.hooks.run('core/components/updated', [$this, data, response]);
+					$.wfactory_600.hooks.run('core/components/updated', [$this, data, response]);
 				});
 
 				return false;
@@ -169,7 +166,7 @@
 				.addClass('disabled')
 				.text(button_i18n.preparation);
 
-			sendData.action = 'wfactory-480-prepare-component';
+			sendData.action = 'wfactory-600-prepare-component';
 
 			this.sendRequest(sendData, function(response) {
 				componentButton.removeClass('disabled');
@@ -177,7 +174,7 @@
 				if( !response || !response.success ) {
 					componentButton.text(button_i18n['activate']);
 
-					$.wfactory_480.hooks.run('core/components/activation_error', [
+					$.wfactory_600.hooks.run('core/components/activation_error', [
 						componentButton,
 						sendData,
 						response
@@ -187,7 +184,7 @@
 
 				componentButton.removeClass('button-primary').text(button_i18n['deactivate']);
 
-				$.wfactory_480.hooks.run('core/components/activated', [
+				$.wfactory_600.hooks.run('core/components/activated', [
 					componentButton,
 					sendData,
 					response
@@ -210,7 +207,7 @@
 					console.log(xhr.responseText);
 					console.log(thrownError);
 
-					$.wfactory_480.hooks.run('core/components/ajax_error', [
+					$.wfactory_600.hooks.run('core/components/ajax_error', [
 						xhr,
 						ajaxOptions,
 						thrownError

@@ -1,18 +1,15 @@
 <?php
 
-namespace WBCR\Factory_480\Updates;
+namespace WBCR\Factory_600\Updates;
 
 // Exit if accessed directly
-use Wbcr_Factory480_Plugin;
+use Wbcr_Factory600_Plugin;
 
-if( !defined('ABSPATH') ) {
+if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
 /**
- * @author        Alex Kovalev <alex.kovalevv@gmail.com>, repo: https://github.com/alexkovalevv
- * @author        Webcraftic <wordpress.webraftic@gmail.com>, site: https://webcraftic.com
- * @copyright (c) 2018 Webraftic Ltd
  * @version       1.0
  */
 abstract class Repository {
@@ -23,17 +20,17 @@ abstract class Repository {
 	protected $initialized = false;
 
 	/**
-	 * @var Wbcr_Factory480_Plugin
+	 * @var Wbcr_Factory600_Plugin
 	 */
 	protected $plugin;
 
 	/**
 	 * Repository constructor.
 	 *
-	 * @param Wbcr_Factory480_Plugin $plugin
-	 * @param array $settings
+	 * @param Wbcr_Factory600_Plugin $plugin
+	 * @param array                  $settings
 	 */
-	abstract public function __construct(Wbcr_Factory480_Plugin $plugin, array $settings = []);
+	abstract public function __construct( Wbcr_Factory600_Plugin $plugin, array $settings = [] );
 
 	/**
 	 * @return void

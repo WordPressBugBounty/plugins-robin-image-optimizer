@@ -1,14 +1,12 @@
 <?php
 
-namespace WBCR\Factory_480\Entities;
+namespace WBCR\Factory_600\Entities;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
 /*
- * @author        Alex Kovalev <alex.kovalevv@gmail.com>, repo: https://github.com/alexkovalevv
- * @author        Webcraftic <wordpress.webraftic@gmail.com>, site: https://webcraftic.com
  * @since 4.1.1
  */
 

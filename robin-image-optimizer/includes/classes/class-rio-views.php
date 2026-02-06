@@ -2,8 +2,6 @@
 /**
  * Class that handles templates.
  *
- * @author        Webcraftic <wordpress.webraftic@gmail.com>, Alexander Kovalev <alex.kovalevv@gmail.com>
- * @copyright (c) 05.04.2019, Webcraftic
  * @version       1.0
  */
 
@@ -19,7 +17,6 @@ class WRIO_Views {
 	protected static $_instance = [];
 
 	/**
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 * @since  1.3.0
 	 * @var string
 	 */
@@ -28,8 +25,6 @@ class WRIO_Views {
 	/**
 	 * WRIO_Views constructor.
 	 *
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
-	 *
 	 * @param string $plugin_dir
 	 */
 	public function __construct( $plugin_dir ) {
@@ -37,7 +32,6 @@ class WRIO_Views {
 	}
 
 	/**
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 * @since  1.3.6 - add instace id
 	 * @since  1.3.0
 	 *
@@ -58,11 +52,10 @@ class WRIO_Views {
 	/**
 	 * Get a template contents.
 	 *
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 * @since  1.3.0
 	 *
-	 * @param string                          $template   The template name.
-	 * @param mixed                           $data       Some data to pass to the template.
+	 * @param string    $template   The template name.
+	 * @param mixed     $data       Some data to pass to the template.
 	 * @param WRIO_Page $page
 	 *
 	 * @return bool|string       The page contents. False if the template doesn't exist.
@@ -85,13 +78,12 @@ class WRIO_Views {
 	/**
 	 * Print a template.
 	 *
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 * @access public
 	 *
 	 * @since  1.3.0
 	 *
-	 * @param string                          $template   The template name.
-	 * @param mixed                           $data       Some data to pass to the template.
+	 * @param string    $template   The template name.
+	 * @param mixed     $data       Some data to pass to the template.
 	 * @param WRIO_Page $page
 	 */
 	public function print_template( $template, $data = [], WRIO_Page $page = null ) {

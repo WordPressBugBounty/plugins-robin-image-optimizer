@@ -9,12 +9,11 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Updates for altering the table used to store statistics data.
  * Adds new columns and renames existing ones in order to add support for the new social buttons.
  */
-class WIOUpdate010402 extends Wbcr_Factory480_Update {
+class WIOUpdate010402 extends Wbcr_Factory600_Update {
 
 	/**
 	 * {inherit}
 	 *
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 * @since  1.3.9
 	 */
 	public function install() {
@@ -42,7 +41,6 @@ class WIOUpdate010402 extends Wbcr_Factory480_Update {
 	 *
 	 * @return number
 	 * @since  1.3.9
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 */
 	public function get_plugin_version_in_db() {
 		if ( WRIO_Plugin::app()->isNetworkActive() ) {

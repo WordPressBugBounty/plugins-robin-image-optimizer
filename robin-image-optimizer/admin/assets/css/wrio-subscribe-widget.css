@@ -1,0 +1,126 @@
+/**
+ * Subscribe Widget Styles
+ * Matches the onp-container / license-manager styling
+ *
+ * @package Robin_Image_Optimizer
+ */
+
+.wrio-subscribe-widget {
+	border: 0;
+	padding: 0;
+	border-radius: 5px;
+	background: rgb(255, 255, 255);
+	background: linear-gradient(to bottom, rgba(255, 255, 255, 1) 63%, rgba(246, 246, 246, 1) 100%);
+	box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+	box-sizing: border-box;
+	margin-top: 30px;
+}
+
+.wrio-subscribe-widget__header {
+	padding: 20px;
+	padding-bottom: 0;
+	border-top-left-radius: 5px;
+	border-top-right-radius: 5px;
+}
+
+.wrio-subscribe-widget__header h3 {
+	margin: 0;
+	padding: 0;
+	font-size: 16px;
+}
+
+.wrio-subscribe-widget__body {
+	padding: 20px;
+	padding-top: 15px;
+	border-bottom-right-radius: 5px;
+	border-bottom-left-radius: 5px;
+}
+
+.wrio-subscribe-widget__messages {
+	margin-bottom: 15px;
+}
+
+.wrio-subscribe-widget__success {
+	background: #f0fdf4;
+	border: 1px solid #bbf7d0;
+	color: #16a34a;
+	padding: 12px 15px;
+	border-radius: 4px;
+	font-size: 14px;
+	line-height: 170%;
+}
+
+.wrio-subscribe-widget__error {
+	background: #fef2f2;
+	border: 1px solid #fecaca;
+	color: #dc2626;
+	padding: 12px 15px;
+	border-radius: 4px;
+	font-size: 14px;
+	line-height: 170%;
+}
+
+.wrio-subscribe-widget__form {
+	/* Form container */
+}
+
+.wrio-subscribe-widget__form p {
+	margin: 0 0 10px 0;
+	padding: 0;
+	line-height: 170%;
+	font-size: 14px;
+}
+
+.wrio-subscribe-widget__field-wrap {
+	display: flex;
+	flex-direction: row;
+	gap: 10px;
+	margin-bottom: 12px;
+}
+
+.wrio-subscribe-widget__email {
+	flex: 1;
+	font-size: 18px;
+	line-height: 20px;
+	height: 36px;
+	padding: 6px 12px;
+	border: 1px solid #7e8993;
+	border-radius: 4px;
+	color: #000;
+}
+
+.wrio-subscribe-widget__email:focus {
+	border-color: #007cba;
+	box-shadow: 0 0 0 1px #007cba;
+	outline: none;
+}
+
+.wrio-subscribe-widget__button {
+	white-space: nowrap;
+	padding: 7px 14px 6px 14px;
+	text-decoration: none;
+}
+
+.wrio-subscribe-widget .wrio-subscribe-widget__checkbox-label {
+	display: inline-block;
+	gap: 8px;
+	font-size: 13px;
+	color: #333;
+	line-height: 170%;
+	margin-top: 5px;
+	font-weight: normal;
+}
+
+.wrio-subscribe-widget__checkbox-label input[type="checkbox"] {
+	flex-shrink: 0;
+	margin-top: 0;
+}
+
+.wrio-subscribe-widget__checkbox-label a {
+	color: #0073aa;
+	text-decoration: none;
+}
+
+.wrio-subscribe-widget__checkbox-label a:hover {
+	text-decoration: underline;
+}

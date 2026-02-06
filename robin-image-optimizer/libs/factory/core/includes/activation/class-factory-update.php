@@ -2,9 +2,6 @@
 /**
  * The file contains a base class for update items of plugins.
  *
- * @author        Alex Kovalev <alex.kovalevv@gmail.com>, repo: https://github.com/alexkovalevv
- * @author        Webcraftic <wordpress.webraftic@gmail.com>, site: https://webcraftic.com
- *
  * @package       factory-core
  * @since         1.0.0
  */
@@ -20,20 +17,20 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * @since 1.0.0
  */
-abstract class Wbcr_Factory480_Update {
+abstract class Wbcr_Factory600_Update {
 
 	/**
 	 * Current plugin
 	 *
-	 * @var Wbcr_Factory480_Plugin
+	 * @var Wbcr_Factory600_Plugin
 	 */
 	var $plugin;
 
-	public function __construct( Wbcr_Factory480_Plugin $plugin ) {
+	public function __construct( Wbcr_Factory600_Plugin $plugin ) {
 		$this->plugin = $plugin;
 	}
 
 	abstract function install();
 
-	//abstract function rollback();
+	// abstract function rollback();
 }

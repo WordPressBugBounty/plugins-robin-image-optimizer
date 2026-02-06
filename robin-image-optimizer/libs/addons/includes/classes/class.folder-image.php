@@ -8,8 +8,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Класс для работы с custom folder image.
  *
- * @author        Eugene Jokerov <jokerov@gmail.com>
- * @copyright (c) 2018, Webcraftic
  * @version       1.0
  */
 class WRIO_Folder_Image {
@@ -63,8 +61,10 @@ class WRIO_Folder_Image {
 		/**
 		 * @var WRIO_CF_Image_Extra_Data $extra_data
 		 */
-		$extra_data       = $this->optimization_data->get_extra_data();
-		$this->path       = wp_normalize_path( ABSPATH . $extra_data->get_file_path() );
+		$extra_data = $this->optimization_data->get_extra_data();
+		// Use get_home_path() to match how real_path_to_relative() calculates relative paths in class.folder.php
+		$base_path        = is_main_site() ? get_home_path() : wp_upload_dir()['basedir'] . '/';
+		$this->path       = wp_normalize_path( untrailingslashit( $base_path ) . $extra_data->get_file_path() );
 		$this->url        = home_url( wp_normalize_path( $extra_data->get_file_path() ) );
 		$this->folder_uid = $this->optimization_data->get_item_hash_alternative();
 	}
@@ -104,10 +104,12 @@ class WRIO_Folder_Image {
 	 * @return RIO_Process_Queue
 	 */
 	public function createOptimizationData() {
-		return new RIO_Process_Queue( [
-			'id'        => $this->id,
-			'item_type' => 'cf_image',
-		] );
+		return new RIO_Process_Queue(
+			[
+				'id'        => $this->id,
+				'item_type' => 'cf_image',
+			]
+		);
 	}
 
 
@@ -119,10 +121,13 @@ class WRIO_Folder_Image {
 		}
 
 		$table_name = RIO_Process_Queue::table_name();
-		$sql        = $wpdb->prepare( "SELECT * FROM {$table_name} WHERE id = %d AND item_type = %s LIMIT 1;", [
-			$this->id,
-			'cf_image',
-		] );
+		$sql        = $wpdb->prepare(
+			"SELECT * FROM {$table_name} WHERE id = %d AND item_type = %s LIMIT 1;",
+			[
+				$this->id,
+				'cf_image',
+			]
+		);
 
 		$row = $wpdb->get_row( $sql );
 
@@ -199,12 +204,14 @@ class WRIO_Folder_Image {
 		clearstatcache(); // на всякий случай очистим кеш файловой статистики
 		$original_main_size = filesize( $main_file_path ); // оптимизированный размер только главной картинки
 
-		$optimized_img_data = $image_processor->process( [
-			'image_url'  => $main_file_url,
-			'image_path' => $main_file_path,
-			'quality'    => $image_processor->quality( $optimization_level ),
-			'save_exif'  => WRIO_Plugin::app()->getPopulateOption( 'save_exif_data', false ),
-		] );
+		$optimized_img_data = $image_processor->process(
+			[
+				'image_url'  => $main_file_url,
+				'image_path' => $main_file_path,
+				'quality'    => $image_processor->quality( $optimization_level ),
+				'save_exif'  => WRIO_Plugin::app()->getPopulateOption( 'save_exif_data', false ),
+			]
+		);
 
 		if ( is_wp_error( $optimized_img_data ) ) {
 			$results['result_status'] = 'error';
@@ -336,9 +343,11 @@ class WRIO_Folder_Image {
 			$optimized_size     = 0;
 			$original_main_size = filesize( $this->get( 'path' ) );
 			$original_size      = $original_size + $original_main_size;
-			$this->replaceOriginalFile( [
-				'optimized_img_url' => $main_image_url,
-			] );
+			$this->replaceOriginalFile(
+				[
+					'optimized_img_url' => $main_image_url,
+				]
+			);
 			clearstatcache();
 			$optimized_main_size = filesize( $this->get( 'path' ) );
 
@@ -355,13 +364,15 @@ class WRIO_Folder_Image {
 				$mime_type = wp_get_image_mime( $this->get( 'path' ) );
 			}
 
-			$optimization_data->configure( [
-				'final_size'         => $optimized_size,
-				'original_size'      => $original_size,
-				'result_status'      => 'success',
-				'original_mime_type' => $mime_type,
-				'final_mime_type'    => $mime_type,
-			] );
+			$optimization_data->configure(
+				[
+					'final_size'         => $optimized_size,
+					'original_size'      => $original_size,
+					'result_status'      => 'success',
+					'original_mime_type' => $mime_type,
+					'final_mime_type'    => $mime_type,
+				]
+			);
 			$extra_data->set_original_main_size( $original_main_size );
 
 			// удаляем промежуточные данные
@@ -470,7 +481,6 @@ class WRIO_Folder_Image {
 		 * @since 1.2.0
 		 *
 		 * @param RIO_Process_Queue $optimization_data
-		 *
 		 */
 		do_action( 'wbcr/rio/cf_image_restored', $this->optimization_data );
 

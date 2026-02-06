@@ -1,10 +1,7 @@
 <?php
 
 /**
- * Проверяет совместимость с плагинами Webcraftic, с версиями php, с версиями Wordpress
- *
- * @author        Alex Kovalev <alex.kovalevv@gmail.com>, repo: https://github.com/alexkovalevv
- * @author        Webcraftic <wordpress.webraftic@gmail.com>, site: https://webcraftic.com
+ * Проверяет совместимость с плагинами, с версиями php, с версиями WordPress
  *
  * @version       1.0.0
  * @since         4.0.8
@@ -16,9 +13,9 @@ if ( ! class_exists( 'Wbcr_Factory_Compatibility' ) ) {
 		protected $plugin_prefix;
 		protected $plugin_class_prefix;
 		protected $plugin_name;
-		protected $plugin_title = "(no title)";
+		protected $plugin_title         = '(no title)';
 		protected $required_php_version = '5.3';
-		protected $required_wp_version = '4.2.0';
+		protected $required_wp_version  = '4.2.0';
 
 		function __construct( array $plugin_info ) {
 			foreach ( (array) $plugin_info as $property => $value ) {
@@ -29,7 +26,7 @@ if ( ! class_exists( 'Wbcr_Factory_Compatibility' ) ) {
 		}
 
 		/**
-		 * Метод проверяет совместимость плагина с php и wordpress версией
+		 * Метод проверяет совместимость плагина с php и WordPress версией
 		 *
 		 * @return bool
 		 */
@@ -55,7 +52,7 @@ if ( ! class_exists( 'Wbcr_Factory_Compatibility' ) ) {
 		}
 
 		/**
-		 * Метод проверяет совместимость плагина с Wordpress версией сайта
+		 * Метод проверяет совместимость плагина с WordPress версией сайта
 		 *
 		 * @return mixed
 		 */
@@ -72,22 +69,25 @@ if ( ! class_exists( 'Wbcr_Factory_Compatibility' ) ) {
 		 * @return string
 		 */
 		public function getNoticeText() {
-			$notice_text         = $notice_default_text = '';
-			$notice_default_text .= '<b>' . $this->plugin_title . ' ' . __( 'warning', '' ) . ':</b>' . '<br>';
+			$notice_text          = $notice_default_text = '';
+			$notice_default_text .= '<b>' . $this->plugin_title . ' ' . __( 'warning', 'robin-image-optimizer' ) . ':</b>' . '<br>';
 
-			$notice_default_text .= sprintf( __( 'The %s plugin has stopped.', 'wbcr_factory_templates_134' ), $this->plugin_title ) . ' ';
-			$notice_default_text .= __( 'Possible reasons:', '' ) . ' <br>';
+			// translators: %s is the plugin title
+			$notice_default_text .= sprintf( __( 'The %s plugin has stopped.', 'robin-image-optimizer' ), $this->plugin_title ) . ' ';
+			$notice_default_text .= __( 'Possible reasons:', 'robin-image-optimizer' ) . ' <br>';
 
 			$has_one = false;
 
 			if ( ! $this->isPhpCompatibility() ) {
-				$has_one     = true;
-				$notice_text .= '- ' . sprintf( __( 'You need to update the PHP version to %s or higher!', 'wbcr_factory_480' ), $this->required_php_version ) . '<br>';
+				$has_one = true;
+				// translators: %s is the required php version
+				$notice_text .= '- ' . sprintf( __( 'You need to update the PHP version to %s or higher!', 'robin-image-optimizer' ), $this->required_php_version ) . '<br>';
 			}
 
 			if ( ! $this->isWpCompatibility() ) {
-				$has_one     = true;
-				$notice_text .= '- ' . sprintf( __( 'You need to update WordPress to %s or higher!', 'wbcr_factory_480' ), $this->required_wp_version ) . '<br>';
+				$has_one = true;
+				// translators: %s is the required WordPress version
+				$notice_text .= '- ' . sprintf( __( 'You need to update WordPress to %s or higher!', 'robin-image-optimizer' ), $this->required_wp_version ) . '<br>';
 			}
 
 			if ( $has_one ) {
@@ -116,7 +116,7 @@ if ( ! class_exists( 'Wbcr_Factory_Compatibility' ) ) {
 
 			$notice_text = '<p>' . $this->getNoticeText() . '</p>';
 
-			echo '<div class="notice notice-error">' . esc_html(apply_filters( 'wbcr/factory/check_compatibility/notice_text', $notice_text, $this->plugin_name )) . '</div>';
+			echo '<div class="notice notice-error">' . esc_html( apply_filters( 'wbcr/factory/check_compatibility/notice_text', $notice_text, $this->plugin_name ) ) . '</div>';
 		}
 	}
 }

@@ -8,14 +8,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Класс для работы с резервным копированием изображений.
  *
- * @author        Eugene Jokerov <jokerov@gmail.com>
- * @copyright (c) 2018, Webcraftic
  * @version       1.0
  */
 class WIO_Backup {
 
-	CONST BACKUP_DIR_NAME = 'wio_backup';
-	CONST TEMP_DIR_NAME = 'temp';
+	const BACKUP_DIR_NAME = 'wio_backup';
+	const TEMP_DIR_NAME   = 'temp';
 
 	/**
 	 * The single instance of the class.
@@ -37,7 +35,6 @@ class WIO_Backup {
 	private $backup_dir;
 
 	/**
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 * @since  1.3.0
 	 * @var string
 	 */
@@ -51,7 +48,6 @@ class WIO_Backup {
 	}
 
 	/**
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 * @since  1.3.0
 	 *
 	 * @return object|\static object Main instance.
@@ -285,7 +281,6 @@ class WIO_Backup {
 	 * Необходимо для провайдеров, который кешируют изображения по имени файла,
 	 * чтобы сбросить кеш, нужно отдать провайдеру изображение с другим именем.
 	 *
-	 * @author Alex Kovalev <alex.kovalevv@gmail.com>
 	 * @since  1.1.2
 	 *
 	 * @param string $file_path   путь к изображению
@@ -427,6 +422,42 @@ class WIO_Backup {
 	}
 
 	/**
+	 * Get the backup file path for an attachment size if it exists.
+	 *
+	 * @param int    $attachment_id The attachment ID.
+	 * @param string $size          The image size (e.g., 'original', 'thumbnail', 'medium').
+	 *
+	 * @return string|null The backup file path if it exists, null otherwise.
+	 * @since  1.0.0
+	 */
+	public function getAttachmentBackupPath( $attachment_id, $size = 'original' ) {
+		$attachment_meta = wp_get_attachment_metadata( $attachment_id );
+
+		if ( empty( $attachment_meta ) || ! isset( $attachment_meta['file'] ) ) {
+			return null;
+		}
+
+		$backup_dir = $this->getAttachmentBackupDir( $attachment_meta );
+
+		if ( is_wp_error( $backup_dir ) ) {
+			return null;
+		}
+
+		// Get the filename based on size
+		if ( 'original' === $size ) {
+			$filename = wp_basename( $attachment_meta['file'] );
+		} elseif ( isset( $attachment_meta['sizes'][ $size ]['file'] ) ) {
+			$filename = $attachment_meta['sizes'][ $size ]['file'];
+		} else {
+			return null;
+		}
+
+		$backup_path = $backup_dir . $filename;
+
+		return file_exists( $backup_path ) ? $backup_path : null;
+	}
+
+	/**
 	 * Удаляем резервные копии аттачмента
 	 *
 	 * @param int $attachment_id   аттачмент id
@@ -481,7 +512,6 @@ class WIO_Backup {
 	}
 
 	/**
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 * @since  1.3.0
 	 *
 	 * @param string $dir
@@ -494,14 +524,13 @@ class WIO_Backup {
 		if ( ! wp_mkdir_p( $dir ) ) {
 			WRIO_Plugin::app()->logger->error( sprintf( 'Unable to create backup directory (%s) as mkdir() failed', $dir ) );
 
-			return new WP_Error( 'mkdir_failed', sprintf( "Unable to create backup folder (%s) as mkdir() failed.", $dir ) );
+			return new WP_Error( 'mkdir_failed', sprintf( 'Unable to create backup folder (%s) as mkdir() failed.', $dir ) );
 		}
 
 		return $dir;
 	}
 
 	/**
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 * @since  1.3.0
 	 *
 	 * @param string $backup_file

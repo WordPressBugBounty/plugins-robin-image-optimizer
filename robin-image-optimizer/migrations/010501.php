@@ -14,7 +14,6 @@ class WIOUpdate010501 extends Wbcr_Factory480_Update {
 	/**
 	 * {inherit}
 	 *
-	 * @author Alexander Kovalev <alex.kovalevv@gmail.com>
 	 * @since  1.3.9
 	 */
 	public function install() {
