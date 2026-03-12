@@ -42,10 +42,15 @@ class WRIO_Media_Processing extends WRIO_Processing {
 	protected function task( $image ) {
 		if ( $image ) {
 			WRIO_Plugin::app()->logger->info( sprintf( 'Start optimize attachment: %s', $image ) );
+			$media_library = WRIO_Media_Library::get_instance();
 
-			if ( $this->scope === 'media-library' ) {
-				$media_library = WRIO_Media_Library::get_instance();
-				$result        = $media_library->optimizeAttachment( $image );
+			try {
+				if ( 'media-library' === $this->scope ) {
+					$media_library->optimizeAttachment( $image );
+				}
+			} catch ( Throwable $throwable ) {
+				$wio_attachment = $media_library->getAttachment( $image );
+				$wio_attachment->mark_and_log_failure( $throwable, 'background-processing' );
 			}
 
 			WRIO_Plugin::app()->logger->info( sprintf( 'End optimize attachment: %s', $image ) );

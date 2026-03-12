@@ -318,13 +318,27 @@ class WRIO_Image_Statistic {
 			$format = 'webp';
 		}
 
+		// Count only attachments that finished base optimization successfully and
+		// still do not have a queue record for the requested conversion format.
 		$sql = $wpdb->prepare(
 			"SELECT DISTINCT count(posts.ID)
 			FROM {$wpdb->posts} AS posts
 			WHERE  posts.post_type = 'attachment'
 				AND posts.post_status = 'inherit'
 				AND posts.post_mime_type IN ( {$allowed_formats_sql} )
-				AND posts.ID NOT IN(SELECT object_id FROM {$db_table} AS rio WHERE rio.item_type = %s GROUP BY object_id)",
+				AND posts.ID IN(
+					SELECT object_id
+					FROM {$db_table} AS rio
+					WHERE rio.item_type = 'attachment'
+						AND rio.result_status = 'success'
+					GROUP BY object_id
+				)
+				AND posts.ID NOT IN(
+					SELECT object_id
+					FROM {$db_table} AS rio
+					WHERE rio.item_type = %s
+					GROUP BY object_id
+				)",
 			$format
 		);
 
@@ -352,13 +366,27 @@ class WRIO_Image_Statistic {
 			$format = 'webp';
 		}
 
+		// Select only attachments that finished base optimization successfully and
+		// still do not have a queue record for the requested conversion format.
 		$sql = $wpdb->prepare(
 			"SELECT DISTINCT posts.ID
 			FROM {$wpdb->posts} AS posts
 			WHERE  posts.post_type = 'attachment'
 				AND posts.post_status = 'inherit'
 				AND posts.post_mime_type IN ( {$allowed_formats_sql} )
-				AND posts.ID NOT IN(SELECT object_id FROM {$db_table} AS rio WHERE rio.item_type = %s GROUP BY object_id)",
+				AND posts.ID IN(
+					SELECT object_id
+					FROM {$db_table} AS rio
+					WHERE rio.item_type = 'attachment'
+						AND rio.result_status = 'success'
+					GROUP BY object_id
+				)
+				AND posts.ID NOT IN(
+					SELECT object_id
+					FROM {$db_table} AS rio
+					WHERE rio.item_type = %s
+					GROUP BY object_id
+				)",
 			$format
 		);
 

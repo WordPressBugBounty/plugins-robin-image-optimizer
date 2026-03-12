@@ -269,200 +269,270 @@ class WIO_Attachment {
 		];
 		$results['processing_level'] = $optimization_level;
 
-		// The path may be empty because no metadata has been created for the image.
-		// We should try to create image metadata again.
-		if ( ! $this->isset_attachment_meta() ) {
-			WRIO_Plugin::app()->logger->warning( sprintf( 'Attachment #%d doesn\'t have metadata.', $this->id ) );
+		try {
+			// The path may be empty because no metadata has been created for the image.
+			// We should try to create image metadata again.
+			if ( ! $this->isset_attachment_meta() ) {
+				WRIO_Plugin::app()->logger->warning( sprintf( 'Attachment #%d doesn\'t have metadata.', $this->id ) );
 
-			$this->regenerate_metadata();
-		}
+				$this->regenerate_metadata();
+			}
 
-		if ( empty( $this->path ) || ! file_exists( $this->path ) ) {
-			$results['result_status'] = 'error';
+			if ( empty( $this->path ) || ! file_exists( $this->path ) ) {
+				$results['result_status'] = 'error';
 
-			$error_message = __( 'Attachment cannot be optimized.', 'robin-image-optimizer' );
+				$error_message = __( 'Attachment cannot be optimized.', 'robin-image-optimizer' );
 
-			if ( empty( $this->path ) ) {
-				// translators: %d is the attachment ID
-				$error_message .= ' ' . sprintf( __( 'Attachment #%d doesn\'t have metadata, the image may be damaged.', 'robin-image-optimizer' ), $this->id );
+				if ( empty( $this->path ) ) {
+					// translators: %d is the attachment ID
+					$error_message .= ' ' . sprintf( __( 'Attachment #%d doesn\'t have metadata, the image may be damaged.', 'robin-image-optimizer' ), $this->id );
+				} else {
+					// translators: %s is the file path
+					$error_message .= ' ' . sprintf( __( 'File "(%s)" doesn\'t exist', 'robin-image-optimizer' ), $this->path );
+				}
+
+				$extra_data = [
+					'error'     => 'path',
+					'error_msg' => $error_message,
+				];
+
+				$results['extra_data'] = new RIO_Attachment_Extra_Data( $extra_data );
+				$optimization_data->configure( $results );
+				$optimization_data->save();
+
+				WRIO_Plugin::app()->logger->error( sprintf( 'Failed to find original attachment #%s located in %s. Skipping optimization. This may be caused due to bug in %s function, which returns false for attachment meta', $this->id, empty( $this->path ) ? '*empty path*' : $this->path, 'wp_get_attachment_metadata()' ) );
+
+				return $optimize_results;
+			}
+
+			// сначала бекапим
+			$is_image_backuped = $this->backup();
+
+			if ( is_wp_error( $is_image_backuped ) ) {
+				$error_msg = $is_image_backuped->get_error_message();
+				$this->writeLog( $error_msg );
+
+				$results['result_status'] = 'error';
+				$extra_data               = [
+					'error'     => 'backup',
+					'error_msg' => 'Failed to backup',
+				];
+				$results['extra_data']    = new RIO_Attachment_Extra_Data( $extra_data );
+				$optimization_data->configure( $results );
+				$optimization_data->save();
+
+				WRIO_Plugin::app()->logger->error( sprintf( 'Failed to make backup of original attachment #%s. Skipping optimization.', $this->id ) );
+
+				return $optimize_results;
+			}
+
+			$results['is_backed_up'] = $is_image_backuped;
+
+			$original_main_size = $this->get_file_size( $this->path );
+
+			// если файл большой - изменяем размер
+			if ( $this->isNeedResize() ) {
+				$this->resize();
+			}
+
+			$image_processor = WIO_OptimizationTools::getImageProcessor();
+
+			clearstatcache(); // на всякий случай очистим кеш файловой статистики
+
+			$optimized_img_data = $image_processor->process(
+				[
+					'image_url'  => $this->get( 'url' ),
+					'image_path' => $this->get( 'path' ),
+					'quality'    => $image_processor->quality( $optimization_level ),
+					'save_exif'  => WRIO_Plugin::app()->getPopulateOption( 'save_exif_data', false ),
+					'is_thumb'   => false,
+				]
+			);
+
+			// проверяем на ошибку
+			if ( is_wp_error( $optimized_img_data ) ) {
+				$error_msg = $optimized_img_data->get_error_message();
+				$this->writeLog( $error_msg );
+
+				$results['result_status'] = 'error';
+
+				$extra_data = [
+					'error'     => 'optimization',
+					'error_msg' => $error_msg,
+				];
+
+				$results['extra_data'] = new RIO_Attachment_Extra_Data( $extra_data );
+
+				$optimization_data->configure( $results );
+				$optimization_data->save();
+
+				WRIO_Plugin::app()->logger->error( sprintf( 'Failed to process (url: %s, path: %s, quality: %s) as error was returned: %s', $this->get( 'url' ), $this->get( 'path' ), $image_processor->quality( $optimization_level ), $error_msg ) );
+
+				return $optimize_results;
+			}
+
+			$results['original_mime_type'] = '';
+			$results['final_mime_type']    = '';
+
+			// отложенная оптимизация
+			if ( isset( $optimized_img_data['status'] ) && 'processing' === $optimized_img_data['status'] ) {
+				$results['result_status'] = 'processing';
+				$results['original_size'] = 0;
+				$results['final_size']    = 0;
+
+				$extra_data = [
+					'original_main_size'        => $original_main_size,
+					'main_optimized_data'       => $optimized_img_data,
+					'thumbnails_optimized_data' => $this->optimizeImageSizes(),
+				];
+
+				$results['extra_data'] = new RIO_Attachment_Extra_Data( $extra_data );
+
+				$optimization_data->configure( $results );
+				$optimization_data->save();
+				$optimize_results['processing'] = 1;
+
+				return $optimize_results;
+			}
+
+			// скачиваем и заменяем главную картинку
+			$image_downloaded = $this->replaceOriginalFile( $optimized_img_data );
+
+			// некоторые провайдеры не отдают оптимизированный размер, поэтому после замены файла получаем его сами
+			if ( ! $optimized_img_data['optimized_size'] ) {
+				clearstatcache();
+				$optimized_img_data['optimized_size'] = $this->get_file_size( $this->get( 'path' ) );
+			}
+
+			// при отрицательной оптимизации ставим значение оригинала
+			if ( $optimized_img_data['optimized_size'] > $original_main_size ) {
+				$optimized_img_data['optimized_size'] = $original_main_size;
+			}
+
+			if ( $image_downloaded ) {
+				// просчитываем статистику
+				$optimize_results['original_size']  += $original_main_size;
+				$optimize_results['optimized_size'] += $optimized_img_data['optimized_size'];
+				$thumbnails_count                    = 0;
+
+				// оптимизируем дополнительные размеры
+				$optimized_img_sizes_data = $this->optimizeImageSizes();
+
+				// добавляем к статистике данные по оптимизации доп размеров
+				if ( ! empty( $optimized_img_sizes_data ) ) {
+					$optimize_results['original_size']  += $optimized_img_sizes_data['original_size'];
+					$optimize_results['optimized_size'] += $optimized_img_sizes_data['optimized_size'];
+					$thumbnails_count                    = $optimized_img_sizes_data['thumbnails_count'];
+				}
+
+				$results['result_status'] = 'success';
+				$results['final_size']    = $optimize_results['optimized_size'];
+				$results['original_size'] = $optimize_results['original_size'];
+
+				$extra_data = [
+					'thumbnails_count'   => $thumbnails_count,
+					'original_main_size' => $original_main_size,
+				];
+
+				$results['extra_data'] = new RIO_Attachment_Extra_Data( $extra_data );
+				$mime_type             = '';
+
+				if ( function_exists( 'wp_get_image_mime' ) ) {
+					$mime_type = wp_get_image_mime( $this->get( 'path' ) );
+				} else {
+					WRIO_Plugin::app()->logger->error( 'App is missing wp_get_image_mime() function, unable to get MIME type' );
+				}
+
+				$results['original_mime_type'] = $mime_type;
+				$results['final_mime_type']    = $mime_type;
+				$optimization_data->configure( $results );
 			} else {
-				// translators: %s is the file path
-				$error_message .= ' ' . sprintf( __( 'File "(%s)" doesn\'t exist', 'robin-image-optimizer' ), $this->path );
+				$error_msg = 'Failed to get optimized image from remote server';
+				$this->writeLog( $error_msg );
+
+				$results['result_status'] = 'error';
+
+				$extra_data = [
+					'error'     => 'download',
+					'error_msg' => $error_msg,
+				];
+
+				$results['extra_data'] = new RIO_Attachment_Extra_Data( $extra_data );
+				$optimization_data->configure( $results );
 			}
 
-			$extra_data = [
-				'error'     => 'path',
-				'error_msg' => $error_message,
-			];
-
-			$results['extra_data'] = new RIO_Attachment_Extra_Data( $extra_data );
-			$optimization_data->configure( $results );
 			$optimization_data->save();
 
-			WRIO_Plugin::app()->logger->error( sprintf( 'Failed to find original attachment #%s located in %s. Skipping optimization. This may be caused due to bug in %s function, which returns false for attachment meta', $this->id, empty( $path ) ? '*empty path*' : $path, 'wp_get_attachment_metadata()' ) );
-
 			return $optimize_results;
+		} catch ( Throwable $throwable ) {
+			$this->mark_and_log_failure( $throwable, 'optimization', $optimization_level );
 		}
-
-		// сначала бекапим
-		$is_image_backuped = $this->backup();
-
-		if ( is_wp_error( $is_image_backuped ) ) {
-			$error_msg = $is_image_backuped->get_error_message();
-			$this->writeLog( $error_msg );
-
-			$results['result_status'] = 'error';
-			$extra_data               = [
-				'error'     => 'backup',
-				'error_msg' => 'Failed to backup',
-			];
-			$results['extra_data']    = new RIO_Attachment_Extra_Data( $extra_data );
-			$optimization_data->configure( $results );
-			$optimization_data->save();
-
-			WRIO_Plugin::app()->logger->error( sprintf( 'Failed to make backup of original attachment #%s. Skipping optimization.', $this->id ) );
-
-			return $optimize_results;
-		}
-
-		$results['is_backed_up'] = $is_image_backuped;
-
-		$original_main_size = $this->get_file_size( $this->path );
-
-		// если файл большой - изменяем размер
-		if ( $this->isNeedResize() ) {
-			$this->resize();
-		}
-
-		$image_processor = WIO_OptimizationTools::getImageProcessor();
-
-		clearstatcache(); // на всякий случай очистим кеш файловой статистики
-
-		$optimized_img_data = $image_processor->process(
-			[
-				'image_url'  => $this->get( 'url' ),
-				'image_path' => $this->get( 'path' ),
-				'quality'    => $image_processor->quality( $optimization_level ),
-				'save_exif'  => WRIO_Plugin::app()->getPopulateOption( 'save_exif_data', false ),
-				'is_thumb'   => false,
-			]
-		);
-
-		// проверяем на ошибку
-		if ( is_wp_error( $optimized_img_data ) ) {
-			$error_msg = $optimized_img_data->get_error_message();
-			$this->writeLog( $error_msg );
-
-			$results['result_status'] = 'error';
-
-			$extra_data = [
-				'error'     => 'optimization',
-				'error_msg' => $error_msg,
-			];
-
-			$results['extra_data'] = new RIO_Attachment_Extra_Data( $extra_data );
-
-			$optimization_data->configure( $results );
-			$optimization_data->save();
-
-			WRIO_Plugin::app()->logger->error( sprintf( 'Failed to process (url: %s, path: %s, quality: %s) as error was returned: %s', $this->get( 'url' ), $this->get( 'path' ), $image_processor->quality( $optimization_level ), $error_msg ) );
-
-			return $optimize_results;
-		}
-
-		$results['original_mime_type'] = '';
-		$results['final_mime_type']    = '';
-
-		// отложенная оптимизация
-		if ( isset( $optimized_img_data['status'] ) && $optimized_img_data['status'] === 'processing' ) {
-			$results['result_status'] = 'processing';
-			$results['original_size'] = 0;
-			$results['final_size']    = 0;
-
-			$extra_data = [
-				'original_main_size'        => $original_main_size,
-				'main_optimized_data'       => $optimized_img_data,
-				'thumbnails_optimized_data' => $this->optimizeImageSizes(),
-			];
-
-			$results['extra_data'] = new RIO_Attachment_Extra_Data( $extra_data );
-
-			$optimization_data->configure( $results );
-			$optimization_data->save();
-			$optimize_results['processing'] = 1;
-
-			return $optimize_results;
-		}
-
-		// скачиваем и заменяем главную картинку
-		$image_downloaded = $this->replaceOriginalFile( $optimized_img_data );
-
-		// некоторые провайдеры не отдают оптимизированный размер, поэтому после замены файла получаем его сами
-		if ( ! $optimized_img_data['optimized_size'] ) {
-			clearstatcache();
-			$optimized_img_data['optimized_size'] = $this->get_file_size( $this->get( 'path' ) );
-		}
-
-		// при отрицательной оптимизации ставим значение оригинала
-		if ( $optimized_img_data['optimized_size'] > $original_main_size ) {
-			$optimized_img_data['optimized_size'] = $original_main_size;
-		}
-
-		if ( $image_downloaded ) {
-			// просчитываем статистику
-			$optimize_results['original_size']  += $original_main_size;
-			$optimize_results['optimized_size'] += $optimized_img_data['optimized_size'];
-			$thumbnails_count                    = 0;
-
-			// оптимизируем дополнительные размеры
-			$optimized_img_sizes_data = $this->optimizeImageSizes();
-
-			// добавляем к статистике данные по оптимизации доп размеров
-			if ( ! empty( $optimized_img_sizes_data ) ) {
-				$optimize_results['original_size']  += $optimized_img_sizes_data['original_size'];
-				$optimize_results['optimized_size'] += $optimized_img_sizes_data['optimized_size'];
-				$thumbnails_count                    = $optimized_img_sizes_data['thumbnails_count'];
-			}
-
-			$results['result_status'] = 'success';
-			$results['final_size']    = $optimize_results['optimized_size'];
-			$results['original_size'] = $optimize_results['original_size'];
-
-			$extra_data = [
-				'thumbnails_count'   => $thumbnails_count,
-				'original_main_size' => $original_main_size,
-			];
-
-			$results['extra_data'] = new RIO_Attachment_Extra_Data( $extra_data );
-			$mime_type             = '';
-
-			if ( function_exists( 'wp_get_image_mime' ) ) {
-				$mime_type = wp_get_image_mime( $this->get( 'path' ) );
-			} else {
-				WRIO_Plugin::app()->logger->error( 'App is missing wp_get_image_mime() function, unable to get MIME type' );
-			}
-
-			$results['original_mime_type'] = $mime_type;
-			$results['final_mime_type']    = $mime_type;
-			$optimization_data->configure( $results );
-		} else {
-			$error_msg = 'Failed to get optimized image from remote server';
-			$this->writeLog( $error_msg );
-
-			$results['result_status'] = 'error';
-
-			$extra_data = [
-				'error'     => 'download',
-				'error_msg' => $error_msg,
-			];
-
-			$results['extra_data'] = new RIO_Attachment_Extra_Data( $extra_data );
-			$optimization_data->configure( $results );
-		}
-
-		$optimization_data->save();
 
 		return $optimize_results;
+	}
+
+	/**
+	 * Log and persist unexpected optimization failures.
+	 *
+	 * @param Throwable  $throwable          Exception or error that was thrown.
+	 * @param string     $context            Processing context.
+	 * @param string|int $processing_level   Current processing level.
+	 *
+	 * @return void
+	 */
+	public function mark_and_log_failure( $throwable, $context = 'optimization', $processing_level = '' ) {
+		$error_message = sprintf(
+			'Unexpected %1$s failure for attachment #%2$d: %3$s in %4$s:%5$d',
+			$context,
+			$this->id,
+			$throwable->getMessage(),
+			$throwable->getFile(),
+			$throwable->getLine()
+		);
+
+		WRIO_Plugin::app()->logger->error( $error_message );
+
+		$optimization_data = $this->getOptimizationData();
+		$optimization_data->mark_as_error(
+			$error_message,
+			[
+				'processing_level'   => $processing_level,
+				'original_size'      => 0,
+				'final_size'         => 0,
+				'original_mime_type' => '',
+				'final_mime_type'    => '',
+			]
+		);
+	}
+
+	/**
+	 * Log and persist unexpected format conversion failures without rewriting attachment optimization state.
+	 *
+	 * @param Throwable $throwable Exception or error that was thrown.
+	 * @param string    $format    Target format.
+	 * @param string    $context   Processing context.
+	 *
+	 * @return void
+	 */
+	public function mark_conversion_failure( $throwable, $format, $context = 'conversion' ) {
+		$error_message = sprintf(
+			'Unexpected %1$s failure for attachment #%2$d (%3$s): %4$s in %5$s:%6$d',
+			$context,
+			$this->id,
+			$format,
+			$throwable->getMessage(),
+			$throwable->getFile(),
+			$throwable->getLine()
+		);
+
+		WRIO_Plugin::app()->logger->error( $error_message );
+
+		$conversion_data = $this->getConversionData( $format );
+		if ( ! $conversion_data->get_id() ) {
+			return;
+		}
+
+		$conversion_data->mark_as_error( $error_message );
 	}
 
 	/**

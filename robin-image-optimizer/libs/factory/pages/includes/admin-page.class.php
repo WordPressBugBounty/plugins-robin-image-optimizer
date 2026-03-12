@@ -299,9 +299,9 @@ if ( ! class_exists( 'Wbcr_FactoryPages600_AdminPage' ) ) {
 		}
 
 		/**
-		 * @param null $id
+		 * @param string|null $id
 		 *
-		 * @return mixed|string
+		 * @return string
 		 */
 		public function getResultId( $id = null ) {
 			$id = ! empty( $id ) ? $id : $this->id;

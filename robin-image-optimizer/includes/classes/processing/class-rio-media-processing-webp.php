@@ -69,10 +69,15 @@ class WRIO_Media_Processing_Webp extends WRIO_Processing {
 	protected function task( $image ) {
 		if ( $image ) {
 			WRIO_Plugin::app()->logger->info( sprintf( 'Start convert attachment #%s to %s', $image, $this->format ) );
+			$media_library = WRIO_Media_Library::get_instance();
 
-			if ( strpos( $this->scope, 'media-library_' ) === 0 ) {
-				$media_library = WRIO_Media_Library::get_instance();
-				$media_library->webpConvertAttachment( $image, $this->format );
+			try {
+				if ( strpos( $this->scope, 'media-library_' ) === 0 ) {
+					$media_library->webpConvertAttachment( $image, $this->format );
+				}
+			} catch ( Throwable $throwable ) {
+				$wio_attachment = $media_library->getAttachment( $image );
+				$wio_attachment->mark_conversion_failure( $throwable, $this->format, sprintf( '%s-conversion-background', $this->format ) );
 			}
 
 			WRIO_Plugin::app()->logger->info( sprintf( 'End convert attachment #%s to %s', $image, $this->format ) );

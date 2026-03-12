@@ -301,14 +301,18 @@ class WRIO_Media_Library {
 			foreach ( $unoptimized_attachments_ids as $attachment_id ) {
 				$wio_attachment = $this->getAttachment( $attachment_id );
 
-				if ( $wio_attachment->isOptimized() ) {
-					$this->restoreAttachment( $attachment_id );
-					$wio_attachment->reload();
+				try {
+					if ( $wio_attachment->isOptimized() ) {
+						$this->restoreAttachment( $attachment_id );
+						$wio_attachment->reload();
+					}
+					$attachment_optimized_data = $wio_attachment->optimize();
+					$original_size             = $original_size + $attachment_optimized_data['original_size'];
+					$optimized_size            = $optimized_size + $attachment_optimized_data['optimized_size'];
+					$optimized_items[]         = $attachment_id;
+				} catch ( Throwable $throwable ) {
+					$wio_attachment->mark_and_log_failure( $throwable, 'batch-processing' );
 				}
-				$attachment_optimized_data = $wio_attachment->optimize();
-				$original_size             = $original_size + $attachment_optimized_data['original_size'];
-				$optimized_size            = $optimized_size + $attachment_optimized_data['optimized_size'];
-				$optimized_items[]         = $attachment_id;
 			}
 		}
 
@@ -372,13 +376,27 @@ class WRIO_Media_Library {
 
 		$optimize_order = WRIO_Plugin::app()->getOption( 'image_optimization_order', 'asc' );
 
+		// Convert only attachments that already have successful base optimization
+		// and do not yet have a queue record for the requested format.
 		$sql = $wpdb->prepare(
 			"SELECT DISTINCT posts.ID
 			FROM {$wpdb->posts} AS posts
 			WHERE  posts.post_type = 'attachment'
 				AND posts.post_status = 'inherit'
 				AND posts.post_mime_type IN ( {$allowed_formats_sql} )
-				AND posts.ID NOT IN(SELECT object_id FROM {$db_table} AS rio WHERE rio.item_type = %s GROUP BY object_id)
+				AND posts.ID IN(
+					SELECT object_id
+					FROM {$db_table} AS rio
+					WHERE rio.item_type = 'attachment'
+						AND rio.result_status = 'success'
+					GROUP BY object_id
+				)
+				AND posts.ID NOT IN(
+					SELECT object_id
+					FROM {$db_table} AS rio
+					WHERE rio.item_type = %s
+					GROUP BY object_id
+				)
 			ORDER BY posts.ID {$optimize_order}
 			LIMIT %d",
 			$format,
@@ -399,16 +417,20 @@ class WRIO_Media_Library {
 			foreach ( $unconverted_attachments_ids as $attachment_id ) {
 				$wio_attachment = $this->getAttachment( $attachment_id );
 
-				/**
-				 * Fires after queue item was saved or updated successfully.
-				 *
-				 * @param RIO_Process_Queue $this
-				 * @param bool              $quota Deduct from the quota?
-				 * @param string|null       $format Format to convert to (webp, avif, or null for default)
-				 */
-				do_action( 'wbcr/riop/queue_item_saved', $wio_attachment->getOptimizationData(), true, $format );
+				try {
+					/**
+					 * Fires after queue item was saved or updated successfully.
+					 *
+					 * @param RIO_Process_Queue $this
+					 * @param bool              $quota Deduct from the quota?
+					 * @param string|null       $format Format to convert to (webp, avif, or null for default)
+					 */
+					do_action( 'wbcr/riop/queue_item_saved', $wio_attachment->getOptimizationData(), true, $format );
 
-				$converted_items[] = $attachment_id;
+					$converted_items[] = $attachment_id;
+				} catch ( Throwable $throwable ) {
+					$wio_attachment->mark_conversion_failure( $throwable, $format, sprintf( '%s-conversion-batch', $format ) );
+				}
 			}
 		}
 
@@ -446,14 +468,18 @@ class WRIO_Media_Library {
 
 		$image_statistics = WRIO_Image_Statistic::get_instance();
 
-		/**
-		 * Fires after queue item was saved or updated successfully.
-		 *
-		 * @param RIO_Process_Queue $this
-		 * @param bool              $quota Deduct from the quota?
-		 * @param string|null       $format Format to convert to (webp, avif, or null for default)
-		 */
-		do_action( 'wbcr/riop/queue_item_saved', $optimization_data, true, $format );
+		try {
+			/**
+			 * Fires after queue item was saved or updated successfully.
+			 *
+			 * @param RIO_Process_Queue $this
+			 * @param bool              $quota Deduct from the quota?
+			 * @param string|null       $format Format to convert to (webp, avif, or null for default)
+			 */
+			do_action( 'wbcr/riop/queue_item_saved', $optimization_data, true, $format );
+		} catch ( Throwable $throwable ) {
+			$wio_attachment->mark_conversion_failure( $throwable, $format, sprintf( '%s-conversion', $format ) );
+		}
 	}
 
 	/**

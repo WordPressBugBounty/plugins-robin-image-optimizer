@@ -208,10 +208,13 @@ class WRIO_Optimization_Orchestrator {
 			$result['last_optimized'] = $image_statistics->get_last_optimized_image( $attachment_id );
 		}
 
+		$remaining   = $this->get_total_remaining();
+		$is_complete = $remaining <= 0;
+
 		return [
 			'action'         => self::ACTION_OPTIMIZE,
-			'remain'         => $result['remain'],
-			'end'            => $result['remain'] <= 0 && $this->is_complete(),
+			'remain'         => $remaining,
+			'end'            => $is_complete,
 			'statistic'      => $result['statistic'],
 			'last_optimized' => $result['last_optimized'],
 		];
@@ -288,6 +291,10 @@ class WRIO_Optimization_Orchestrator {
 	 * only checks for the 'attachment' type to prevent infinite loops
 	 * when images have attachment success but are missing webp/avif.
 	 *
+	 * Attachments with a terminal attachment-level error are excluded from
+	 * the pending count. Bulk processing resets those errors explicitly on
+	 * the first request when the user wants to retry failed items.
+	 *
 	 * @return int
 	 */
 	private function get_attachment_unoptimized_count() {
@@ -306,6 +313,12 @@ class WRIO_Optimization_Orchestrator {
 					WHERE rio.item_type = 'attachment'
 					AND rio.result_status = 'success'
 					GROUP BY object_id
+				)
+				AND NOT EXISTS (
+					SELECT 1 FROM {$db_table} AS rio
+					WHERE rio.object_id = posts.ID
+					AND rio.item_type = 'attachment'
+					AND rio.result_status = 'error'
 				)";
 
 		// Add WPML exclusion if needed
@@ -351,6 +364,12 @@ class WRIO_Optimization_Orchestrator {
 					WHERE rio.item_type = 'attachment'
 					AND rio.result_status = 'success'
 					GROUP BY object_id
+				)
+				AND NOT EXISTS (
+					SELECT 1 FROM {$db_table} AS rio
+					WHERE rio.object_id = posts.ID
+					AND rio.item_type = 'attachment'
+					AND rio.result_status = 'error'
 				)";
 
 		// Add WPML exclusion if needed

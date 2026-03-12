@@ -54,13 +54,13 @@ class WRIO_Views {
 	 *
 	 * @since  1.3.0
 	 *
-	 * @param string    $template   The template name.
-	 * @param mixed     $data       Some data to pass to the template.
-	 * @param WRIO_Page $page
+	 * @param string         $template   The template name.
+	 * @param mixed          $data       Some data to pass to the template.
+	 * @param WRIO_Page|null $page The page.
 	 *
 	 * @return bool|string       The page contents. False if the template doesn't exist.
 	 */
-	public function get_template( $template, $data = [], WRIO_Page $page = null ) {
+	public function get_template( $template, $data = [], $page = null ) {
 		$template = str_replace( '_', '-', $template );
 		$path     = $this->plugin_dir . '/views/' . $template . '.php';
 
@@ -82,11 +82,11 @@ class WRIO_Views {
 	 *
 	 * @since  1.3.0
 	 *
-	 * @param string    $template   The template name.
-	 * @param mixed     $data       Some data to pass to the template.
-	 * @param WRIO_Page $page
+	 * @param string         $template   The template name.
+	 * @param mixed          $data       Some data to pass to the template.
+	 * @param WRIO_Page|null $page The page.
 	 */
-	public function print_template( $template, $data = [], WRIO_Page $page = null ) {
+	public function print_template( $template, $data = [], $page = null ) {
 		echo $this->get_template( $template, $data, $page );
 	}
 }

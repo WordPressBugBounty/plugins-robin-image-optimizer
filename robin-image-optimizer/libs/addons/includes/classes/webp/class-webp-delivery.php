@@ -232,7 +232,7 @@ class Delivery {
 
 		if ( empty( $enabled_formats ) || ! static::is_support_format( $source_url ) ) {
 			if ( \WRIO_Plugin::app()->is_keep_error_log_on_frontend() ) {
-				\WRIO_Plugin::app()->logger->warning( sprintf( "Failed getting converted url. Unsupported image format or no conversion enabled\r\nSource url: %s", $source_url ) );
+				\WRIO_Plugin::app()->logger->warning( sprintf( "Skipped converted image lookup. Original image format is not supported for conversion, or converted image delivery is disabled.\r\nSource url: %s", $source_url ) );
 			}
 
 			return $return_value_on_fail;
@@ -247,7 +247,7 @@ class Delivery {
 		// If the image is stored on a remote server, need to skip it
 		if ( static::is_external_url( $source_url ) && ! $is_wpmedia_url ) {
 			if ( \WRIO_Plugin::app()->is_keep_error_log_on_frontend() ) {
-				\WRIO_Plugin::app()->logger->warning( sprintf( "Failed getting converted url. Image is on a remote server\r\nSource url: %s", $source_url ) );
+				\WRIO_Plugin::app()->logger->warning( sprintf( "Skipped converted image lookup. Image is hosted on a remote server.\r\nSource url: %s", $source_url ) );
 			}
 
 			return $return_value_on_fail;
@@ -292,7 +292,7 @@ class Delivery {
 		// image is stored.
 		if ( empty( $file_path ) || ! file_exists( $file_path ) ) {
 			if ( \WRIO_Plugin::app()->is_keep_error_log_on_frontend() ) {
-				\WRIO_Plugin::app()->logger->warning( sprintf( "Failed getting converted url. Unable to find origin image\r\nRelative path: (%s)\r\nSource url: (%s)", $file_path, $source_url ) );
+				\WRIO_Plugin::app()->logger->warning( sprintf( "Skipped converted image lookup. Unable to find the original image on disk.\r\nRelative path: (%s)\r\nSource url: (%s)", $file_path, $source_url ) );
 			}
 
 			return $return_value_on_fail;
@@ -309,7 +309,7 @@ class Delivery {
 		}
 
 		if ( \WRIO_Plugin::app()->is_keep_error_log_on_frontend() ) {
-			\WRIO_Plugin::app()->logger->warning( sprintf( "Failed getting converted url. No converted image found\r\nSource url: %s\r\nChecked formats: %s", $source_url, implode( ', ', $enabled_formats ) ) );
+			\WRIO_Plugin::app()->logger->warning( sprintf( "Skipped converted image delivery. No converted file was found for the original image.\r\nSource url: %s\r\nChecked formats: %s", $source_url, implode( ', ', $enabled_formats ) ) );
 		}
 
 		return $return_value_on_fail;

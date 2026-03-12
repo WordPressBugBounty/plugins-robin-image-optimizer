@@ -274,6 +274,17 @@ class WRIO_Image_Query {
 	}
 
 	/**
+	 * Build ORDER BY clause for unoptimized images, pushing error items to the end.
+	 *
+	 * @since 1.5.0
+	 *
+	 * @return string SQL clause
+	 */
+	protected function get_unoptimized_order_clause() {
+		return ' ORDER BY CASE WHEN ' . $this->get_error_exists_clause() . ' THEN 1 ELSE 0 END ASC, posts.ID ' . $this->get_optimize_order();
+	}
+
+	/**
 	 * Get IDs of fully optimized images.
 	 *
 	 * An image is optimized if it has successful conversions for ALL required types.
@@ -324,7 +335,7 @@ class WRIO_Image_Query {
 			$sql .= $this->get_wpml_exclusion_clause();
 		}
 
-		$sql .= ' ORDER BY posts.ID ' . $this->get_optimize_order();
+		$sql .= $this->get_unoptimized_order_clause();
 		$sql  = $this->append_pagination( $sql, $limit, $offset );
 
 		$sql = $wpdb->prepare( $sql, $this->get_required_types() );

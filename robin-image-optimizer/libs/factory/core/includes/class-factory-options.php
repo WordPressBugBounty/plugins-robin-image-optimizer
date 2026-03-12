@@ -67,8 +67,8 @@ trait Options {
 				 *
 				 * @since 4.0.9  - Добавлен
 				 *
-				 * @param string $plugin_name   Имя плагина
 				 * @param array  $options       Ассоциативный массив опций плагина
+				 * @param string $plugin_name   Имя плагина
 				 */
 				do_action( 'wbcr/factory/all_options_loaded', $options, $this->plugin_name );
 			}

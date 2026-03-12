@@ -254,7 +254,7 @@ class Listener {
 		 */
 		foreach ( $attachment_meta as $hash => $data ) {
 
-			\WRIO_Plugin::app()->logger->info( sprintf( 'WebP conversion: Ready to save hash "%s" (extra data: %s) as it does not exist yet', $hash, json_encode( $data ) ) );
+			\WRIO_Plugin::app()->logger->info( sprintf( 'WebP conversion: Ready to save hash "%s" (extra data: %s) as it does not exist yet', $hash, wp_json_encode( $data ) ) );
 
 			$source_path = isset( $data['absolute_path'] ) ? $data['absolute_path'] : null;
 

@@ -66,10 +66,15 @@ class WRIO_Media_Processing_Avif extends WRIO_Processing {
 	protected function task( $image ) {
 		if ( $image ) {
 			WRIO_Plugin::app()->logger->info( sprintf( 'Start convert attachment #%s to AVIF', $image ) );
+			$media_library = WRIO_Media_Library::get_instance();
 
-			if ( $this->scope === 'media-library_avif' ) {
-				$media_library = WRIO_Media_Library::get_instance();
-				$media_library->webpConvertAttachment( $image, 'avif' );
+			try {
+				if ( 'media-library_avif' === $this->scope ) {
+					$media_library->webpConvertAttachment( $image, 'avif' );
+				}
+			} catch ( Throwable $throwable ) {
+				$wio_attachment = $media_library->getAttachment( $image );
+				$wio_attachment->mark_conversion_failure( $throwable, 'avif', 'avif-conversion-background' );
 			}
 
 			WRIO_Plugin::app()->logger->info( sprintf( 'End convert attachment #%s to AVIF', $image ) );

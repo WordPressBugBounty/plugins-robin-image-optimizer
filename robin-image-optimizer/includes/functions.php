@@ -603,3 +603,60 @@ function wrio_get_file_size( $file_path ) {
 	clearstatcache( true, $file_path );
 	return file_exists( $file_path ) ? (int) filesize( $file_path ) : 0;
 }
+
+/**
+ * Properly encode image URL for API submission.
+ *
+ * Encodes only the path component of the URL (e.g., filename with special characters)
+ * while preserving the domain and protocol. This ensures non-ASCII characters
+ * (accented letters, spaces, etc.) are converted to percent-encoded form.
+ *
+ * @param string $url The image URL to encode.
+ *
+ * @return string The properly encoded URL safe for API submission.
+ * @since 1.10.0
+ */
+function wrio_encode_image_url( $url ) {
+	if ( empty( $url ) ) {
+		return '';
+	}
+
+	// Parse the URL into components (without escaping first to avoid double encoding)
+	$parsed = wp_parse_url( $url );
+
+	if ( false === $parsed || empty( $parsed ) ) {
+		return esc_url_raw( $url );
+	}
+
+	$base = '';
+	if ( ! empty( $parsed['scheme'] ) ) {
+		$base .= $parsed['scheme'] . '://';
+	}
+
+	if ( ! empty( $parsed['host'] ) ) {
+		$base .= $parsed['host'];
+	}
+
+	if ( ! empty( $parsed['port'] ) ) {
+		$base .= ':' . $parsed['port'];
+	}
+
+	// Encode path component (filename and directories)
+	$path = '';
+	if ( ! empty( $parsed['path'] ) ) {
+		$segments = array_map( 'rawurlencode', explode( '/', $parsed['path'] ) );
+		$path     = implode( '/', $segments );
+	}
+
+	$query = '';
+	if ( ! empty( $parsed['query'] ) ) {
+		$query = '?' . $parsed['query'];
+	}
+
+	$fragment = '';
+	if ( ! empty( $parsed['fragment'] ) ) {
+		$fragment = '#' . $parsed['fragment'];
+	}
+
+	return $base . $path . $query . $fragment;
+}

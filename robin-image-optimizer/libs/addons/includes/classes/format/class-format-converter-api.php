@@ -84,22 +84,39 @@ abstract class WRIO_Format_Converter_Api {
 		$thumb_count = count( $this->_models ) - 1;
 
 		foreach ( $this->_models as $model ) {
-			/**
-			 * @var RIOP_WebP_Extra_Data $extra_data
-			 */
-			$extra_data = $model->get_extra_data();
+			try {
+				/**
+				 * The data.
+				 *
+				 * @var RIOP_WebP_Extra_Data|null $extra_data The extra data.
+				 */
+				$extra_data = $model->get_extra_data();
 
-			if ( $extra_data === null ) {
-				continue;
-			}
+				if ( null === $extra_data ) {
+					continue;
+				}
 
-			$response = $this->request( $model, $quota );
+				$response = $this->request( $model, $quota );
 
-			if ( $this->can_save( $response ) && $this->save_file( $response, $model ) ) {
-				$extra_data->set_thumbnails_count( $thumb_count );
-				$model->set_extra_data( $extra_data );
+				if ( $this->can_save( $response ) && $this->save_file( $response, $model ) ) {
+					$extra_data->set_thumbnails_count( $thumb_count );
+					$model->set_extra_data( $extra_data );
 
-				$this->update( $model );
+					$this->update( $model );
+				}
+			} catch ( Throwable $throwable ) {
+				WRIO_Plugin::app()->logger->error(
+					sprintf(
+						'%1$s conversion failed for queue item #%2$d with unexpected error: %3$s in %4$s:%5$d',
+						ucfirst( $this->get_format_name() ),
+						$model->get_id(),
+						$throwable->getMessage(),
+						$throwable->getFile(),
+						$throwable->getLine()
+					)
+				);
+
+				$model->mark_as_error( $throwable->getMessage() );
 			}
 		}
 
@@ -155,92 +172,104 @@ abstract class WRIO_Format_Converter_Api {
 
 		set_transient( $transient_string, 1 );
 
-		$url = $this->_api_url . ( $is_premium ? 'v1/image/convert' : 'v1/free/image/convert' );
+		try {
+			$url = $this->_api_url . ( $is_premium ? 'v1/image/convert' : 'v1/free/image/convert' );
 
-		/**
-		 * @var RIOP_WebP_Extra_Data $extra_data
-		 */
-		$extra_data = $model->get_extra_data();
+			/**
+			 * @var RIOP_WebP_Extra_Data $extra_data
+			 */
+			$extra_data = $model->get_extra_data();
 
-		$multipart_boundary = '--------------------------' . microtime( true );
+			$multipart_boundary = '--------------------------' . microtime( true );
 
-		// Get format-specific parameters
-		$format_params = $this->get_api_query_params( $quota );
+			// Get format-specific parameters
+			$format_params = $this->get_api_query_params( $quota );
 
-		// Build multipart body with form fields FIRST
-		$body = '';
+			// Build multipart body with form fields FIRST
+			$body = '';
 
-		// Add format parameters as form fields
-		foreach ( $format_params as $name => $value ) {
-			$body .= '--' . $multipart_boundary . "\r\n";
-			$body .= 'Content-Disposition: form-data; name="' . $name . '"' . "\r\n\r\n";
-			$body .= $value . "\r\n";
-		}
-
-		// Add image URL if available (use encoded version to preserve special characters)
-		$source_url = $extra_data->get_source_src( false );
-		if ( ! empty( $source_url ) ) {
-			$body .= '--' . $multipart_boundary . "\r\n";
-			$body .= 'Content-Disposition: form-data; name="image_url"' . "\r\n\r\n";
-			$body .= $source_url . "\r\n";
-		}
-
-		// Then add the file
-		// Check if backup exists and use it for conversion (works for original and thumbnails)
-		$source_file_path = $extra_data->get_source_path();
-		$backup_enabled   = \WRIO_Plugin::app()->getPopulateOption( 'backup_origin_images', false );
-
-		if ( $backup_enabled ) {
-			$backup      = \WIO_Backup::get_instance();
-			$size_name   = $extra_data->get_converted_from_size(); // 'original', 'thumbnail', 'medium', etc.
-			$backup_path = $backup->getAttachmentBackupPath( $model->get_object_id(), $size_name );
-
-			if ( ! empty( $backup_path ) && file_exists( $backup_path ) ) {
-				\WRIO_Plugin::app()->logger->info( sprintf( '%s conversion: Using backup file for %s: %s', strtoupper( $this->get_format_name() ), $size_name, $backup_path ) );
-				$source_file_path = $backup_path;
-			} else {
-				\WRIO_Plugin::app()->logger->info( sprintf( '%s conversion: No backup found for %s, using current file: %s', strtoupper( $this->get_format_name() ), $size_name, $source_file_path ) );
+			// Add format parameters as form fields
+			foreach ( $format_params as $name => $value ) {
+				$body .= '--' . $multipart_boundary . "\r\n";
+				$body .= 'Content-Disposition: form-data; name="' . $name . '"' . "\r\n\r\n";
+				$body .= $value . "\r\n";
 			}
+
+			// Add image URL if available (use encoded version to preserve special characters)
+			$source_url = $extra_data->get_source_src( false );
+			if ( ! empty( $source_url ) ) {
+				$body .= '--' . $multipart_boundary . "\r\n";
+				$body .= 'Content-Disposition: form-data; name="image_url"' . "\r\n\r\n";
+				$body .= wrio_encode_image_url( $source_url ) . "\r\n";
+			}
+
+			// Then add the file
+			// Check if backup exists and use it for conversion (works for original and thumbnails)
+			$source_file_path = $extra_data->get_source_path();
+			$backup_enabled   = \WRIO_Plugin::app()->getPopulateOption( 'backup_origin_images', false );
+
+			if ( $backup_enabled ) {
+				$backup      = \WIO_Backup::get_instance();
+				$size_name   = $extra_data->get_converted_from_size(); // 'original', 'thumbnail', 'medium', etc.
+				$backup_path = $backup->getAttachmentBackupPath( $model->get_object_id(), $size_name );
+
+				if ( ! empty( $backup_path ) && file_exists( $backup_path ) ) {
+					\WRIO_Plugin::app()->logger->info( sprintf( '%s conversion: Using backup file for %s: %s', strtoupper( $this->get_format_name() ), $size_name, $backup_path ) );
+					$source_file_path = $backup_path;
+				} else {
+					\WRIO_Plugin::app()->logger->info( sprintf( '%s conversion: No backup found for %s, using current file: %s', strtoupper( $this->get_format_name() ), $size_name, $source_file_path ) );
+				}
+			}
+
+			if ( empty( $source_file_path ) || ! file_exists( $source_file_path ) ) {
+				WRIO_Plugin::app()->logger->error( sprintf( '%s conversion: Source file is missing, unable to build request payload. Path: %s', strtoupper( $this->get_format_name() ), empty( $source_file_path ) ? '*empty path*' : $source_file_path ) );
+
+				return new WP_Error( 'http_request_failed', 'Source image file is missing.' );
+			}
+
+			$file_contents = file_get_contents( $source_file_path );
+
+			if ( false === $file_contents ) {
+				WRIO_Plugin::app()->logger->error( sprintf( '%s conversion: Failed to read source file contents from %s.', strtoupper( $this->get_format_name() ), $source_file_path ) );
+
+				return new WP_Error( 'http_request_failed', 'Failed to read the source image file.' );
+			}
+
+			$body .= '--' . $multipart_boundary . "\r\n";
+			$body .= 'Content-Disposition: form-data; name="file"; filename="' . basename( $source_file_path ) . '"' . "\r\n";
+			$body .= 'Content-Type: ' . $model->get_original_mime_type() . "\r\n\r\n";
+			$body .= $file_contents . "\r\n";
+
+			$body .= '--' . $multipart_boundary . "--\r\n";
+
+			if ( $is_premium ) {
+				$headers = [
+					// should be base64 encoded, otherwise API would fail authentication
+					'Authorization'    => 'Bearer ' . base64_encode( wrio_get_license_key() ),
+					'PluginId'         => wrio_get_freemius_plugin_id(),
+					'X-License-Source' => wrio_get_license_source(),
+					'X-Site-Url'       => home_url(),
+					'Content-Type'     => 'multipart/form-data; boundary=' . $multipart_boundary,
+				];
+			} else {
+				$headers = [
+					'Authorization' => 'Bearer ' . base64_encode( home_url() ),
+					'Content-Type'  => 'multipart/form-data; boundary=' . $multipart_boundary,
+					'X-Site-Url'    => home_url(),
+				];
+			}
+
+			return wp_remote_post(
+				$url,
+				[
+					'timeout' => 60,
+					'headers' => $headers,
+					'body'    => $body,
+				]
+			);
+		} finally {
+			delete_transient( $transient_string );
 		}
-
-		$file_contents = file_get_contents( $source_file_path );
-
-		$body .= '--' . $multipart_boundary . "\r\n";
-		$body .= 'Content-Disposition: form-data; name="file"; filename="' . basename( $source_file_path ) . '"' . "\r\n";
-		$body .= 'Content-Type: ' . $model->get_original_mime_type() . "\r\n\r\n";
-		$body .= $file_contents . "\r\n";
-
-		$body .= '--' . $multipart_boundary . "--\r\n";
-
-		if ( $is_premium ) {
-			$headers = [
-				// should be base64 encoded, otherwise API would fail authentication
-				'Authorization'    => 'Bearer ' . base64_encode( wrio_get_license_key() ),
-				'PluginId'         => wrio_get_freemius_plugin_id(),
-				'X-License-Source' => wrio_get_license_source(),
-				'X-Site-Url'       => home_url(),
-				'Content-Type'     => 'multipart/form-data; boundary=' . $multipart_boundary,
-			];
-		} else {
-			$headers = [
-				'Authorization' => 'Bearer ' . base64_encode( home_url() ),
-				'Content-Type'  => 'multipart/form-data; boundary=' . $multipart_boundary,
-				'X-Site-Url'    => home_url(),
-			];
-		}
-
-		$response = wp_remote_post(
-			$url,
-			[
-				'timeout' => 60,
-				'headers' => $headers,
-				'body'    => $body,
-			]
-		);
-
-		delete_transient( $transient_string );
-
-		return $response;
 	}
 
 	/**
@@ -302,7 +331,7 @@ abstract class WRIO_Format_Converter_Api {
 
 				// Handle errors
 				if ( isset( $response_json->error ) && ! empty( $response_json->error ) ) {
-					WRIO_Plugin::app()->logger->error( sprintf( 'Unable to convert attachment as API returned error: "%s"', $response_json->error ) );
+					WRIO_Plugin::app()->logger->error( sprintf( 'Unable to convert attachment as API returned error: "%s"', wp_json_encode( $response_json ) ) );
 				}
 
 				if ( isset( $response_json->status ) && 401 === (int) $response_json->status ) {
@@ -326,10 +355,9 @@ abstract class WRIO_Format_Converter_Api {
 	 * @see can_save() for further information.
 	 */
 	public function save_file( $response, $queue_model ) {
-
 		try {
 			$save_path = $this->get_save_path( $queue_model );
-		} catch ( \Exception $exception ) {
+		} catch ( Throwable $exception ) {
 			WRIO_Plugin::app()->logger->error( sprintf( 'Unable to process response failed to get save path: "%s"', $exception->getMessage() ) );
 
 			return false;

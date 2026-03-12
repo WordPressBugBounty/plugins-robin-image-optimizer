@@ -1,3 +1,14 @@
+#####   Version 2.0.4 (2026-03-12)
+
+### Improvements
+
+- Enhanced logging with more detailed error reporting.
+
+### Bug fixes
+
+- Included error messages in the dashboard logging reports.
+- Resolved an issue where error handling could disrupt the processing queue.
+
 #####   Version 2.0.3 (2026-01-23)
 
 ### Bug fixes

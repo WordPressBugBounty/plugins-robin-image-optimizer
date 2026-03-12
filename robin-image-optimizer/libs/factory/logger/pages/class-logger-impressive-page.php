@@ -105,20 +105,27 @@ class Wbcr_FactoryLogger359_PageBase extends \WBCR\Factory_Templates_759\Pages\P
 	}
 
 	/**
-	 * Render the support upsell banner for free users.
+	 * Render the support banner for debug log troubleshooting.
 	 *
 	 * @return void
 	 */
 	protected function render_support_upsell_banner() {
-		if ( ! function_exists( 'wrio_is_license_activate' ) || wrio_is_license_activate() ) {
-			return;
-		}
+		$is_premium = function_exists( 'wrio_is_license_activate' ) && wrio_is_license_activate();
 
-		$url = tsdk_utmify( tsdk_translate_link( 'http://themeisle.com/contact' ), 'debug-page', 'debug-support-banner' );
+		$url = $is_premium
+			? tsdk_utmify( tsdk_translate_link( 'http://themeisle.com/contact' ), 'debug-page', 'debug-support-banner' )
+			: 'https://wordpress.org/support/plugin/robin-image-optimizer/';
 
 		if ( empty( $url ) ) {
 			return;
 		}
+
+		$support_message = $is_premium
+			? __( 'Contact our support team for priority assistance.', 'robin-image-optimizer' )
+			: __( 'Please open a topic on the WordPress.org support forum.', 'robin-image-optimizer' );
+		$button_label    = $is_premium
+			? __( 'Contact Support', 'robin-image-optimizer' )
+			: __( 'Open Support Forum', 'robin-image-optimizer' );
 		?>
 		<div id="WBCR">
 			<div class="wrio-errorlog-support-banner">
@@ -130,10 +137,10 @@ class Wbcr_FactoryLogger359_PageBase extends \WBCR\Factory_Templates_759\Pages\P
 				</div>
 				<div class="wrio-errorlog-support-content">
 					<p class="wrio-errorlog-support-title"><?php esc_html_e( 'Need help troubleshooting?', 'robin-image-optimizer' ); ?></p>
-					<p class="wrio-errorlog-support-subtitle"><?php esc_html_e( 'Pro users get priority support with faster response times.', 'robin-image-optimizer' ); ?></p>
+					<p class="wrio-errorlog-support-subtitle"><?php echo esc_html( $support_message ); ?></p>
 				</div>
 				<a href="<?php echo esc_url( $url ); ?>" class="wrio-errorlog-support-button" target="_blank" rel="noopener">
-					<?php esc_html_e( 'Contact Support', 'robin-image-optimizer' ); ?>
+					<?php echo esc_html( $button_label ); ?>
 				</a>
 			</div>
 		</div>

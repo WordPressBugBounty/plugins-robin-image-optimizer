@@ -125,18 +125,84 @@ abstract class WIO_Image_Processor_Abstract {
 		}
 
 		$response_body = wp_remote_retrieve_body( $response );
-		$response_code = wp_remote_retrieve_response_code( $response );
+		$response_code = (int) wp_remote_retrieve_response_code( $response );
 
-		if ( $response_code !== 200 ) {
-			WRIO_Plugin::app()->logger->error( sprintf( '%s responded Http error (%s).', $error_message, $response_code ) );
-
-			return new WP_Error( 'http_request_failed', sprintf( 'Server responded an HTTP error %s', $response_code ) );
+		if ( 200 !== $response_code ) {
+			return $this->log_http_error_response( $error_message, $response_code, $response_body );
 		}
 
 		if ( empty( $response_body ) ) {
 			WRIO_Plugin::app()->logger->error( sprintf( '%s responded an empty request body.', $error_message ) );
 
 			return new WP_Error( 'http_request_failed', 'Server responded an empty request body.' );
+		}
+
+		return $response_body;
+	}
+
+	/**
+	 * Log a non-200 response and preserve the raw response body when available.
+	 *
+	 * @param string $error_message Base error message for the request.
+	 * @param int    $response_code HTTP response code.
+	 * @param string $response_body Raw HTTP response body.
+	 *
+	 * @return WP_Error
+	 */
+	protected function log_http_error_response( $error_message, $response_code, $response_body ) {
+		if ( ! empty( $response_body ) ) {
+			WRIO_Plugin::app()->logger->error( sprintf( '%s responded Http error (%d).', $error_message, $response_code ) );
+			WRIO_Plugin::app()->logger->debug( sprintf( '%s response body: %s', $error_message, $this->prepare_response_body_for_log( $response_body ) ) );
+
+			return new WP_Error( 'http_request_failed', $this->append_status_code_to_message( 'Server responded with HTTP error.', $response_code ) );
+		}
+
+		WRIO_Plugin::app()->logger->error( sprintf( '%s responded Http error (%d).', $error_message, $response_code ) );
+
+		return new WP_Error( 'http_request_failed', $this->append_status_code_to_message( 'Server responded with HTTP error.', $response_code ) );
+	}
+
+	/**
+	 * Append an HTTP status code to a user-facing error message.
+	 *
+	 * @param string $message       Base error message.
+	 * @param int    $response_code HTTP response code.
+	 *
+	 * @return string
+	 */
+	protected function append_status_code_to_message( $message, $response_code ) {
+		$message = trim( (string) $message );
+
+		if ( empty( $response_code ) ) {
+			return $message;
+		}
+
+		if ( false !== stripos( $message, 'HTTP ' . $response_code ) ) {
+			return $message;
+		}
+
+		return sprintf( '%1$s (HTTP %2$d)', rtrim( $message, '.' ), (int) $response_code );
+	}
+
+	/**
+	 * Prepare an HTTP response body for debug logging.
+	 *
+	 * @param string $response_body Raw HTTP response body.
+	 *
+	 * @return string
+	 */
+	protected function prepare_response_body_for_log( $response_body ) {
+		$response_body = wp_check_invalid_utf8( (string) $response_body );
+		$response_body = trim( wp_strip_all_tags( $response_body ) );
+
+		if ( '' === $response_body ) {
+			return '[empty after sanitization]';
+		}
+
+		$max_length = 500;
+
+		if ( strlen( $response_body ) > $max_length ) {
+			$response_body = substr( $response_body, 0, $max_length ) . '...';
 		}
 
 		return $response_body;

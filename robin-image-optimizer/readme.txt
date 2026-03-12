@@ -4,7 +4,7 @@ Contributors: themeisle
 Requires at least: 5.6
 Tested up to: 6.9
 Requires PHP: 7.3
-Stable tag: 2.0.3
+Stable tag: 2.0.4
 License: GPLv2
 
 Unlimited automatic image optimization for WordPress. Compress images, convert to WebP, and improve site speed without losing image quality.
@@ -252,14 +252,16 @@ AVIF is a next-generation image format that can deliver even smaller file sizes 
 
 == Changelog ==
 
-#####   Version 2.0.3 (2026-01-23)
+#####   Version 2.0.4 (2026-03-12)
+
+### Improvements
+
+- Enhanced logging with more detailed error reporting.
 
 ### Bug fixes
 
-- Update dependencies.
-- Fixed compatibility with other products.
-- Fixed display for optimization log metrics.
-- Enhanced security.
+- Included error messages in the dashboard logging reports.
+- Resolved an issue where error handling could disrupt the processing queue.
 
 
 

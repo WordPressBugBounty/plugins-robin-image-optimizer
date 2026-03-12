@@ -68,7 +68,7 @@ class WIO_Image_Processor_Premium extends WIO_Image_Processor_Abstract {
 		}
 
 		if ( ! empty( $settings['image_url'] ) ) {
-			$query_args['image_url'] = esc_url_raw( $settings['image_url'] );
+			$query_args['image_url'] = wrio_encode_image_url( $settings['image_url'] );
 		}
 
 		$file = wp_normalize_path( $settings['image_path'] );
@@ -133,11 +133,9 @@ class WIO_Image_Processor_Premium extends WIO_Image_Processor_Abstract {
 			return $response;
 		}
 
-		$response_code = wp_remote_retrieve_response_code( $response );
-		if ( $response_code !== 200 ) {
-			WRIO_Plugin::app()->logger->error( sprintf( '%s, responded Http error (%s)', $error_message, $response_code ) );
-
-			return new WP_Error( 'http_request_failed', sprintf( 'Server responded an HTTP error %s', $response_code ) );
+		$response_code = (int) wp_remote_retrieve_response_code( $response );
+		if ( 200 !== $response_code ) {
+			return $this->log_http_error_response( $error_message, $response_code, wp_remote_retrieve_body( $response ) );
 		}
 
 		$response_text = wp_remote_retrieve_body( $response );
@@ -152,10 +150,10 @@ class WIO_Image_Processor_Premium extends WIO_Image_Processor_Abstract {
 			WRIO_Plugin::app()->logger->error( sprintf( 'Pending status "ok", bot received "%s"', $data->status ) );
 
 			if ( isset( $data->error ) && is_string( $data->error ) ) {
-				return new WP_Error( 'http_request_failed', $data->error );
+				return new WP_Error( 'http_request_failed', $this->append_status_code_to_message( $data->error, $response_code ) );
 			}
 
-			return new WP_Error( 'http_request_failed', sprintf( 'Server responded an %s status', $response_code ) );
+			return new WP_Error( 'http_request_failed', $this->append_status_code_to_message( 'Server responded with an unexpected status.', $response_code ) );
 		}
 
 		if ( ! empty( $data->response->quota ) ) {

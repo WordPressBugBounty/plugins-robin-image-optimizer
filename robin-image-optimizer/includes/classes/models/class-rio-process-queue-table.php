@@ -683,6 +683,37 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 	}
 
 	/**
+	 * Mark the current queue item as failed and persist its error details.
+	 *
+	 * @param string               $error_message Failure message to persist.
+	 * @param array<string, mixed> $attributes    Additional queue attributes to overwrite before saving.
+	 *
+	 * @return bool
+	 */
+	public function mark_as_error( $error_message, $attributes = [] ) {
+		$extra_data = $this->get_extra_data();
+
+		if ( ! $extra_data instanceof RIO_Attachment_Extra_Data ) {
+			$extra_data = in_array( $this->get_item_type(), [ 'webp', 'avif' ], true )
+				? new RIOP_WebP_Extra_Data()
+				: new RIO_Attachment_Extra_Data();
+		}
+
+		$extra_data->set_error( 'exception' );
+		$extra_data->set_error_msg( $error_message );
+
+		$this->set_result_status( self::STATUS_ERROR );
+
+		if ( ! empty( $attributes ) ) {
+			$this->configure( $attributes );
+		}
+
+		$this->set_extra_data( $extra_data );
+
+		return $this->save();
+	}
+
+	/**
 	 * Set item hash.
 	 *
 	 * @param string $text String to be hashed.
