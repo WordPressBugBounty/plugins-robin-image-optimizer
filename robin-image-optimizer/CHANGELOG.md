@@ -1,3 +1,7 @@
+#####   Version 2.0.5 (2026-05-07)
+
+- Update internal dependencies
+
 #####   Version 2.0.4 (2026-03-12)
 
 ### Improvements

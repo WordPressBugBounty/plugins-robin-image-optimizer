@@ -118,6 +118,7 @@ class WRIO_Plugin extends Wbcr_Factory600_Plugin {
 
 		add_filter( 'themeisle_sdk_products', [ __CLASS__, 'register_sdk' ] );
 		add_filter( 'themeisle_sdk_ran_promos', [ __CLASS__, 'sdk_hide_promo_notice' ] );
+		add_filter( 'themeisle_sdk_blackfriday_data', [ $this, 'add_black_friday_data' ] );
 
 		// We hide the license notice as it is not required for this plugin.
 		add_filter( $sdk_namespace . '_hide_license_notices', '__return_true' );
@@ -286,7 +287,72 @@ class WRIO_Plugin extends Wbcr_Factory600_Plugin {
 			return;
 		}
 
-		do_action( 'themeisle_internal_page', WRIO_PLUGIN_DIR, $page_slug );
+		wp_enqueue_script(
+			'wrio-notices',
+			WRIO_PLUGIN_URL . '/admin/assets/js/notices.js',
+			[ 'jquery' ],
+			self::app()->getPluginVersion(),
+			true
+		);
+
+		do_action( 'themeisle_internal_page', WRIO_PRODUCT_SLUG, $page_slug );
+	}
+
+	/**
+	 * Set the black friday data.
+	 *
+	 * @param array<string, mixed> $configs The configuration array for the loaded products.
+	 *
+	 * @return array<string, mixed> The configurations.
+	 */
+	public function add_black_friday_data( $configs ) {
+		$config = $configs['default'];
+
+		$message   = __( 'Bulk optimization, WebP & AVIF conversion, lossless & lossy modes. Stop losing visitors to slow images. Exclusively for existing Robin users.', 'robin-image-optimizer' );
+		$cta_label = __( 'Get Robin Pro', 'robin-image-optimizer' );
+
+		$sdk_namespace = self::get_sdk_namespace();
+		$plan          = apply_filters( 'product_' . $sdk_namespace . '_license_plan', 0 );
+		$license       = apply_filters( 'product_' . $sdk_namespace . '_license_key', false );
+		$status        = apply_filters( 'product_' . $sdk_namespace . '_license_status', false );
+
+		$is_pro     = 'valid' === $status;
+		$is_expired = 'expired' === $status || 'active-expired' === $status;
+
+		if ( $is_pro ) {
+			// translators: %s is the discount percentage.
+			$config['plugin_meta_message'] = sprintf( __( 'Black Friday Sale - up to %s off', 'robin-image-optimizer' ), '30%' );
+			// translators: %1$s - discount, %2$s - discount.
+			$message   = sprintf( __( 'Upgrade your Robin Pro plan: %1$s off this week. Already on the plan you need? Renew early and save up to %2$s.', 'robin-image-optimizer' ), '30%', '20%' );
+			$cta_label = __( 'See your options', 'robin-image-optimizer' );
+		} elseif ( $is_expired ) {
+			// translators: %s is the discount percentage.
+			$config['plugin_meta_message'] = sprintf( __( 'Black Friday Sale - %s off', 'robin-image-optimizer' ), '50%' );
+			$message                       = __( 'Your Robin Pro features are still here, just locked. Renew at a reduced rate this week.', 'robin-image-optimizer' );
+			$cta_label                     = __( 'Reactivate now', 'robin-image-optimizer' );
+		} else {
+			// translators: %s is the discount percentage.
+			$config['plugin_meta_message'] = sprintf( __( 'Black Friday Sale - %s off', 'robin-image-optimizer' ), '60%' );
+			// translators: %s - discount.
+			$config['title'] = sprintf( __( 'Robin Pro: %s off this week', 'robin-image-optimizer' ), '60%' );
+		}
+
+		$url_params = [
+			'utm_term' => $is_pro ? 'plan-' . $plan : 'free',
+			'lkey'     => ! empty( $license ) ? $license : false,
+			'expired'  => $is_expired ? '1' : false,
+		];
+
+		$config['cta_label'] = $cta_label;
+		$config['message']   = $message;
+		$config['sale_url']  = add_query_arg(
+			$url_params,
+			tsdk_translate_link( tsdk_utmify( 'https://themeisle.link/robin-image-optimizer-bf', 'bfcm', 'robin' ) )
+		);
+
+		$configs[ WRIO_PRODUCT_SLUG ] = $config;
+
+		return $configs;
 	}
 
 	/**
@@ -519,7 +585,7 @@ class WRIO_Plugin extends Wbcr_Factory600_Plugin {
 	 */
 	public function truncate_menu_items() {
 		echo '<style>
-			#toplevel_page_rio_general-robin-image-optimizer div.wp-menu-name { 
+			#toplevel_page_rio_general-robin-image-optimizer div.wp-menu-name {
 				color: #fff;
 				overflow: hidden;
 				text-overflow: ellipsis;

@@ -287,6 +287,7 @@ class WRIO_License_Page_View {
 		$this->init_premium();
 		$min_height = $this->calculate_menu_height();
 		?>
+		<div id="tsdk_banner" class="robin-banner"></div>
 		<div id="WBCR" class="wrap">
 			<div class="wbcr-factory-templates-759-impressive-page-template factory-bootstrap-500 factory-fontawesome-000">
 				<div class="wbcr-factory-page wbcr-factory-page-<?php echo esc_attr( $this->id ); ?>">

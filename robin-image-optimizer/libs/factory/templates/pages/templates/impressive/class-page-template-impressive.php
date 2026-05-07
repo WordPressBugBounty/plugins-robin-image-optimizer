@@ -794,6 +794,7 @@ if ( ! class_exists( 'WBCR\Factory_Templates_759\Impressive' ) ) {
 			}
 
 			?>
+			<div id="tsdk_banner" class="robin-banner"></div>
 			<div id="WBCR" class="wrap">
 				<div class="wbcr-factory-templates-759-impressive-page-template factory-bootstrap-500 factory-fontawesome-000">
 					<div class="wbcr-factory-options wbcr-factory-options-<?php echo esc_attr( $this->id ); ?>">
@@ -847,6 +848,7 @@ if ( ! class_exists( 'WBCR\Factory_Templates_759\Impressive' ) ) {
 		protected function showPage( $content = null ) {
 
 			?>
+			<div id="tsdk_banner" class="robin-banner"></div>
 			<div id="WBCR" class="wrap">
 				<div class="wbcr-factory-templates-759-impressive-page-template factory-bootstrap-500 factory-fontawesome-000">
 					<div class="wbcr-factory-page wbcr-factory-page-<?php echo $this->id; ?>">
@@ -920,6 +922,7 @@ if ( ! class_exists( 'WBCR\Factory_Templates_759\Impressive' ) ) {
 		 */
 		public function confirmPageTemplate( $data ) {
 			?>
+			<div id="tsdk_banner" class="robin-banner"></div>
 			<div id="WBCR" class="wrap">
 				<div class="wbcr-factory-templates-759-impressive-page-template factory-bootstrap-500 factory-fontawesome-000">
 					<div id="wbcr-factory-confirm-dialog">

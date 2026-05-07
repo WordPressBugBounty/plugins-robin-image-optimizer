@@ -127,6 +127,7 @@ class Wbcr_FactoryLogger359_PageBase extends \WBCR\Factory_Templates_759\Pages\P
 			? __( 'Contact Support', 'robin-image-optimizer' )
 			: __( 'Open Support Forum', 'robin-image-optimizer' );
 		?>
+		<div id="tsdk_banner" class="robin-banner"></div>
 		<div id="WBCR">
 			<div class="wrio-errorlog-support-banner">
 				<div class="wrio-errorlog-support-icon">

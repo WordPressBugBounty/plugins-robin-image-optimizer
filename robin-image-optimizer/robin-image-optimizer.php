@@ -4,7 +4,7 @@
  * Plugin URI: https://robinoptimizer.com
  * Description: Optimize images without losing quality, speed up your website load, improve SEO and save money on server and CDN bandwidth.
  * Author: Themeisle <contact@themeisle.com>
- * Version: 2.0.4
+ * Version: 2.0.5
  * Text Domain: robin-image-optimizer
  * Domain Path: /languages/
  * Author URI: https://themeisle.com
@@ -144,6 +144,8 @@ define( 'WRIO_PLUGIN_DIR', __DIR__ );
 
 // Относительный путь к плагину
 define( 'WRIO_PLUGIN_BASE', plugin_basename( __FILE__ ) );
+
+define( 'WRIO_PRODUCT_SLUG', basename( __DIR__ ) );
 
 // Ссылка к директории плагина
 define( 'WRIO_PLUGIN_URL', plugins_url( '', __FILE__ ) );
