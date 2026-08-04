@@ -149,21 +149,28 @@ class Featured_Plugins extends Abstract_Module {
 		}
 
 		if ( isset( $args->page ) && 1 === (int) $args->page && isset( $args->search ) && ! empty( $args->search ) ) {
-			$res->plugins = $this->maybe_prepend_lms_plugin( $res->plugins, $args );
-			return $res;
+			$original_count = count( (array) $res->plugins );
+			$res->plugins   = $this->maybe_prepend_lms_plugin( $res->plugins, $args );
+
+			return $this->adjust_results_count( $res, count( (array) $res->plugins ) - $original_count );
 		}
 
 		if ( ! isset( $args->browse ) || $args->browse !== 'featured' ) {
 			return $res;
 		}
 
+		// Inject only on the first page so the same plugins are not repeated on every page.
+		if ( isset( $args->page ) && (int) $args->page > 1 ) {
+			return $res;
+		}
+
 		$featured = $this->query_plugins_by_author( $args );
 
-		$plugins      = array_merge( $featured, (array) $res->plugins );
-		$plugins      = array_slice( $plugins, 0, $res->info['results'] );
-		$res->plugins = $plugins;
+		$original_count = count( (array) $res->plugins );
+		$plugins        = $this->remove_plugins_by_slug( (array) $res->plugins, $this->get_plugin_slugs( $featured ) );
+		$res->plugins   = array_merge( $featured, $plugins );
 
-		return $res;
+		return $this->adjust_results_count( $res, count( $res->plugins ) - $original_count );
 	}
 
 	/**
@@ -175,27 +182,103 @@ class Featured_Plugins extends Abstract_Module {
 	 */
 	private function maybe_prepend_lms_plugin( $plugins, $args ) {
 		$search = isset( $args->search ) ? strtolower( $args->search ) : '';
-		if (
-			strpos( $search, 'lms' ) !== false ||
-			strpos( $search, 'learn' ) !== false
-		) {
+		if ( $this->matches_lms_search_keywords( $search ) ) {
 			$filter_slugs = apply_filters( 'themeisle_sdk_masteriyo_filter_slugs', [ 'learning-management-system' ] );
 			$masteriyo    = $this->get_plugins_filtered_from_author( $args, $filter_slugs, 'masteriyo' );
 
 			if ( ! empty( $masteriyo ) ) {
-				// Remove existing LMS plugin if present to avoid duplicates.
-				$plugins = array_filter(
-					$plugins,
-					function( $plugin ) {
-						return ( is_object( $plugin ) && isset( $plugin->slug ) && $plugin->slug !== 'learning-management-system' ) ||
-							( is_array( $plugin ) && isset( $plugin['slug'] ) && $plugin['slug'] !== 'learning-management-system' );
-					}
-				);
-
+				// Remove existing copies of the injected plugins to avoid duplicates.
+				$plugins = $this->remove_plugins_by_slug( (array) $plugins, $this->get_plugin_slugs( $masteriyo ) );
 				$plugins = array_merge( $masteriyo, $plugins );
 			}
 		}
 		return $plugins;
+	}
+
+	/**
+	 * Extract the slugs from a list of plugin entries.
+	 *
+	 * @param array $plugins The plugins list.
+	 *
+	 * @return array
+	 */
+	private function get_plugin_slugs( $plugins ) {
+		$slugs = [];
+		foreach ( $plugins as $plugin ) {
+			$plugin = (array) $plugin;
+			if ( isset( $plugin['slug'] ) ) {
+				$slugs[] = $plugin['slug'];
+			}
+		}
+
+		return $slugs;
+	}
+
+	/**
+	 * Remove the plugins matching the provided slugs from the list.
+	 *
+	 * @param array $plugins The plugins list.
+	 * @param array $slugs   The slugs to remove.
+	 *
+	 * @return array
+	 */
+	private function remove_plugins_by_slug( $plugins, $slugs ) {
+		return array_values(
+			array_filter(
+				$plugins,
+				function( $plugin ) use ( $slugs ) {
+					$plugin = (array) $plugin;
+
+					return ! isset( $plugin['slug'] ) || ! in_array( $plugin['slug'], $slugs, true );
+				}
+			)
+		);
+	}
+
+	/**
+	 * Adjust the reported total results count after injecting plugins.
+	 *
+	 * @param object $res   The result object.
+	 * @param int    $delta The net number of plugins added to the list.
+	 *
+	 * @return object
+	 */
+	private function adjust_results_count( $res, $delta ) {
+		if ( 0 !== $delta && isset( $res->info['results'] ) && is_numeric( $res->info['results'] ) ) {
+			$res->info['results'] = max( 0, (int) $res->info['results'] + $delta );
+		}
+
+		return $res;
+	}
+
+	/**
+	 * Check if a plugin search query matches LMS-related terms.
+	 *
+	 * @param string $search Search query.
+	 *
+	 * @return bool True if the search query matches LMS-related terms.
+	 */
+	private function matches_lms_search_keywords( $search ) {
+		$lms_keywords = array(
+			'lms',
+			'learn',
+			'course',
+			'courses',
+			'learning',
+			'academy',
+			'training',
+			'student',
+			'students',
+			'quiz',
+		);
+
+		foreach ( $lms_keywords as $keyword ) {
+			if ( preg_match( '/(^|[^a-z0-9])' . preg_quote( $keyword, '/' ) . '([^a-z0-9]|$)/', $search ) === 1 ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**
@@ -231,8 +314,8 @@ class Featured_Plugins extends Abstract_Module {
 	protected function get_plugins_filtered_from_author( $args, $filter_slugs = [], $author = 'Themeisle' ) {
 
 		$cached = get_transient( $this->transient_key . $author );
-		if ( $cached ) {
-			return $cached;
+		if ( false !== $cached ) {
+			return (array) $cached;
 		}
 
 		$new_args = [
@@ -245,15 +328,20 @@ class Featured_Plugins extends Abstract_Module {
 
 		$api = plugins_api( 'query_plugins', $new_args );
 		if ( is_wp_error( $api ) ) {
+			// Cache the failure for a shorter period to avoid hammering the API on every request.
+			set_transient( $this->transient_key . $author, [], HOUR_IN_SECONDS );
+
 			return [];
 		}
 
-		$filtered = array_filter(
-			$api->plugins,
-			function( $plugin ) use ( $filter_slugs ) {
-				$array_plugin = (array) $plugin;
-				return in_array( $array_plugin['slug'], $filter_slugs );
-			}
+		$filtered = array_values(
+			array_filter(
+				$api->plugins,
+				function( $plugin ) use ( $filter_slugs ) {
+					$array_plugin = (array) $plugin;
+					return in_array( $array_plugin['slug'], $filter_slugs );
+				}
+			)
 		);
 
 		set_transient( $this->transient_key . $author, $filtered, 12 * HOUR_IN_SECONDS );

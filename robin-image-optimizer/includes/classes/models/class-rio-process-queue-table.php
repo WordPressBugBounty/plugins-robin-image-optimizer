@@ -585,7 +585,7 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 
 			WRIO_Plugin::app()->logger->debug( sprintf( 'Updated queue item #%s, attributes values: %s', $this->id, wp_json_encode( $data ) ) );
 
-			$is_success = true;
+			$is_success = ( false !== $result );
 		} elseif ( ! self::find_by_hash( $this->get_item_hash() ) ) {
 				// если данных нет в базе, то вставляем новую запись в таблицу
 				$count = $wpdb->insert( $table_name, $data );

@@ -35,7 +35,13 @@ class WRIO_Url {
 
 		$content_url      = content_url();
 		$content_url_http = str_replace( 'https://', 'http://', $content_url );
-		if ( false === strpos( $src, $content_url ) && false === strpos( $src, $content_url_http ) ) {
+		// Uploads can live outside of the content directory, e.g. a custom UPLOADS base such as "/files".
+		$uploads_url      = wp_get_upload_dir()['baseurl'];
+		$uploads_url_http = str_replace( 'https://', 'http://', $uploads_url );
+		if (
+			false === strpos( $src, $content_url ) && false === strpos( $src, $content_url_http )
+			&& false === strpos( $src, $uploads_url ) && false === strpos( $src, $uploads_url_http )
+		) {
 			return null;
 		}
 

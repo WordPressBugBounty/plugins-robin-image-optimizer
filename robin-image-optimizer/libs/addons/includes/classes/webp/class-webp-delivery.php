@@ -308,11 +308,76 @@ class Delivery {
 			}
 		}
 
-		if ( \WRIO_Plugin::app()->is_keep_error_log_on_frontend() ) {
+		if ( \WRIO_Plugin::app()->is_keep_error_log_on_frontend() && ! static::has_failed_conversion( $source_url, $enabled_formats ) ) {
 			\WRIO_Plugin::app()->logger->warning( sprintf( "Skipped converted image delivery. No converted file was found for the original image.\r\nSource url: %s\r\nChecked formats: %s", $source_url, implode( ', ', $enabled_formats ) ) );
 		}
 
 		return $return_value_on_fail;
+	}
+
+	/**
+	 * Check whether a terminal conversion failure is already recorded for the source URL.
+	 *
+	 * The conversion failure is persisted to the queue and surfaced there, so the
+	 * missing-converted-file warning would only repeat known information on every request.
+	 *
+	 * @param string   $source_url      Original image URL.
+	 * @param string[] $enabled_formats Enabled conversion formats.
+	 *
+	 * @return bool True when at least one enabled format has a failed conversion recorded.
+	 */
+	public static function has_failed_conversion( $source_url, $enabled_formats ) {
+		static $failed_hash_cache = [];
+
+		if ( empty( $enabled_formats ) ) {
+			return false;
+		}
+
+		// Queue rows are seeded from the attachment metadata URL, which carries no query string or fragment.
+		$normalized_url = preg_replace( '/[?#].*/', '', $source_url );
+
+		$candidate_hashes = [];
+
+		foreach ( $enabled_formats as $format ) {
+			$candidate_hashes[] = \RIO_Process_Queue::generate_item_hash( $normalized_url . '|' . strtolower( $format ) );
+		}
+
+		// Look up only this image's candidate hashes (unique `item_hash` index) instead of
+		// materializing the full failure set, which is unbounded after a conversion outage.
+		$unknown_hashes = [];
+
+		foreach ( $candidate_hashes as $item_hash ) {
+			if ( ! array_key_exists( $item_hash, $failed_hash_cache ) ) {
+				$unknown_hashes[] = $item_hash;
+			}
+		}
+
+		if ( ! empty( $unknown_hashes ) ) {
+			global $wpdb;
+
+			$table_name   = \RIO_Process_Queue::table_name();
+			$placeholders = implode( ', ', array_fill( 0, count( $unknown_hashes ), '%s' ) );
+
+			$failed_hashes = array_fill_keys(
+				(array) $wpdb->get_col(
+					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					$wpdb->prepare( "SELECT item_hash FROM {$table_name} WHERE result_status = %s AND item_hash IN ( {$placeholders} )", array_merge( [ \RIO_Process_Queue::STATUS_ERROR ], $unknown_hashes ) )
+				),
+				true
+			);
+
+			foreach ( $unknown_hashes as $item_hash ) {
+				$failed_hash_cache[ $item_hash ] = isset( $failed_hashes[ $item_hash ] );
+			}
+		}
+
+		foreach ( $candidate_hashes as $item_hash ) {
+			if ( $failed_hash_cache[ $item_hash ] ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**

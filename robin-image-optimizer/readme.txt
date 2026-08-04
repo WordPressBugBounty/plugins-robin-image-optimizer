@@ -2,9 +2,9 @@
 Tags: image optimization, optimize images, compress images, webp, avif
 Contributors: themeisle
 Requires at least: 5.6
-Tested up to: 6.9
+Tested up to: 7.0
 Requires PHP: 7.3
-Stable tag: 2.0.5
+Stable tag: 2.0.6
 License: GPLv2
 
 Unlimited automatic image optimization for WordPress. Compress images, convert to WebP, and improve site speed without losing image quality.
@@ -252,9 +252,13 @@ AVIF is a next-generation image format that can deliver even smaller file sizes 
 
 == Changelog ==
 
-#####   Version 2.0.5 (2026-05-07)
+#####   Version 2.0.6 (2026-08-04)
 
-- Update internal dependencies
+- Fixed an issue where bulk optimization could keep showing as still running after every image had already finished processing.
+- Updated dependencies
+- Removed obsolete, obfuscated code that could trigger false-positive malware warnings in security scanners such as Wordfence.
+- Failed WebP/AVIF conversions now record the actual error instead of a generic message, and stop repeating the same warning in the frontend error log.
+- Fixed WebP/AVIF conversion on sites that use a custom uploads folder defined through the UPLOADS constant.
 
 
 

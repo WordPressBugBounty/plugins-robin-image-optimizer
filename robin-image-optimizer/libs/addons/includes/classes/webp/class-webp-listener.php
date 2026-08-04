@@ -500,12 +500,19 @@ class Listener {
 		// Fallback to get attachment meta it can be empty when WordPress failed to create it or invocation
 		// of method was produced too soon
 		if ( empty( $attachment_meta ) ) {
-			$exploded_url = explode( 'wp-content/uploads/', $attachment->guid, 2 );
+			$path_from_url = get_attached_file( $attachment->ID );
 
-			if ( isset( $exploded_url[1] ) ) {
-				$exploded_relative_path = trim( $exploded_url[1] );
-				$path_from_url          = trailingslashit( $dirs['basedir'] ) . $exploded_relative_path;
+			if ( empty( $path_from_url ) ) {
+				$guid_path    = wp_parse_url( $attachment->guid, PHP_URL_PATH );
+				$uploads_path = wp_parse_url( $dirs['baseurl'], PHP_URL_PATH );
 
+				if ( is_string( $guid_path ) && is_string( $uploads_path ) && 0 === strpos( $guid_path, trailingslashit( $uploads_path ) ) ) {
+					$relative_path = ltrim( substr( $guid_path, strlen( $uploads_path ) ), '/' );
+					$path_from_url = trailingslashit( $dirs['basedir'] ) . rawurldecode( $relative_path );
+				}
+			}
+
+			if ( ! empty( $path_from_url ) ) {
 				// Need to remove this filter, as it would start recursion
 				remove_filter( 'wp_generate_attachment_metadata', 'WRIO_Media_Library::optimize_after_upload' );
 

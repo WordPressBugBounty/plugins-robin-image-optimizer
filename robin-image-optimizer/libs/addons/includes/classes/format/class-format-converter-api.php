@@ -93,16 +93,41 @@ abstract class WRIO_Format_Converter_Api {
 				$extra_data = $model->get_extra_data();
 
 				if ( null === $extra_data ) {
+					WRIO_Plugin::app()->logger->error(
+						sprintf( '%1$s conversion failed for queue item #%2$d: missing extra data', ucfirst( $this->get_format_name() ), $model->get_id() )
+					);
+
+					$model->mark_as_error( sprintf( '%s conversion failed because the queue item has no source data.', ucfirst( $this->get_format_name() ) ) );
 					continue;
 				}
 
 				$response = $this->request( $model, $quota );
 
-				if ( $this->can_save( $response ) && $this->save_file( $response, $model ) ) {
-					$extra_data->set_thumbnails_count( $thumb_count );
-					$model->set_extra_data( $extra_data );
+				if ( is_wp_error( $response ) && 'wrio_conversion_in_progress' === $response->get_error_code() ) {
+					// Another worker holds the conversion lock for this item. Leave the row
+					// pending so the active worker's result is not overwritten with an error.
+					continue;
+				}
 
-					$this->update( $model );
+				if ( ! $this->can_save( $response ) ) {
+					$model->mark_as_error( $this->get_process_failure_message( $response ) );
+					continue;
+				}
+
+				if ( ! $this->save_file( $response, $model ) ) {
+					WRIO_Plugin::app()->logger->error(
+						sprintf( '%1$s conversion failed for queue item #%2$d: unable to save converted image', ucfirst( $this->get_format_name() ), $model->get_id() )
+					);
+
+					$model->mark_as_error( sprintf( '%s conversion failed because the converted file could not be saved.', ucfirst( $this->get_format_name() ) ) );
+					continue;
+				}
+
+				$extra_data->set_thumbnails_count( $thumb_count );
+				$model->set_extra_data( $extra_data );
+
+				if ( ! $this->update( $model ) ) {
+					$model->mark_as_error( sprintf( '%s conversion failed while updating the queue item.', ucfirst( $this->get_format_name() ) ) );
 				}
 			} catch ( Throwable $throwable ) {
 				WRIO_Plugin::app()->logger->error(
@@ -124,12 +149,43 @@ abstract class WRIO_Format_Converter_Api {
 	}
 
 	/**
+	 * Build a persisted error message for a failed API response.
+	 *
+	 * @param array<string, mixed>|WP_Error|false $response API response.
+	 *
+	 * @return string
+	 */
+	protected function get_process_failure_message( $response ) {
+		$format = strtoupper( $this->get_format_name() );
+
+		if ( is_wp_error( $response ) ) {
+			return sprintf( '%1$s conversion request failed: %2$s', $format, $response->get_error_message() );
+		}
+
+		if ( false === $response ) {
+			return sprintf( '%s conversion request returned an invalid or empty API response.', $format );
+		}
+
+		$response_json = json_decode( wp_remote_retrieve_body( $response ) );
+
+		if ( ! empty( $response_json->error ) ) {
+			return sprintf( '%1$s conversion request failed: %2$s', $format, wp_json_encode( $response_json->error ) );
+		}
+
+		if ( ! empty( $response_json->message ) ) {
+			return sprintf( '%1$s conversion request failed: %2$s', $format, $response_json->message );
+		}
+
+		return sprintf( '%s conversion failed due to an invalid API response.', $format );
+	}
+
+	/**
 	 * Request API to convert image.
 	 *
 	 * @param RIO_Process_Queue $model Queue model.
 	 * @param bool              $quota Decrement quota?
 	 *
-	 * @return array|bool|WP_Error
+	 * @return array|WP_Error|false
 	 */
 	public function request( $model, $quota = false ) {
 
@@ -167,7 +223,7 @@ abstract class WRIO_Format_Converter_Api {
 		if ( is_numeric( $transient_value ) && (int) $transient_value === 1 ) {
 			WRIO_Plugin::app()->logger->info( sprintf( 'Skipping to wp_remote_get() as transient "%s" already exist. Usually it means that no request was returned yet', $transient_string ) );
 
-			return false;
+			return new WP_Error( 'wrio_conversion_in_progress', 'Another process is already converting this image.' );
 		}
 
 		set_transient( $transient_string, 1 );
@@ -385,6 +441,14 @@ abstract class WRIO_Format_Converter_Api {
 				return false;
 			}
 
+			$download_code = (int) wp_remote_retrieve_response_code( $download_response );
+
+			if ( 200 !== $download_code ) {
+				WRIO_Plugin::app()->logger->error( sprintf( 'Failed to download converted image from %s: unexpected HTTP response code "%s".', $download_url, $download_code ) );
+
+				return false;
+			}
+
 			$body = wp_remote_retrieve_body( $download_response );
 		} else {
 			// Premium API: Image data is directly in the response body
@@ -424,13 +488,6 @@ abstract class WRIO_Format_Converter_Api {
 		$queue_model->result_status = RIO_Process_Queue::STATUS_SUCCESS;
 		$queue_model->final_size    = wrio_get_file_size( $save_path );
 
-		$image_statistics = WRIO_Image_Statistic::get_instance();
-		wp_suspend_cache_addition( true ); // Stop caching
-		$stat_field = $this->get_format_name() . '_optimized_size';
-		$image_statistics->addToField( $stat_field, $queue_model->final_size );
-		$image_statistics->save();
-		wp_suspend_cache_addition(); // Resume caching
-
 		/**
 		 * @var RIOP_WebP_Extra_Data $updated_extra_data
 		 */
@@ -439,6 +496,19 @@ abstract class WRIO_Format_Converter_Api {
 		$updated_extra_data->set_converted_path( $save_path );
 
 		$queue_model->extra_data = $updated_extra_data;
+
+		// Persist the successful queue state before publishing success side effects,
+		// so a failed save cannot leave stats and hooks reporting a phantom success.
+		if ( ! $queue_model->save() ) {
+			return false;
+		}
+
+		$image_statistics = WRIO_Image_Statistic::get_instance();
+		wp_suspend_cache_addition( true ); // Stop caching
+		$stat_field = $this->get_format_name() . '_optimized_size';
+		$image_statistics->addToField( $stat_field, $queue_model->final_size );
+		$image_statistics->save();
+		wp_suspend_cache_addition(); // Resume caching
 
 		/**
 		 * Hook fires after successful format conversion
@@ -455,7 +525,7 @@ abstract class WRIO_Format_Converter_Api {
 			do_action( 'wbcr/rio/webp_success', $queue_model );
 		}
 
-		return $queue_model->save();
+		return true;
 	}
 
 	/**

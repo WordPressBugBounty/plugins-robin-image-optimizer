@@ -285,7 +285,7 @@ class WRIO_Bulk_Optimization {
 		if ( $processing->push_items() ) {
 			$processing->save()->dispatch();
 		} else {
-			// WRIO_Plugin::app()->updatePopulateOption( 'process_running', false );
+			WRIO_Plugin::app()->updatePopulateOption( 'process_running', false );
 			wp_send_json_success(
 				[
 					'stop' => true,
@@ -350,7 +350,7 @@ class WRIO_Bulk_Optimization {
 		if ( $processing->push_items() ) {
 			$processing->save()->dispatch();
 		} else {
-			// WRIO_Plugin::app()->updatePopulateOption( 'process_running', false );
+			WRIO_Plugin::app()->updatePopulateOption( "{$scope}_process_running", false );
 			wp_send_json_success(
 				[
 					'stop' => true,
@@ -475,6 +475,7 @@ class WRIO_Bulk_Optimization {
 		if ( $processing->push_items() ) {
 			$processing->save()->dispatch();
 		} else {
+			WRIO_Plugin::app()->updatePopulateOption( "{$scope}_process_running", false );
 			wp_send_json_success(
 				[
 					'stop' => true,
