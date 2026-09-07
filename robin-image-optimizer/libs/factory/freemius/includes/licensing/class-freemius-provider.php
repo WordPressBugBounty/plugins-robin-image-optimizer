@@ -552,7 +552,7 @@ final class Provider extends License_Provider {
 	protected function get_unique_site_id() {
 		$key = str_replace( [ 'http://', 'https://' ], '', get_site_url() );
 
-		$secure_auth = SECURE_AUTH_KEY;
+		$secure_auth = defined( 'SECURE_AUTH_KEY' ) ? SECURE_AUTH_KEY : '';
 		if ( empty( $secure_auth ) || false !== strpos( $secure_auth, ' ' ) ) {
 			// Protect against default auth key.
 			$secure_auth = md5( microtime() );

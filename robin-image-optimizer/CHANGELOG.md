@@ -1,3 +1,9 @@
+#####   Version 2.0.7 (2026-09-07)
+
+- Fixed license updates when WordPress has no secure authentication key.
+- Fixed compression mode descriptions to identify displayed file-size reductions as average results.
+- Updated dependencies
+
 #####   Version 2.0.6 (2026-08-04)
 
 - Fixed an issue where bulk optimization could keep showing as still running after every image had already finished processing.

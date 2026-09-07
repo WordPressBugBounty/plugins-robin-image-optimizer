@@ -192,17 +192,17 @@ class WRIO_SettingsPage extends WRIO_Page {
 				[
 					'normal',
 					__( 'Lossless', 'robin-image-optimizer' ),
-					__( 'This mode provides lossless compression and your images will be optimized without visible changes. If you want an ideal image quality, we recommend this mode. The size of the files will be reduced approximately 2 times. If this is not enough for you, try other modes.', 'robin-image-optimizer' ),
+					__( 'This mode provides lossless compression and your images will be optimized without visible changes. If you want an ideal image quality, we recommend this mode. On average, the size of the files will be reduced approximately 2 times. If this is not enough for you, try other modes.', 'robin-image-optimizer' ),
 				],
 				[
 					'aggresive',
 					__( 'Lossy', 'robin-image-optimizer' ),
-					__( 'This mode provides an ideal optimization of your images without significant quality loss. The file size will be reduced approximately 5 times with a slight decrease in image quality. In most cases that cannot be seen with the naked eye.', 'robin-image-optimizer' ),
+					__( 'This mode provides an ideal optimization of your images without significant quality loss. On average, the file size will be reduced approximately 5 times with a slight decrease in image quality. In most cases that cannot be seen with the naked eye.', 'robin-image-optimizer' ),
 				],
 				[
 					'ultra',
 					__( 'High', 'robin-image-optimizer' ),
-					__( 'This mode will use all available optimization methods for maximum image compression. The file size will be reduced approximately 7 times. The quality of some images may deteriorate slightly. Use this mode if you need the maximum weight reduction, and you are ready to accept the loss of image quality.', 'robin-image-optimizer' ),
+					__( 'This mode will use all available optimization methods for maximum image compression. On average, the file size will be reduced approximately 7 times. The quality of some images may deteriorate slightly. Use this mode if you need the maximum weight reduction, and you are ready to accept the loss of image quality.', 'robin-image-optimizer' ),
 				],
 				[
 					'googlepage',
