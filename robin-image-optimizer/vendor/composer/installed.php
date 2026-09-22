@@ -1,9 +1,9 @@
 <?php return array(
     'root' => array(
         'name' => 'codeinwp/robin-image-optimizer',
-        'pretty_version' => 'v2.0.7',
-        'version' => '2.0.7.0',
-        'reference' => '5721ed988391ac4aa7ae0c92c3422550697853b4',
+        'pretty_version' => 'v2.0.8',
+        'version' => '2.0.8.0',
+        'reference' => '40b27c016a9d08b08e5974d88c8a57f388e7d807',
         'type' => 'library',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -11,9 +11,9 @@
     ),
     'versions' => array(
         'codeinwp/robin-image-optimizer' => array(
-            'pretty_version' => 'v2.0.7',
-            'version' => '2.0.7.0',
-            'reference' => '5721ed988391ac4aa7ae0c92c3422550697853b4',
+            'pretty_version' => 'v2.0.8',
+            'version' => '2.0.8.0',
+            'reference' => '40b27c016a9d08b08e5974d88c8a57f388e7d807',
             'type' => 'library',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),

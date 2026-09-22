@@ -4,7 +4,7 @@ Contributors: themeisle
 Requires at least: 5.6
 Tested up to: 7.1
 Requires PHP: 7.3
-Stable tag: 2.0.7
+Stable tag: 2.0.8
 License: GPLv2
 
 Unlimited automatic image optimization for WordPress. Compress images, convert to WebP, and improve site speed without losing image quality.
@@ -15,9 +15,9 @@ Unlimited automatic image optimization for WordPress. Compress images, convert t
 
 Robin Image Optimizer is a WordPress image optimization plugin that can reduce image file size by up to 80% without visible quality loss. It helps speed up your site by compressing images, converting them to modern formats, and optimizing both new and existing images automatically.
 
-Robin Image Optimizer is a smart and advanced free image optimization plugin for WordPress, built with no limits on the number of images, no API keys, and no external CDN dependency. It works locally inside WordPress and supports automatic image optimization, bulk image optimization, and WebP conversion.
+Robin Image Optimizer is a smart and advanced free image optimization plugin for WordPress, built with no limits on the number of images, no API keys, and no CDN in front of your site. Images are compressed by the Robin optimization service and written straight back into your media library, so your image URLs never change. Robin also supports automatic image optimization, bulk image optimization, and WebP conversion.
 
-Robin is built for site owners who want free image optimization, unlimited WebP conversion, and a simple, local solution that works directly inside WordPress.
+Robin is built for site owners who want free image optimization, unlimited WebP conversion, and a simple solution that works directly inside WordPress.
 
 ### At a Glance
 
@@ -25,7 +25,7 @@ Robin is built for site owners who want free image optimization, unlimited WebP 
 📌 Automatic optimization on image upload
 📌 Bulk optimization for existing media
 📌 WebP conversion (JPG, PNG, GIF)
-📌 Runs locally inside WordPress
+📌 Your images stay in your own media library
 📌 No API keys, no external CDN
 
 ### Quick Links
@@ -54,7 +54,7 @@ With Robin, you can:
 
 - Improve loading speed and PageSpeed audits
 
-- Run everything locally without API keys or CDN dependencies
+- Get started without an account, an API key, or a CDN
 
 This makes Robin a reliable choice for bloggers, content websites, and performance-focused WordPress sites.
 
@@ -170,7 +170,7 @@ Great for site owners focused on speed, Core Web Vitals, and PageSpeed audits. O
 Useful for established sites with large media libraries. Previously uploaded images can be optimized in bulk without re-uploading or rebuilding content.
 
 #### 🌍 Sites Without a CDN
-A reliable solution for websites that don’t use a CDN. All image optimization and WebP conversion happen locally inside WordPress, with no external services or API keys required.
+A reliable solution for websites that don’t use a CDN. Optimized and WebP images are stored in your own media library and served from your own domain, so nothing is proxied through a third party when a visitor loads a page.
 
 #### 🧩 Custom Themes & Advanced Setups
 Suitable for custom WordPress themes and advanced setups where images live outside the Media Library. Custom folder optimization allows full-site image optimization beyond standard uploads.
@@ -252,11 +252,9 @@ AVIF is a next-generation image format that can deliver even smaller file sizes 
 
 == Changelog ==
 
-#####   Version 2.0.7 (2026-09-07)
+#####   Version 2.0.8 (2026-09-21)
 
-- Fixed license updates when WordPress has no secure authentication key.
-- Fixed compression mode descriptions to identify displayed file-size reductions as average results.
-- Updated dependencies
+- Enhanced Security
 
 
 

@@ -701,7 +701,7 @@ class simple_html_dom_node
             return $this->dom->restore_noise($this->_[HDOM_INFO_TEXT]);
         }
 
-        $ret = '<' . $this->tag;
+        $ret = '<' . $this->dom->restore_noise($this->tag);
         $i = -1;
 
         foreach ($this->attr as $key => $val) {
@@ -729,6 +729,18 @@ class simple_html_dom_node
                         $quote = '';
                 }
 
+                // Attribute values are restored through the attribute-safe
+                // variant, so a noise placeholder cannot break out of $quote.
+                $val = $this->dom->restore_noise_in_attr($val);
+
+                // An unquoted value has no delimiter to escape against, so a
+                // restored payload with whitespace (or = < > ' " `) would split
+                // into further attributes. Quote it instead.
+                if ($quote === '' && $val !== '' && !preg_match('#^[^\s"\'`=<>]+$#', $val)) {
+                    $quote = '"';
+                    $val = str_replace('"', '&quot;', $val);
+                }
+
                 $ret .= $key
                 . $this->_[HDOM_INFO_SPACE][$i][1]
                 . '='
@@ -739,7 +751,6 @@ class simple_html_dom_node
             }
         }
 
-        $ret = $this->dom->restore_noise($ret);
         return $ret . $this->_[HDOM_INFO_ENDSPACE] . '>';
     }
 
@@ -2602,18 +2613,18 @@ class simple_html_dom
             case '"': // value is anything between double quotes
                 $node->_[HDOM_INFO_QUOTE][] = HDOM_QUOTE_DOUBLE;
                 $this->char = (++$this->pos < $this->size) ? $this->doc[$this->pos] : null; // next
-                $node->attr[$name] = $this->restore_noise($this->copy_until_char('"'));
+                $node->attr[$name] = $this->restore_noise_in_attr($this->copy_until_char('"'));
                 $this->char = (++$this->pos < $this->size) ? $this->doc[$this->pos] : null; // next
                 break;
             case '\'': // value is anything between single quotes
                 $node->_[HDOM_INFO_QUOTE][] = HDOM_QUOTE_SINGLE;
                 $this->char = (++$this->pos < $this->size) ? $this->doc[$this->pos] : null; // next
-                $node->attr[$name] = $this->restore_noise($this->copy_until_char('\''));
+                $node->attr[$name] = $this->restore_noise_in_attr($this->copy_until_char('\''));
                 $this->char = (++$this->pos < $this->size) ? $this->doc[$this->pos] : null; // next
                 break;
             default: // value is anything until the first space or end tag
                 $node->_[HDOM_INFO_QUOTE][] = HDOM_QUOTE_NO;
-                $node->attr[$name] = $this->restore_noise($this->copy_until($this->token_attr));
+                $node->attr[$name] = $this->restore_noise_in_attr($this->copy_until($this->token_attr));
         }
         // PaperG: Attributes should not have \r or \n in them, that counts as
         // html whitespace.
@@ -2799,7 +2810,14 @@ class simple_html_dom
             $debug_object->debug_log_entry(1);
         }
 
-        while (($pos = strpos($text, '___noise___')) !== false) {
+        $offset = 0;
+
+        // Noise can nest, so restored content is rescanned. Expanding each key
+        // at most once per call keeps nesting working, stops placeholders that
+        // name each other, and keeps the work proportional to the input.
+        $expanded = array();
+
+        while (($pos = strpos($text, '___noise___', $offset)) !== false) {
             // Sometimes there is a broken piece of markup, and we don't GET the
             // pos+11 etc... token which indicates a problem outside of us...
 
@@ -2818,25 +2836,87 @@ class simple_html_dom
                     $debug_object->debug_log(2, 'located key of: ' . $key);
                 }
 
-                if (isset($this->noise[$key])) {
+                if (isset($this->noise[$key]) && !isset($expanded[$key])) {
+                    $expanded[$key] = true;
+
                     $text = substr($text, 0, $pos)
                     . $this->noise[$key]
                     . substr($text, $pos + 16);
+
+                    // Rescan from the restored content so nested noise is
+                    // still restored, but never from before it.
+                    $offset = $pos;
                 } else {
-                    // do this to prevent an infinite loop.
+                    // The message must not repeat the key: it contains
+                    // "___noise___" and would be rematched forever.
+                    $replacement = 'UNDEFINED NOISE FOR KEY';
                     $text = substr($text, 0, $pos)
-                    . 'UNDEFINED NOISE FOR KEY: '
-                    . $key
+                    . $replacement
                     . substr($text, $pos + 16);
+                    $offset = $pos + strlen($replacement);
                 }
             } else {
                 // There is no valid key being given back to us... We must get
                 // rid of the ___noise___ or we will have a problem.
+                $replacement = 'NO NUMERIC NOISE KEY';
                 $text = substr($text, 0, $pos)
-                . 'NO NUMERIC NOISE KEY'
+                . $replacement
                 . substr($text, $pos + 11);
+                $offset = $pos + strlen($replacement);
             }
         }
+        return $text;
+    }
+
+    /**
+     * Restore noise into an attribute value
+     *
+     * Same as {@see simple_html_dom::restore_noise()}, except the restored
+     * content is escaped for the attribute context and is never rescanned.
+     *
+     * @param string $text A subset of HTML containing noise
+     * @return string The same content with noise restored, escaped for attributes
+     */
+    function restore_noise_in_attr($text)
+    {
+        if (!is_string($text) || $text === '') {
+            return $text;
+        }
+
+        $offset = 0;
+
+        while (($pos = strpos($text, '___noise___', $offset)) !== false) {
+            if (strlen($text) > $pos + 15) {
+                $key = '___noise___'
+                . $text[$pos + 11]
+                . $text[$pos + 12]
+                . $text[$pos + 13]
+                . $text[$pos + 14]
+                . $text[$pos + 15];
+
+                if (isset($this->noise[$key])) {
+                    // double_encode off: the payload is raw markup that may
+                    // already carry entities, and re-encoding them changes the
+                    // value the browser reads.
+                    $replacement = htmlspecialchars(
+                        $this->noise[$key],
+                        ENT_QUOTES | ENT_SUBSTITUTE,
+                        $this->_target_charset,
+                        false
+                    );
+                } else {
+                    $replacement = 'UNDEFINED NOISE FOR KEY';
+                }
+
+                $text = substr($text, 0, $pos) . $replacement . substr($text, $pos + 16);
+            } else {
+                $replacement = 'NO NUMERIC NOISE KEY';
+                $text = substr($text, 0, $pos) . $replacement . substr($text, $pos + 11);
+            }
+
+            $offset = $pos + strlen($replacement);
+        }
+
         return $text;
     }
 

@@ -314,6 +314,28 @@ if ( ! class_exists( 'Wbcr_FactoryPages600_AdminPage' ) ) {
 		}
 
 		/**
+		 * Checks whether the current user may run the fy_page dispatcher.
+		 *
+		 * Pages are connected on admin_menu, which fires for every logged in
+		 * user, so the dispatcher has to enforce the page capability itself.
+		 * add_menu_page()/add_submenu_page() only guard the menu route.
+		 *
+		 * @return bool
+		 */
+		protected function canDispatchPageRequest() {
+			// $capabilitiy may hold a list, so every capability has to match.
+			$capabilities = ! empty( $this->capabilitiy ) ? (array) $this->capabilitiy : [ 'manage_options' ];
+
+			foreach ( $capabilities as $capability ) {
+				if ( ! current_user_can( (string) $capability ) ) {
+					return false;
+				}
+			}
+
+			return true;
+		}
+
+		/**
 		 * Registers admin page for the admin menu.
 		 */
 		public function connect() {
@@ -332,13 +354,30 @@ if ( ! class_exists( 'Wbcr_FactoryPages600_AdminPage' ) ) {
 				$this->menu_post_type = null;
 			}
 
+			// if this page for a custom menu page
+			if ( $this->menu_post_type ) {
+				$this->menu_target = 'edit.php?post_type=' . $this->menu_post_type;
+
+				if ( empty( $this->capabilitiy ) ) {
+					$this->capabilitiy = 'edit_' . $this->menu_post_type;
+				}
+			}
+
+			// sets default capabilities
+			if ( empty( $this->capabilitiy ) ) {
+				$this->capabilitiy = 'manage_options';
+			}
+
 			// makes redirect to the page
 			$controller = $this->request->get( 'fy_page', null, true );
 
 			if ( $controller && $controller == $this->id ) {
 				$plugin = $this->request->get( 'fy_plugin', null, true );
 
-				if ( $this->plugin->getPluginName() == $plugin ) {
+				if ( $this->plugin->getPluginName() === $plugin ) {
+					if ( ! $this->canDispatchPageRequest() ) {
+						wp_die( esc_html__( 'You do not have sufficient permissions to perform this action!', 'robin-image-optimizer' ), '', 403 );
+					}
 
 					$action  = $this->request->get( 'fy_action', 'index', true );
 					$is_ajax = $this->request->get( 'fy_ajax', false );
@@ -377,20 +416,6 @@ if ( ! class_exists( 'Wbcr_FactoryPages600_AdminPage' ) ) {
 				if ( ! $this->scripts->isEmpty() || ! $this->styles->isEmpty() ) {
 					add_action( 'admin_enqueue_scripts', [ $this, 'actionAdminScripts' ] );
 				}
-			}
-
-			// if this page for a custom menu page
-			if ( $this->menu_post_type ) {
-				$this->menu_target = 'edit.php?post_type=' . $this->menu_post_type;
-
-				if ( empty( $this->capabilitiy ) ) {
-					$this->capabilitiy = 'edit_' . $this->menu_post_type;
-				}
-			}
-
-			// sets default capabilities
-			if ( empty( $this->capabilitiy ) ) {
-				$this->capabilitiy = 'manage_options';
 			}
 
 			// submenu

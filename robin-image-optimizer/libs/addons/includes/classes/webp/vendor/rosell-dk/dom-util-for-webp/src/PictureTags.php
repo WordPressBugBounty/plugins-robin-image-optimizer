@@ -156,14 +156,16 @@ class PictureTags
                 // We have no webps for you, so no reason to create <picture> tag
                 return $imgTag;
             }
-            $sizesAttr = ($sizesInfo['value'] ? (' ' . $sizesInfo['attrName'] . '="' . $sizesInfo['value'] . '"') : '');
+            $sizesAttr = ($sizesInfo['value']
+                ? (' ' . $sizesInfo['attrName'] . '="' . esc_attr($sizesInfo['value']) . '"')
+                : '');
             $sourceSrcAttrName = $srcsetInfo['attrName'];
             if ($sourceSrcAttrName == 'src') {
                 // "src" isn't allowed in <source> tag with <picture> tag as parent.
                 $sourceSrcAttrName = 'srcset';
             }
             return '<picture>'
-                . '<source ' . $sourceSrcAttrName . '="' . $srcsetWebP . '"' . $sizesAttr . ' type="image/webp">'
+                . '<source ' . $sourceSrcAttrName . '="' . esc_attr($srcsetWebP) . '"' . $sizesAttr . ' type="image/webp">'
                 . '<img' . self::createAttributes($imgAttributes) . '>'
                 . '</picture>';
         } else {
@@ -180,7 +182,7 @@ class PictureTags
             }
 
             return '<picture>'
-                . '<source ' . $sourceSrcAttrName . '="' . $srcWebP . '" type="image/webp">'
+                . '<source ' . $sourceSrcAttrName . '="' . esc_attr($srcWebP) . '" type="image/webp">'
                 . '<img' . self::createAttributes($imgAttributes) . '>'
                 . '</picture>';
         }

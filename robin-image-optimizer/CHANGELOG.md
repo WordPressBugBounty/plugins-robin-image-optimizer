@@ -1,3 +1,7 @@
+#####   Version 2.0.8 (2026-09-21)
+
+- Enhanced Security
+
 #####   Version 2.0.7 (2026-09-07)
 
 - Fixed license updates when WordPress has no secure authentication key.
