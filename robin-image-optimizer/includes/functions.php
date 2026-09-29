@@ -341,6 +341,30 @@ function wrio_get_freemius_plugin_id() {
 }
 
 /**
+ * Make sure the WordPress media functions are loaded.
+ *
+ * The wp_generate_attachment_metadata() function lives in wp-admin/includes/image.php,
+ * which is not loaded on cron, REST or front-end requests.
+ *
+ * @return bool True when wp_generate_attachment_metadata() can be called.
+ */
+function wrio_load_media_functions() {
+	if ( function_exists( 'wp_generate_attachment_metadata' ) ) {
+		return true;
+	}
+
+	$image_file = ABSPATH . 'wp-admin/includes/image.php';
+
+	if ( ! file_exists( $image_file ) ) {
+		return false;
+	}
+
+	require_once $image_file;
+
+	return function_exists( 'wp_generate_attachment_metadata' );
+}
+
+/**
  * Get size information for all currently-registered image sizes.
  *
  * @return array $sizes Data for all currently-registered image sizes.
@@ -602,6 +626,30 @@ function wrio_get_file_size( $file_path ) {
 
 	clearstatcache( true, $file_path );
 	return file_exists( $file_path ) ? (int) filesize( $file_path ) : 0;
+}
+
+/**
+ * Returns the size of the main WebP file from the optimization data.
+ *
+ * Extra data may be missing, such as when the queue table has an empty
+ * column or the class is unknown, so it is always checked before use.
+ *
+ * @param RIO_Process_Queue|null $optimization_data Модель очереди обработки.
+ *
+ * @return int
+ */
+function wrio_get_webp_main_size( $optimization_data ) {
+	if ( ! $optimization_data instanceof RIO_Process_Queue ) {
+		return 0;
+	}
+
+	$extra_data = $optimization_data->get_extra_data();
+
+	if ( ! is_object( $extra_data ) || ! method_exists( $extra_data, 'get_webp_main_size' ) ) {
+		return 0;
+	}
+
+	return (int) $extra_data->get_webp_main_size();
 }
 
 /**

@@ -192,13 +192,7 @@ final class Provider extends License_Provider {
 			$latest = $this->get_api_site_scope( $this->license_site )->call( '/updates/latest.json' );
 
 			if ( isset( $latest->error ) ) {
-				$error = $latest->error;
-
-				if ( is_object( $error ) || is_array( $error ) ) {
-					$error = var_export( $error, true );
-				}
-
-				throw new Exception( 'Freemius API ERROR:' . $error );
+				throw new Exception( 'Freemius API ERROR:' . Api::get_error_message( $latest ) );
 			}
 		} catch ( \Freemius_Exception $e ) {
 			throw new Exception( $e->getMessage() );
@@ -223,7 +217,7 @@ final class Provider extends License_Provider {
 			$updates = $this->get_api_site_scope( $this->license_site )->call( 'updates.json?version=' . $current_version, 'GET' );
 
 			if ( isset( $updates->error ) ) {
-				throw new Exception( $updates->error );
+				throw new Exception( Api::get_error_message( $updates ) );
 			}
 		} catch ( \Freemius_Exception $e ) {
 			throw new Exception( $e->getMessage() );
@@ -298,7 +292,7 @@ final class Provider extends License_Provider {
 		$responce_data = json_decode( $responce['body'] );
 
 		if ( isset( $responce_data->error ) ) {
-			throw new Exception( $responce_data->error );
+			throw new Exception( Api::get_error_message( $responce_data ) );
 		}
 
 		$license_user = new User( $responce_data );
@@ -411,7 +405,7 @@ final class Provider extends License_Provider {
 		$request_install = $site_api->call( '/', 'GET' );
 
 		if ( isset( $request_install->error ) ) {
-			throw new Exception( $request_install->error );
+			throw new Exception( Api::get_error_message( $request_install ) );
 		}
 
 		// Если установка не найдена или неактивна, деактивируем лицензию
@@ -426,7 +420,7 @@ final class Provider extends License_Provider {
 		$request_license      = $site_api->call( $request_license_path, 'GET' );
 
 		if ( isset( $request_license->error ) ) {
-			throw new Exception( $request_license->error );
+			throw new Exception( Api::get_error_message( $request_license ) );
 		}
 
 		// Если лицензия не найдена или неактивна или тарифный план не совпадает с текущей установкой,

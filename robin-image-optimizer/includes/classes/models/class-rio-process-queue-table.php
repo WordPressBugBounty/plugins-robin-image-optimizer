@@ -134,6 +134,13 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 	private static $_extra_data;
 
 	/**
+	 * Rows preloaded by prime().
+	 *
+	 * @var array<string, object|null> Keyed by "object_id:item_type" and consumed on first load().
+	 */
+	protected static $primed_rows = [];
+
+	/**
 	 * {@inheritdoc}
 	 */
 	public function init() {
@@ -488,12 +495,112 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 	}
 
 	/**
+	 * Preloads queue rows for many objects in a single query.
+	 *
+	 * @param array<int|string> $object_ids Object ids to preload.
+	 * @param array<int|string> $item_types Item types to preload.
+	 *
+	 * @return void
+	 */
+	public static function prime( array $object_ids, array $item_types ) {
+		global $wpdb;
+
+		$object_ids = array_values( array_unique( array_filter( array_map( 'intval', $object_ids ) ) ) );
+		$item_types = array_values( array_unique( array_filter( array_map( 'strval', $item_types ) ) ) );
+
+		if ( empty( $object_ids ) || empty( $item_types ) ) {
+			return;
+		}
+
+		foreach ( $object_ids as $object_id ) {
+			foreach ( $item_types as $item_type ) {
+				static::$primed_rows[ static::primed_row_key( $object_id, $item_type ) ] = null;
+			}
+		}
+
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT * FROM {$wpdb->prefix}rio_process_queue WHERE object_id IN (" . implode( ',', array_fill( 0, count( $object_ids ), '%d' ) ) . ') AND item_type IN (' . implode( ',', array_fill( 0, count( $item_types ), '%s' ) ) . ');',
+				array_merge( $object_ids, $item_types )
+			)
+		);
+
+		foreach ( (array) $rows as $row ) {
+			$key = static::primed_row_key( $row->object_id, $row->item_type );
+
+			if ( empty( static::$primed_rows[ $key ] ) ) {
+				static::$primed_rows[ $key ] = $row;
+			}
+		}
+	}
+
+	/**
+	 * Builds the $primed_rows key for an object/type pair.
+	 *
+	 * Returns an empty string for anything that is not a scalar — object_id and item_type
+	 * are not always set to one on the write paths — so the caller falls back to the database.
+	 *
+	 * @param mixed $object_id Object id.
+	 * @param mixed $item_type Item type.
+	 *
+	 * @return string
+	 */
+	protected static function primed_row_key( $object_id, $item_type ) {
+		if ( ! is_scalar( $object_id ) || ! is_scalar( $item_type ) ) {
+			return '';
+		}
+
+		return $object_id . ':' . $item_type;
+	}
+
+	/**
+	 * Drops the preloaded row for one object/type pair, so a write is never shadowed by it.
+	 *
+	 * @param mixed $object_id Object id the write touched.
+	 * @param mixed $item_type Item type the write touched.
+	 *
+	 * @return void
+	 */
+	protected static function invalidate_primed_row( $object_id, $item_type ) {
+		$key = static::primed_row_key( $object_id, $item_type );
+
+		if ( '' === $key ) {
+			return;
+		}
+
+		unset( static::$primed_rows[ $key ] );
+	}
+
+	/**
+	 * Drops every row left over from prime().
+	 *
+	 * @return void
+	 */
+	public static function flush_primed_rows() {
+		static::$primed_rows = [];
+	}
+
+	/**
 	 * Обновление свойств объекта из базы данных
 	 *
 	 * @return void
 	 */
 	public function load() {
 		global $wpdb;
+
+		$primed_key = static::primed_row_key( $this->object_id, $this->item_type );
+
+		if ( '' !== $primed_key && array_key_exists( $primed_key, static::$primed_rows ) ) {
+			$row = static::$primed_rows[ $primed_key ];
+			unset( static::$primed_rows[ $primed_key ] );
+
+			if ( ! empty( $row ) ) {
+				$this->configure( (array) $row );
+			}
+
+			return;
+		}
+
 		$table_name = static::table_name();
 		$sql        = $wpdb->prepare(
 			"SELECT * FROM {$table_name} WHERE object_id = %d AND item_type = %s LIMIT 1;",
@@ -575,6 +682,8 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 		$table_name = static::table_name();
 		$data       = $this->prepare_data_to_save();
 
+		static::invalidate_primed_row( $this->object_id, $this->item_type );
+
 		$is_success = false;
 
 		// если установлен id - значит данные уже есть в базе
@@ -631,6 +740,8 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 	public function delete() {
 		global $wpdb;
 		$db_table = static::table_name();
+
+		static::invalidate_primed_row( $this->object_id, $this->item_type );
 
 		$rows_affected = $wpdb->delete( $db_table, [ 'id' => $this->id ] );
 

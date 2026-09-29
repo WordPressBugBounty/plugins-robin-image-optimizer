@@ -4,7 +4,7 @@ Contributors: themeisle
 Requires at least: 5.6
 Tested up to: 7.1
 Requires PHP: 7.3
-Stable tag: 2.0.8
+Stable tag: 2.0.9
 License: GPLv2
 
 Unlimited automatic image optimization for WordPress. Compress images, convert to WebP, and improve site speed without losing image quality.
@@ -252,9 +252,17 @@ AVIF is a next-generation image format that can deliver even smaller file sizes 
 
 == Changelog ==
 
-#####   Version 2.0.8 (2026-09-21)
+#####   Version 2.0.9 (2026-09-29)
 
-- Enhanced Security
+- Fixed frontend page failures when Picture delivery processes converted images.
+- Fixed scheduled WebP conversion crashes for image attachments with missing metadata.
+- Fixed Overall Saving values for images and thumbnails.
+- Fixed image restoration when saved WebP details are missing.
+- Fixed extra Media Library queries for image optimization status.
+- Fixed scheduled NextGEN Gallery optimization that did not process gallery images.
+- Fixed scheduled license checks crashing on licensing service errors.
+- Updated dependencies
+- Added AI agent support: let AI assistants read and change your Robin Image Optimizer settings and optimize
 
 
 

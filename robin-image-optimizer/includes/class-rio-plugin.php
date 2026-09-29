@@ -124,6 +124,7 @@ class WRIO_Plugin extends Wbcr_Factory600_Plugin {
 		add_filter( $sdk_namespace . '_hide_license_notices', '__return_true' );
 		add_filter( $sdk_namespace . '_hide_license_field', '__return_true' );
 		add_filter( $sdk_namespace . '_about_us_metadata', [ __CLASS__, 'register_about_page' ] );
+		add_filter( $sdk_namespace . '_ai_connect_metadata', [ __CLASS__, 'register_ai_connect' ] );
 
 		add_filter( 'themeisle-sdk/survey/' . WRIO_PLUGIN_DIR, [ $this, 'get_survey_metadata' ], 10, 1 );
 		add_filter(
@@ -393,6 +394,30 @@ class WRIO_Plugin extends Wbcr_Factory600_Plugin {
 	}
 
 	/**
+	 * Register the AI Connect data.
+	 *
+	 * @param array<string, mixed> $data The AI Connect data.
+	 *
+	 * @return array<string, mixed> The AI Connect data.
+	 */
+	public static function register_ai_connect( $data ) {
+		return [
+			'name'           => 'Robin Image Optimizer',
+			'notice_cases'   => [
+				__( 'optimize your media library', 'robin-image-optimizer' ),
+				__( 'convert images to WebP', 'robin-image-optimizer' ),
+				__( 'restore original images', 'robin-image-optimizer' ),
+			],
+			'prompts'        => [
+				__( 'Optimize every image in my media library with Robin Image Optimizer.', 'robin-image-optimizer' ),
+				__( 'Turn on automatic optimization for new uploads, WebP conversion and backups of the originals.', 'robin-image-optimizer' ),
+				__( 'Restore the original of my homepage hero image.', 'robin-image-optimizer' ),
+			],
+			'ability_prefix' => 'robin',
+		];
+	}
+
+	/**
 	 * Статический метод для быстрого доступа к интерфейсу плагина.
 	 *
 	 * Позволяет разработчику глобально получить доступ к экземпляру класса плагина в любом месте
@@ -475,6 +500,10 @@ class WRIO_Plugin extends Wbcr_Factory600_Plugin {
 
 		// Register cache invalidation hooks for WRIO_Image_Query
 		WRIO_Image_Query::register_hooks();
+
+		// Abilities API (WordPress 6.9+)
+		require_once WRIO_PLUGIN_DIR . '/includes/classes/class-rio-abilities.php';
+		WRIO_Abilities::init();
 	}
 
 	/**

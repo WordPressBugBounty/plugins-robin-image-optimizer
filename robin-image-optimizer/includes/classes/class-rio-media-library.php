@@ -52,6 +52,7 @@ class WRIO_Media_Library {
 		add_filter( 'attachment_fields_to_edit', [ $this, 'attachmentEditorFields' ], 1000, 2 );
 		add_filter( 'manage_media_columns', [ $this, 'addMediaColumn' ] );
 		add_action( 'manage_media_custom_column', [ $this, 'manageMediaColumn' ], 10, 2 );
+		add_action( 'admin_head-upload.php', [ $this, 'prime_media_column_queue_cache' ] );
 		add_action( 'admin_enqueue_scripts', [ $this, 'enqueueMeadiaScripts' ], 10 );
 		add_action( 'delete_attachment', [ $this, 'deleteAttachmentHook' ], 10 );
 		add_action( 'wbcr/rio/optimize_template/optimized_percent', [ $this, 'optimizedPercent' ], 10, 2 );
@@ -218,7 +219,7 @@ class WRIO_Media_Library {
 		$optimization_data   = $wio_attachment->getOptimizationData();
 		$optimized_size      = $optimization_data->get_final_size();
 		$original_size       = $optimization_data->get_original_size();
-		$webp_optimized_size = $optimization_data->get_extra_data()->get_webp_main_size();
+		$webp_optimized_size = wrio_get_webp_main_size( $optimization_data );
 		$image_statistics->deductFromField( 'webp_optimized_size', $webp_optimized_size );
 		$image_statistics->deductFromField( 'optimized_size', $optimized_size );
 		$image_statistics->deductFromField( 'original_size', $original_size );
@@ -650,6 +651,33 @@ class WRIO_Media_Library {
 	}
 
 	/**
+	 * Preloads queue rows for the attachments listed in the Media Library list table.
+	 *
+	 * The column renders three states per row, so without this each row would query the
+	 * queue table three times. Core fills the query before the admin header is printed,
+	 * so the ids are known here and no row has rendered yet.
+	 *
+	 * @return void
+	 */
+	public function prime_media_column_queue_cache() {
+		global $wp_query;
+
+		if ( ! $wp_query instanceof WP_Query || empty( $wp_query->posts ) ) {
+			return;
+		}
+
+		$attachment_ids = [];
+
+		foreach ( $wp_query->posts as $post ) {
+			if ( $post instanceof WP_Post && 'attachment' === $post->post_type ) {
+				$attachment_ids[] = (int) $post->ID;
+			}
+		}
+
+		RIO_Process_Queue::prime( $attachment_ids, [ 'attachment', 'webp', 'avif' ] );
+	}
+
+	/**
 	 * Возвращает шаблон для вывода блока кнопок на странице ручной оптимизации
 	 *
 	 * @param array  $params @see calculateMediaLibraryParams()
@@ -786,8 +814,15 @@ class WRIO_Media_Library {
 				$diff_percent = round( ( $original_main_size - $attachment_file_size ) * 100 / $original_main_size, 2 );
 			}
 
-			if ( $optimized_size && $original_size ) {
-				$diff_percent_all = round( ( $original_size - $optimized_size ) * 100 / $original_size, 2 );
+			// Overall saving needs aggregate sizes on both sides, not the main file alone.
+			$final_size_all = $optimization_data->get_final_size();
+
+			if ( $original_size && $final_size_all ) {
+				$final_size_all   = min( $original_size, $final_size_all );
+				$diff_percent_all = round( ( $original_size - $final_size_all ) * 100 / $original_size, 2 );
+			} else {
+				// Legacy rows without an aggregate final size: fall back to the main file.
+				$diff_percent_all = $diff_percent;
 			}
 		} else {
 			$optimized_size       = $optimized_size = $original_size = $original_main_size = false;

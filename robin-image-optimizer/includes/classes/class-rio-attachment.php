@@ -115,6 +115,12 @@ class WIO_Attachment {
 
 		WRIO_Plugin::app()->logger->info( sprintf( 'Try regenerate metadata for attachment #%d', $this->id ) );
 
+		if ( ! wrio_load_media_functions() ) {
+			WRIO_Plugin::app()->logger->error( 'Failed regenerate attachment meta data. WordPress media functions are unavailable.' );
+
+			return false;
+		}
+
 		// Need to remove this filter, as it would start recursion
 		remove_filter( 'wp_generate_attachment_metadata', 'WRIO_Media_Library::optimize_after_upload' );
 
@@ -136,9 +142,6 @@ class WIO_Attachment {
 			return false;
 		}
 
-		if ( ! function_exists( 'wp_generate_attachment_metadata' ) ) {
-			require ABSPATH . 'wp-admin/includes/image.php';
-		}
 		$attachment_meta = wp_generate_attachment_metadata( $this->id, $file_path );
 
 		if ( empty( $attachment_meta ) ) {

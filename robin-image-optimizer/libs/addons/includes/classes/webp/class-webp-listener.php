@@ -512,7 +512,7 @@ class Listener {
 				}
 			}
 
-			if ( ! empty( $path_from_url ) ) {
+			if ( ! empty( $path_from_url ) && file_exists( $path_from_url ) && wrio_load_media_functions() ) {
 				// Need to remove this filter, as it would start recursion
 				remove_filter( 'wp_generate_attachment_metadata', 'WRIO_Media_Library::optimize_after_upload' );
 

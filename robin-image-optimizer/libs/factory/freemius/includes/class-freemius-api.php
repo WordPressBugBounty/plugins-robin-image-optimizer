@@ -211,6 +211,42 @@ final class Api {
 
 		return '';
 	}
+
+	/**
+	 * Get API result error message as a string. If failed to get a message, returns an empty string.
+	 *
+	 * The API may return the error as a plain string or as a structured
+	 * object/array with a `message` property, so callers that need a string
+	 * (an exception message, a log entry) must normalize it first.
+	 *
+	 * @param mixed $result
+	 *
+	 * @return string
+	 */
+	public static function get_error_message( $result ) {
+		if ( ! is_object( $result ) || ! isset( $result->error ) ) {
+			return '';
+		}
+
+		$error = $result->error;
+
+		if ( is_string( $error ) ) {
+			return $error;
+		}
+
+		if ( is_object( $error ) || is_array( $error ) ) {
+			$error = (array) $error;
+
+			if ( isset( $error['message'] ) && is_string( $error['message'] ) ) {
+				return $error['message'];
+			}
+
+			// No usable message, keep the payload readable.
+			return (string) wp_json_encode( $error );
+		}
+
+		return (string) $error;
+	}
 	// endregion
 
 	/**

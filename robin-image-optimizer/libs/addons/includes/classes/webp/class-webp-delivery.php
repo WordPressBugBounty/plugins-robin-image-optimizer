@@ -160,8 +160,61 @@ class Delivery {
 	 * Process HTML template buffer.
 	 */
 	public function process_buffer() {
+		// PHP forbids including files from inside an output buffer handler,
+		// so load the markup processor upfront.
+		static::load_markup_processor();
+
 		// template_redirect only fires on frontend, so no need to check is_admin() or AJAX
 		ob_start( [ $this, 'process_alter_html' ] );
+	}
+
+	/**
+	 * Load the markup processor class required by the active delivery mode.
+	 *
+	 * Must run outside the output buffer handler.
+	 *
+	 * @return bool Whether a processor for the active delivery mode is available.
+	 */
+	public static function load_markup_processor() {
+		if ( static::is_picture_delivery_mode() ) {
+			if ( ! class_exists( __NAMESPACE__ . '\Picture_Tags' ) ) {
+				require_once WRIOP_PLUGIN_DIR . '/includes/classes/webp/class-webp-html-picture-tags.php';
+			}
+
+			return class_exists( __NAMESPACE__ . '\Picture_Tags' ) && static::load_html_parser();
+		}
+
+		if ( static::is_url_delivery_mode() ) {
+			if ( ! class_exists( __NAMESPACE__ . '\Urls_Replacer' ) ) {
+				require_once WRIOP_PLUGIN_DIR . '/includes/classes/webp/class-webp-html-image-urls-replacer.php';
+			}
+
+			return class_exists( __NAMESPACE__ . '\Urls_Replacer' ) && static::load_html_parser();
+		}
+
+		return false;
+	}
+
+	/**
+	 * Load the bundled HTML parser that the markup processors rely on.
+	 *
+	 * The parser library loads itself on first use, which would otherwise happen
+	 * inside the output buffer handler.
+	 *
+	 * @return bool Whether the parser is available.
+	 */
+	protected static function load_html_parser() {
+		if ( function_exists( 'str_get_html' ) ) {
+			return true;
+		}
+
+		$parser = WRIOP_PLUGIN_DIR . '/includes/classes/webp/vendor/rosell-dk/dom-util-for-webp/src-vendor/simple_html_dom/simple_html_dom.inc';
+
+		if ( file_exists( $parser ) ) {
+			require_once $parser;
+		}
+
+		return function_exists( 'str_get_html' );
 	}
 
 	/**
@@ -185,11 +238,18 @@ class Delivery {
 				return $content;
 			}
 
-			require_once WRIOP_PLUGIN_DIR . '/includes/classes/webp/class-webp-html-picture-tags.php';
+			// Loaded by process_buffer(); bail out rather than include from inside the buffer handler.
+			if ( ! class_exists( __NAMESPACE__ . '\Picture_Tags', false ) || ! function_exists( 'str_get_html' ) ) {
+				return $content;
+			}
+
 			$content = Picture_Tags::replace( $content );
 		} elseif ( static::is_url_delivery_mode() ) {
 			if ( ! is_admin() ) {
-				require_once WRIOP_PLUGIN_DIR . '/includes/classes/webp/class-webp-html-image-urls-replacer.php';
+				if ( ! class_exists( __NAMESPACE__ . '\Urls_Replacer', false ) || ! function_exists( 'str_get_html' ) ) {
+					return $content;
+				}
+
 				$content = Urls_Replacer::replace( $content );
 			}
 		}

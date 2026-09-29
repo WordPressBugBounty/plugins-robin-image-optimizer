@@ -102,6 +102,27 @@ class WRIO_Cron {
 	}
 
 	/**
+	 * Stops the cron job when its saved scope cannot be processed.
+	 *
+	 * @param string $option Populate option holding the scope.
+	 * @param string $type   Cron type, as used by self::stop().
+	 * @param mixed  $scope  Scope that could not be processed. Any type, so it is
+	 *                       never formatted with %s directly.
+	 *
+	 * @return void
+	 */
+	private function stop_unsupported_scope( $option, $type, $scope ) {
+		WRIO_Plugin::app()->logger->warning(
+			sprintf(
+				'Cron job stopped. Unsupported scope: %s',
+				is_string( $scope ) ? $scope : wp_json_encode( $scope )
+			)
+		);
+		WRIO_Plugin::app()->deletePopulateOption( $option );
+		self::stop( $type );
+	}
+
+	/**
 	 * Метод оптимизирует изображения при выполнении cron задачи
 	 */
 	public function optimization_process( $attachment_id = 0 ) {
@@ -132,17 +153,29 @@ class WRIO_Cron {
 			return;
 		}
 
+		if ( ! is_string( $cron_running_page ) ) {
+			$this->stop_unsupported_scope( 'cron_running', 'optimization', $cron_running_page );
+
+			return;
+		}
+
 		WRIO_Plugin::app()->logger->info( sprintf( 'Start cron job. Scope: %s', $cron_running_page ) );
+
+		$result = null;
 
 		if ( 'media-library' == $cron_running_page ) {
 			$media_library = WRIO_Media_Library::get_instance();
 			$result        = $media_library->processUnoptimizedImages( $max_process_per_request );
-		} elseif ( 'nextgen' == $cron_running_page ) {
+		} elseif ( in_array( $cron_running_page, [ 'nextgen-gallery', 'nextgen' ], true ) && class_exists( 'WRIO_Nextgen_Gallery' ) ) {
 			$nextgen_gallery = WRIO_Nextgen_Gallery::get_instance();
 			$result          = $nextgen_gallery->processUnoptimizedImages( $max_process_per_request );
-		} elseif ( 'custom-folders' == $cron_running_page ) {
+		} elseif ( 'custom-folders' === $cron_running_page && class_exists( 'WRIO_Custom_Folders' ) ) {
 			$cf     = WRIO_Custom_Folders::get_instance();
 			$result = $cf->processUnoptimizedImages( $max_process_per_request );
+		} else {
+			$this->stop_unsupported_scope( 'cron_running', 'optimization', $cron_running_page );
+
+			return;
 		}
 
 		if ( is_wp_error( $result ) ) {
@@ -152,7 +185,7 @@ class WRIO_Cron {
 			return;
 		}
 
-		if ( $result['remain'] <= 0 ) {
+		if ( is_array( $result ) && isset( $result['remain'] ) && $result['remain'] <= 0 ) {
 			WRIO_Plugin::app()->deletePopulateOption( 'cron_running' );
 		}
 
@@ -180,11 +213,23 @@ class WRIO_Cron {
 			return;
 		}
 
+		if ( ! is_string( $cron_running_page ) ) {
+			$this->stop_unsupported_scope( 'conversion_cron_running', 'conversion', $cron_running_page );
+
+			return;
+		}
+
 		WRIO_Plugin::app()->logger->info( sprintf( 'Start cron job. Scope: %s', $cron_running_page ) );
+
+		$result = null;
 
 		if ( 'media-library' == $cron_running_page ) {
 			$media_library = WRIO_Media_Library::get_instance();
 			$result        = $media_library->webpUnoptimizedImages( $max_process_per_request );
+		} else {
+			$this->stop_unsupported_scope( 'conversion_cron_running', 'conversion', $cron_running_page );
+
+			return;
 		}
 
 		if ( is_wp_error( $result ) ) {
@@ -194,7 +239,7 @@ class WRIO_Cron {
 			return;
 		}
 
-		if ( $result['remain'] <= 0 ) {
+		if ( isset( $result['remain'] ) && $result['remain'] <= 0 ) {
 			WRIO_Plugin::app()->deletePopulateOption( 'conversion_cron_running' );
 		}
 
@@ -231,6 +276,12 @@ class WRIO_Cron {
 		$cron_running_page       = WRIO_Plugin::app()->getPopulateOption( 'avif_conversion_cron_running', false );
 
 		if ( ! $cron_running_page ) {
+			return;
+		}
+
+		if ( ! is_string( $cron_running_page ) ) {
+			$this->stop_unsupported_scope( 'avif_conversion_cron_running', 'avif_conversion', $cron_running_page );
+
 			return;
 		}
 

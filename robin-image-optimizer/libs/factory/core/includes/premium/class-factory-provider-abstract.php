@@ -226,7 +226,11 @@ abstract class Provider {
 		add_action(
 			"{$this->plugin->getPluginName()}_license_autosync",
 			function () {
-				$this->sync();
+				try {
+					$this->sync();
+				} catch ( \Throwable $e ) {
+					$this->plugin->logger->error( 'License autosync failed: ' . $e->getMessage() );
+				}
 			}
 		);
 	}

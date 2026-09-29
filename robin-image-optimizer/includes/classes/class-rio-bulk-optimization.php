@@ -181,7 +181,7 @@ class WRIO_Bulk_Optimization {
 
 		$scope = WRIO_Plugin::app()->request->request( 'scope', null, true );
 
-		if ( empty( $scope ) ) {
+		if ( empty( $scope ) || ! is_string( $scope ) ) {
 			wp_die( - 1 );
 		}
 
@@ -220,7 +220,7 @@ class WRIO_Bulk_Optimization {
 
 		$scope = WRIO_Plugin::app()->request->request( 'scope', null, true );
 
-		if ( empty( $scope ) ) {
+		if ( empty( $scope ) || ! is_string( $scope ) ) {
 			wp_die( - 1 );
 		}
 
@@ -398,7 +398,7 @@ class WRIO_Bulk_Optimization {
 
 		$scope = WRIO_Plugin::app()->request->request( 'scope', null, true );
 
-		if ( empty( $scope ) ) {
+		if ( empty( $scope ) || ! is_string( $scope ) ) {
 			wp_die( - 1 );
 		}
 

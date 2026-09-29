@@ -272,7 +272,7 @@ class WRIO_Nextgen_Gallery {
 		if ( $nextgen_image->isOptimized() ) {
 			$optimized_size      = $optimization_data->get_final_size();
 			$original_size       = $optimization_data->get_original_size();
-			$webp_optimized_size = $optimization_data->get_extra_data()->get_webp_main_size();
+			$webp_optimized_size = wrio_get_webp_main_size( $optimization_data );
 			$image_statistics->deductFromField( 'webp_optimized_size', $webp_optimized_size );
 			$image_statistics->deductFromField( 'optimized_size', $optimized_size );
 			$image_statistics->deductFromField( 'original_size', $original_size );
@@ -446,7 +446,7 @@ class WRIO_Nextgen_Gallery {
 			$image_statistics    = WRIO_Image_Statistic_Nextgen::get_instance();
 			$optimized_size      = $optimization_data->get_final_size();
 			$original_size       = $optimization_data->get_original_size();
-			$webp_optimized_size = $optimization_data->get_extra_data()->get_webp_main_size();
+			$webp_optimized_size = wrio_get_webp_main_size( $optimization_data );
 			$image_statistics->deductFromField( 'webp_optimized_size', $webp_optimized_size );
 			$image_statistics->deductFromField( 'optimized_size', $optimized_size );
 			$image_statistics->deductFromField( 'original_size', $original_size );
@@ -475,7 +475,7 @@ class WRIO_Nextgen_Gallery {
 				$image_statistics    = WRIO_Image_Statistic_Nextgen::get_instance();
 				$optimized_size      = $optimization_data->get_final_size();
 				$original_size       = $optimization_data->get_original_size();
-				$webp_optimized_size = $optimization_data->get_extra_data()->get_webp_main_size();
+				$webp_optimized_size = wrio_get_webp_main_size( $optimization_data );
 				$image_statistics->deductFromField( 'webp_optimized_size', $webp_optimized_size );
 				$image_statistics->deductFromField( 'optimized_size', $optimized_size );
 				$image_statistics->deductFromField( 'original_size', $original_size );
