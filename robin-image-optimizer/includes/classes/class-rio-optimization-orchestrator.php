@@ -145,25 +145,8 @@ class WRIO_Optimization_Orchestrator {
 	 * @return array<string, mixed> Result with statistics and last_optimized.
 	 */
 	public function execute_next_action( $batch_size = 1 ) {
-		$next = $this->get_next_action( $batch_size );
-
-		switch ( $next['action'] ) {
-			case self::ACTION_OPTIMIZE:
-				return $this->execute_optimization( $batch_size );
-
-			case self::ACTION_CONVERT_WEBP:
-			case self::ACTION_CONVERT_AVIF:
-				if ( null === $next['attachment_id'] || null === $next['format'] ) {
-					return $this->get_completion_result();
-				}
-				return $this->execute_conversion( $next['attachment_id'], $next['format'] );
-
-			case self::ACTION_COMPLETE:
-				return $this->get_completion_result();
-
-			default:
-				return $this->get_completion_result();
-		}
+		// processUnoptimizedImages() chooses the action and selects its batch in one query.
+		return $this->execute_optimization( $batch_size );
 	}
 
 	/**
@@ -181,88 +164,34 @@ class WRIO_Optimization_Orchestrator {
 			return [ 'error' => $result->get_error_message() ];
 		}
 
-		// Get the attachment ID from the last optimized image for WebP/AVIF conversion
-		$attachment_id = null;
-		if ( ! empty( $result['last_optimized'] ) && is_array( $result['last_optimized'] ) ) {
-			$first_item = reset( $result['last_optimized'] );
-			if ( ! empty( $first_item['id'] ) ) {
-				$queue_record = new RIO_Process_Queue( [ 'id' => $first_item['id'] ] );
-				$queue_record->load();
-				$attachment_id = $queue_record->get_object_id();
-			}
+		// Nothing to select: the run ends, also when a count still sees an image that no query selects.
+		if ( '' === $result['work'] ) {
+			return [
+				'action'         => self::ACTION_COMPLETE,
+				'remain'         => 0,
+				'end'            => true,
+				'statistic'      => $result['statistic'],
+				'last_optimized' => [],
+			];
 		}
 
-		// After optimization, convert to WebP/AVIF if enabled
-		if ( $attachment_id ) {
-			if ( $this->is_webp_enabled() ) {
-				$media_library->webpConvertAttachment( $attachment_id, 'webp' );
-			}
+		$actions = [
+			'attachment' => self::ACTION_OPTIMIZE,
+			'webp'       => self::ACTION_CONVERT_WEBP,
+			'avif'       => self::ACTION_CONVERT_AVIF,
+		];
 
-			if ( $this->is_avif_enabled() ) {
-				$media_library->webpConvertAttachment( $attachment_id, 'avif' );
-			}
-
-			// Refresh statistics and last_optimized after conversions
-			$image_statistics         = WRIO_Image_Statistic::get_instance();
-			$result['statistic']      = $image_statistics->load();
-			$result['last_optimized'] = $image_statistics->get_last_optimized_image( $attachment_id );
-		}
-
-		$remaining   = $this->get_total_remaining();
+		// The step handled the images it selected. The result counted all the work left.
+		$remaining   = (int) $result['remain'];
 		$is_complete = $remaining <= 0;
 
 		return [
-			'action'         => self::ACTION_OPTIMIZE,
+			'action'         => $actions[ $result['work'] ],
 			'remain'         => $remaining,
 			'end'            => $is_complete,
+			'held'           => ! empty( $result['held'] ),
 			'statistic'      => $result['statistic'],
 			'last_optimized' => $result['last_optimized'],
-		];
-	}
-
-	/**
-	 * Execute WebP/AVIF conversion.
-	 *
-	 * @param int    $attachment_id Attachment ID to convert.
-	 * @param string $format        Format to convert to ('webp' or 'avif').
-	 *
-	 * @return array<string, mixed>
-	 */
-	private function execute_conversion( $attachment_id, $format ) {
-		if ( ! $attachment_id ) {
-			return $this->get_completion_result();
-		}
-
-		$media_library = WRIO_Media_Library::get_instance();
-		$media_library->webpConvertAttachment( $attachment_id, $format );
-
-		$image_statistics = WRIO_Image_Statistic::get_instance();
-		$remaining        = WRIO_Image_Statistic::get_unconverted_count( $format );
-
-		return [
-			'action'         => 'avif' === $format ? self::ACTION_CONVERT_AVIF : self::ACTION_CONVERT_WEBP,
-			'format'         => $format,
-			'remain'         => $remaining,
-			'end'            => $this->is_complete(),
-			'statistic'      => $image_statistics->load(),
-			'last_optimized' => $image_statistics->get_last_optimized_image( $attachment_id ),
-		];
-	}
-
-	/**
-	 * Get completion result.
-	 *
-	 * @return array<string, mixed>
-	 */
-	private function get_completion_result() {
-		$image_statistics = WRIO_Image_Statistic::get_instance();
-
-		return [
-			'action'         => self::ACTION_COMPLETE,
-			'remain'         => 0,
-			'end'            => true,
-			'statistic'      => $image_statistics->load(),
-			'last_optimized' => [],
 		];
 	}
 
@@ -274,7 +203,7 @@ class WRIO_Optimization_Orchestrator {
 	 * @return int|null Attachment ID or null if none found.
 	 */
 	public function get_next_unconverted_id( $format ) {
-		$unconverted_images = WRIO_Image_Statistic::get_unconverted_images( $format );
+		$unconverted_images = WRIO_Image_Query::get_instance()->get_unconverted_ids( 'avif' === $format ? 'avif' : 'webp', 1 );
 
 		if ( ! empty( $unconverted_images ) ) {
 			return (int) $unconverted_images[0];
@@ -299,6 +228,11 @@ class WRIO_Optimization_Orchestrator {
 	 */
 	private function get_attachment_unoptimized_count() {
 		global $wpdb;
+
+		if ( \WRIO\Storage\Backfill::reads() ) {
+			return WRIO_Image_Query::get_instance()->count_unoptimized( true, [ 'attachment' ] );
+		}
+
 		$db_table            = RIO_Process_Queue::table_name();
 		$formats             = wrio_get_allowed_formats( true );
 		$allowed_formats_sql = is_array( $formats ) ? implode( ', ', $formats ) : $formats;
@@ -319,9 +253,8 @@ class WRIO_Optimization_Orchestrator {
 					WHERE rio.object_id = posts.ID
 					AND rio.item_type = 'attachment'
 					AND rio.result_status = 'error'
-				)";
+				)" . WRIO_Image_Query::get_instance()->get_exclusion_clause();
 
-		// Add WPML exclusion if needed
 		if ( defined( 'WPML_PLUGIN_FILE' ) ) {
 			$sql = str_replace(
 				'WHERE posts.post_type =',
@@ -336,7 +269,7 @@ class WRIO_Optimization_Orchestrator {
 			);
 		}
 
-		return (int) $wpdb->get_var( $sql );
+		return (int) $wpdb->get_var( $sql ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Plugin table, allowed MIME types and fixed conditions only.
 	}
 
 	/**
@@ -348,11 +281,15 @@ class WRIO_Optimization_Orchestrator {
 	 */
 	private function get_attachment_unoptimized_ids( $limit = 1 ) {
 		global $wpdb;
+
+		if ( \WRIO\Storage\Backfill::reads() ) {
+			return WRIO_Image_Query::get_instance()->get_unoptimized_ids( $limit, 0, true, [ 'attachment' ] );
+		}
+
 		$db_table            = RIO_Process_Queue::table_name();
 		$formats             = wrio_get_allowed_formats( true );
 		$allowed_formats_sql = is_array( $formats ) ? implode( ', ', $formats ) : $formats;
-		$order               = WRIO_Plugin::app()->getOption( 'image_optimization_order', 'asc' );
-		$order               = strtolower( $order ) === 'desc' ? 'DESC' : 'ASC';
+		$order_by            = WRIO_Image_Query::get_instance()->get_order_by();
 
 		$sql = "SELECT DISTINCT posts.ID
 			FROM {$wpdb->posts} AS posts
@@ -370,9 +307,8 @@ class WRIO_Optimization_Orchestrator {
 					WHERE rio.object_id = posts.ID
 					AND rio.item_type = 'attachment'
 					AND rio.result_status = 'error'
-				)";
+				)" . WRIO_Image_Query::get_instance()->get_exclusion_clause();
 
-		// Add WPML exclusion if needed
 		if ( defined( 'WPML_PLUGIN_FILE' ) ) {
 			$sql = str_replace(
 				'WHERE posts.post_type =',
@@ -387,10 +323,10 @@ class WRIO_Optimization_Orchestrator {
 			);
 		}
 
-		$sql .= " ORDER BY posts.ID {$order} LIMIT %d";
-		$sql  = $wpdb->prepare( $sql, $limit );
+		$sql .= " ORDER BY {$order_by} LIMIT %d";
+		$sql  = $wpdb->prepare( $sql, $limit ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Plugin table, allowed MIME types and a fixed sort order; the limit is a placeholder.
 
-		return array_map( 'absint', $wpdb->get_col( $sql ) ?? [] );
+		return array_map( 'absint', $wpdb->get_col( $sql ) ?? [] ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Prepared above.
 	}
 
 	/**
@@ -404,12 +340,10 @@ class WRIO_Optimization_Orchestrator {
 	 * @return bool
 	 */
 	public function is_complete() {
-		// Check attachment optimization specifically
 		if ( $this->get_attachment_unoptimized_count() > 0 ) {
 			return false;
 		}
 
-		// Check WebP conversion
 		if ( $this->is_webp_enabled() ) {
 			$webp_unconverted = WRIO_Image_Statistic::get_unconverted_count( 'webp' );
 			if ( $webp_unconverted > 0 ) {
@@ -417,7 +351,6 @@ class WRIO_Optimization_Orchestrator {
 			}
 		}
 
-		// Check AVIF conversion
 		if ( $this->is_avif_enabled() ) {
 			$avif_unconverted = WRIO_Image_Statistic::get_unconverted_count( 'avif' );
 			if ( $avif_unconverted > 0 ) {
@@ -434,11 +367,7 @@ class WRIO_Optimization_Orchestrator {
 	 * @return bool
 	 */
 	private function is_webp_enabled() {
-		if ( ! class_exists( 'WRIO_Format_Converter_Factory' ) ) {
-			return false;
-		}
-
-		return WRIO_Format_Converter_Factory::is_webp_enabled();
+		return WRIO_Formats::is_webp_enabled();
 	}
 
 	/**
@@ -447,11 +376,7 @@ class WRIO_Optimization_Orchestrator {
 	 * @return bool
 	 */
 	private function is_avif_enabled() {
-		if ( ! class_exists( 'WRIO_Format_Converter_Factory' ) ) {
-			return false;
-		}
-
-		return WRIO_Format_Converter_Factory::is_avif_enabled();
+		return WRIO_Formats::is_avif_enabled();
 	}
 
 	/**

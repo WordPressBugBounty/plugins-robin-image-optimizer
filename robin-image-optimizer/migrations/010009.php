@@ -9,13 +9,13 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Updates for altering the table used to store statistics data.
  * Adds new columns and renames existing ones in order to add support for the new social buttons.
  */
-class WIOUpdate010009 extends Wbcr_Factory600_Update {
+class WIOUpdate010009 {
 
 	public function install() {
 
 		$db_version             = RIO_Process_Queue::get_db_version();
 		$plugin_version_in_db   = $this->get_plugin_version_in_db();
-		$current_plugin_version = $this->plugin->getPluginVersion();
+		$current_plugin_version = WRIO_Plugin::app()->getPluginVersion();
 
 		$init_log_message = "Start plugin migration < %s.\r\n";
 		$init_log_message .= "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t-DB Version: {$db_version}\r\n";
@@ -26,7 +26,7 @@ class WIOUpdate010009 extends Wbcr_Factory600_Update {
 
 		WRIO_Plugin::app()->updateOption( 'image_optimization_server', 'server_2' );
 
-		WBCR\Factory_Templates_759\Helpers::flushPageCache();
+		wrio_flush_page_cache();
 
 		WRIO_Plugin::app()->logger->info( 'Plugin migration was successfull!' );
 	}

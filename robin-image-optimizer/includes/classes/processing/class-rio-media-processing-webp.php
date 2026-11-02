@@ -1,6 +1,9 @@
 <?php
-
-use WBCR\Factory_Processing_759\WP_Background_Process;
+/**
+ * Background queue for Media Library WebP conversion.
+ *
+ * @package robin-image-optimizer
+ */
 
 // Exit if accessed directly
 if ( ! defined( 'ABSPATH' ) ) {
@@ -72,7 +75,8 @@ class WRIO_Media_Processing_Webp extends WRIO_Processing {
 			$media_library = WRIO_Media_Library::get_instance();
 
 			try {
-				if ( strpos( $this->scope, 'media-library_' ) === 0 ) {
+				// An image excluded after it was queued is skipped.
+				if ( strpos( $this->scope, 'media-library_' ) === 0 && ! WRIO_Media_Library::skips_queued( (int) $image ) ) {
 					$media_library->webpConvertAttachment( $image, $this->format );
 				}
 			} catch ( Throwable $throwable ) {

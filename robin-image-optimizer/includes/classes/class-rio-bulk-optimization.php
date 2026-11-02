@@ -1,6 +1,9 @@
 <?php
-
-use WBCR\Factory_Processing_759\WP_Background_Process;
+/**
+ * Bulk and single-image optimization AJAX handlers.
+ *
+ * @package robin-image-optimizer
+ */
 
 // Exit if accessed directly
 if ( ! defined( 'ABSPATH' ) ) {
@@ -15,684 +18,19 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class WRIO_Bulk_Optimization {
 
-	public $processing;
+	/**
+	 * Seconds that the bulk page waits before it asks again for an image that another process locks.
+	 * A live process finishes soon. The lock of a dead process expires after Store::LOCK_TTL.
+	 */
+	const LOCKED_WAIT = 30;
 
+	/**
+	 * Register the AJAX actions of the media column.
+	 */
 	public function __construct() {
-		$image_optimization_type = WRIO_Plugin::app()->getOption( 'image_optimization_type', '' );
-		if ( wrio_is_license_activate() && $image_optimization_type === 'background' ) {
-			$scope            = WRIO_Plugin::app()->request->request( 'scope', null, true );
-			$this->processing = $scope ? wrio_get_processing_class( $scope ) : $scope;
-
-			add_action( 'wp_ajax_wrio-cron-start', [ $this, 'processing_start' ] );
-			add_action( 'wp_ajax_wrio-cron-stop', [ $this, 'processing_stop' ] );
-
-			add_action( 'wp_ajax_wrio-webp-cron-start', [ $this, 'webp_processing_start' ] );
-			add_action( 'wp_ajax_wrio-webp-cron-stop', [ $this, 'webp_processing_stop' ] );
-			add_action( 'wp_ajax_wrio-avif-cron-start', [ $this, 'avif_processing_start' ] );
-			add_action( 'wp_ajax_wrio-avif-cron-stop', [ $this, 'avif_processing_stop' ] );
-		} else {
-			add_action( 'wp_ajax_wrio-cron-start', [ $this, 'cron_start' ] );
-			add_action( 'wp_ajax_wrio-cron-stop', [ $this, 'cron_stop' ] );
-
-			add_action( 'wp_ajax_wrio-webp-cron-start', [ $this, 'webp_cron_start' ] );
-			add_action( 'wp_ajax_wrio-webp-cron-stop', [ $this, 'webp_cron_stop' ] );
-			add_action( 'wp_ajax_wrio-avif-cron-start', [ $this, 'avif_cron_start' ] );
-			add_action( 'wp_ajax_wrio-avif-cron-stop', [ $this, 'avif_cron_stop' ] );
-		}
-
-		add_action( 'wp_ajax_wrio-bulk-optimization-process', [ $this, 'bulk_optimization_process' ] );
-		add_action( 'wp_ajax_wrio-bulk-conversion-process', [ $this, 'bulk_conversion_process' ] );
 		add_action( 'wp_ajax_wio_reoptimize_image', [ $this, 'reoptimize_image' ] );
 		add_action( 'wp_ajax_wio_convert_image', [ $this, 'convert_image' ] );
 		add_action( 'wp_ajax_wio_restore_image', [ $this, 'restore_image' ] );
-
-		add_action( 'wp_ajax_wbcr-rio-check-servers-status', [ $this, 'check_servers_status' ] );
-		add_action( 'wp_ajax_wbcr-rio-check-user-balance', [ $this, 'check_user_balance' ] );
-
-		// add_action( 'wp_ajax_wbcr-rio-calculate-total-images', [ $this, 'calculate_total_images' ] );
-		add_action( 'wp_ajax_wbcr-rio-calculate-total-images', [ $this, 'calculate_total_images' ] );
-		add_action( 'wp_ajax_wbcr-rio-calculate-total-attachments', [ $this, 'calculate_total_attachments' ] );
-		add_action( 'wp_ajax_wbcr-rio-calculate-total-thumbs', [ $this, 'calculate_total_thumbs' ] );
-	}
-
-	/**
-	 * Calculates the total number of attachments that meet specified criteria.
-	 * Retrieves the total count of attachment posts with allowed formats, excluding duplicates
-	 * if WPML is active, and sends the result as a JSON response.
-	 * Includes nonce verification and checks user permissions.
-	 *
-	 * @return void Outputs JSON response with the total count of attachments.
-	 */
-	public function calculate_total_attachments() {
-		check_ajax_referer( 'bulk_optimization' );
-
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( - 1 );
-		}
-
-		WRIO_Plugin::app()->deletePopulateOption( 'wrio_partial_total_count' );
-
-		$total_attachments = WRIO_Image_Query::get_instance()->count_total_attachments();
-
-		wp_send_json_success(
-			[
-				'found_attachments' => (int) $total_attachments,
-			]
-		);
-	}
-
-	/**
-	 * Calculates the total number of attachment thumbnails that match specified criteria.
-	 * Processes a batch of attachments, counting the allowed thumbnail sizes, and updates
-	 * the total count in the database. Handles AJAX requests, including user permissions
-	 * and nonce verification.
-	 *
-	 * @return void Outputs JSON response with the total count of thumbnails and processing status.
-	 */
-	public function calculate_total_thumbs() {
-		check_ajax_referer( 'bulk_optimization' );
-
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( - 1 );
-		}
-
-		global $wpdb;
-
-		$offset = (int) WRIO_Plugin::app()->request->post( 'offset', 0 );
-		$limit  = (int) WRIO_Plugin::app()->request->post( 'limit', 200 );
-
-		$allowed_formats_sql = wrio_get_allowed_formats( true );
-		$allowed_sizes       = explode( ',', WRIO_Plugin::app()->getPopulateOption( 'allowed_sizes_thumbnail', '' ) );
-
-		$query = $wpdb->prepare(
-			"
-	        SELECT posts.ID
-	        FROM {$wpdb->posts} as posts
-	        WHERE post_type = 'attachment'
-	            AND post_status = 'inherit'
-	            AND post_mime_type IN ({$allowed_formats_sql})
-	        LIMIT %d OFFSET %d
-	    ",
-			$limit,
-			$offset
-		);
-
-		// Учитываем WPML (исключение дубликатов)
-		if ( defined( 'WPML_PLUGIN_FILE' ) ) {
-			$query = str_replace(
-				'WHERE post_type =',
-				"WHERE NOT EXISTS (
-            SELECT icl.element_id 
-            FROM {$wpdb->prefix}icl_translations as icl 
-            WHERE icl.element_id = posts.ID 
-            AND icl.element_type = 'post_attachment'
-            AND source_language_code IS NOT NULL
-        ) AND post_type =",
-				$query
-			);
-		}
-
-		$attachments = $wpdb->get_results( $query );
-		$total_count = (int) WRIO_Plugin::app()->getPopulateOption( 'wrio_partial_total_count', 0 );
-
-		$current_batch_count = 0;
-
-		foreach ( $attachments as $attachment ) {
-			$meta = wp_get_attachment_metadata( $attachment->ID );
-			if ( $meta && isset( $meta['sizes'] ) ) {
-				foreach ( $meta['sizes'] as $size_key => $size_value ) {
-					if ( in_array( $size_key, $allowed_sizes ) ) {
-						++$current_batch_count;
-					}
-				}
-			}
-		}
-
-		$total_count += $current_batch_count;
-		WRIO_Plugin::app()->updatePopulateOption( 'wrio_partial_total_count', $total_count );
-
-		// Если больше данных для обработки нет — завершаем и сохраняем в кеш
-		if ( count( $attachments ) < $limit ) {
-			WRIO_Plugin::app()->deletePopulateOption( 'wrio_partial_total_count' );
-
-			wp_send_json_success(
-				[
-					'found_thumbs' => $total_count,
-					'done'         => true,
-				]
-			);
-		}
-
-		wp_send_json_success(
-			[
-				'found_thumbs' => $total_count,
-				'done'         => false,
-				'next_offset'  => $offset + $limit,
-			]
-		);
-	}
-
-	public function cron_start() {
-		check_ajax_referer( 'bulk_optimization' );
-
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( - 1 );
-		}
-
-		$scope = WRIO_Plugin::app()->request->request( 'scope', null, true );
-
-		if ( empty( $scope ) || ! is_string( $scope ) ) {
-			wp_die( - 1 );
-		}
-
-		// where was runned cron
-		$cron_running_place = WRIO_Plugin::app()->getPopulateOption( 'cron_running', false );
-
-		if ( $scope == $cron_running_place ) {
-			wp_send_json_success();
-		}
-
-		WRIO_Plugin::app()->updatePopulateOption( 'cron_running', $scope );
-		WRIO_Cron::start();
-
-		wp_send_json_success();
-	}
-
-	public function cron_stop() {
-		check_ajax_referer( 'bulk_optimization' );
-
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( - 1 );
-		}
-
-		WRIO_Plugin::app()->updatePopulateOption( 'cron_running', false );
-		WRIO_Cron::stop();
-
-		wp_send_json_success();
-	}
-
-	public function webp_cron_start() {
-		check_ajax_referer( 'bulk_conversion' );
-
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( - 1 );
-		}
-
-		$scope = WRIO_Plugin::app()->request->request( 'scope', null, true );
-
-		if ( empty( $scope ) || ! is_string( $scope ) ) {
-			wp_die( - 1 );
-		}
-
-		$type = 'conversion';
-
-		// where was runned cron
-		$cron_running_place = WRIO_Plugin::app()->getPopulateOption( "{$type}_cron_running", false );
-
-		if ( $scope == $cron_running_place ) {
-			wp_send_json_success();
-		}
-
-		WRIO_Plugin::app()->updatePopulateOption( "{$type}_cron_running", $scope );
-		WRIO_Cron::start( $type );
-
-		wp_send_json_success();
-	}
-
-	public function webp_cron_stop() {
-		check_ajax_referer( 'bulk_conversion' );
-
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( - 1 );
-		}
-
-		$type = 'conversion';
-
-		WRIO_Plugin::app()->updatePopulateOption( "{$type}_cron_running", false );
-		WRIO_Cron::stop( $type );
-
-		wp_send_json_success();
-	}
-
-	public function processing_start() {
-		check_ajax_referer( 'bulk_optimization' );
-
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( - 1 );
-		}
-
-		$scope = WRIO_Plugin::app()->request->request( 'scope', null, true );
-
-		if ( empty( $scope ) ) {
-			wp_die( - 1 );
-		}
-
-		// where was runned
-		$process_running_place = WRIO_Plugin::app()->getPopulateOption( 'process_running', false );
-
-		if ( $scope == $process_running_place ) {
-			wp_send_json_success();
-		}
-
-		WRIO_Plugin::app()->updatePopulateOption( 'process_running', $scope );
-
-		$processing = wrio_get_processing_class( $scope );
-		if ( ! $processing ) {
-			WRIO_Plugin::app()->updatePopulateOption( 'process_running', false );
-			wp_send_json_error( [ 'message' => 'Processing class not found for scope: ' . $scope ] );
-		}
-
-		if ( $processing->push_items() ) {
-			$processing->save()->dispatch();
-		} else {
-			WRIO_Plugin::app()->updatePopulateOption( 'process_running', false );
-			wp_send_json_success(
-				[
-					'stop' => true,
-				]
-			);
-		}
-
-		wp_send_json_success();
-	}
-
-	public function processing_stop() {
-		check_ajax_referer( 'bulk_optimization' );
-
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( - 1 );
-		}
-
-		$scope = WRIO_Plugin::app()->request->request( 'scope', null, true );
-		if ( empty( $scope ) ) {
-			wp_die( - 1 );
-		}
-
-		WRIO_Plugin::app()->updatePopulateOption( 'process_running', false );
-		$processing = wrio_get_processing_class( $scope );
-		if ( $processing ) {
-			$processing->cancel_process();
-		}
-
-		wp_send_json_success();
-	}
-
-	public function webp_processing_start() {
-		check_ajax_referer( 'bulk_conversion' );
-
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( - 1 );
-		}
-
-		$scope = WRIO_Plugin::app()->request->request( 'scope', null, true );
-
-		if ( empty( $scope ) ) {
-			wp_die( - 1 );
-		}
-
-		$scope = $scope . '_webp';
-
-		// where was runned
-		$process_running_place = WRIO_Plugin::app()->getPopulateOption( "{$scope}_process_running", false );
-
-		if ( $scope == $process_running_place ) {
-			wp_send_json_success();
-		}
-
-		WRIO_Plugin::app()->updatePopulateOption( "{$scope}_process_running", $scope );
-
-		$processing = wrio_get_processing_class( $scope );
-		if ( ! $processing ) {
-			WRIO_Plugin::app()->updatePopulateOption( "{$scope}_process_running", false );
-			wp_send_json_error( [ 'message' => 'Processing class not found for scope: ' . $scope ] );
-		}
-
-		if ( $processing->push_items() ) {
-			$processing->save()->dispatch();
-		} else {
-			WRIO_Plugin::app()->updatePopulateOption( "{$scope}_process_running", false );
-			wp_send_json_success(
-				[
-					'stop' => true,
-				]
-			);
-		}
-
-		wp_send_json_success();
-	}
-
-	public function webp_processing_stop() {
-		check_ajax_referer( 'bulk_conversion' );
-
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( - 1 );
-		}
-
-		$scope = WRIO_Plugin::app()->request->request( 'scope', null, true );
-		if ( empty( $scope ) ) {
-			wp_die( - 1 );
-		}
-
-		$scope = $scope . '_webp';
-
-		WRIO_Plugin::app()->updatePopulateOption( "{$scope}_process_running", false );
-		$processing = wrio_get_processing_class( $scope );
-		if ( $processing ) {
-			$processing->cancel_process();
-		}
-
-		wp_send_json_success();
-	}
-
-	/**
-	 * Start AVIF conversion cron job.
-	 *
-	 * @return void
-	 */
-	public function avif_cron_start() {
-		check_ajax_referer( 'bulk_conversion' );
-
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( - 1 );
-		}
-
-		$scope = WRIO_Plugin::app()->request->request( 'scope', null, true );
-
-		if ( empty( $scope ) || ! is_string( $scope ) ) {
-			wp_die( - 1 );
-		}
-
-		$type = 'avif_conversion';
-
-		// where was runned cron
-		$cron_running_place = WRIO_Plugin::app()->getPopulateOption( "{$type}_cron_running", false );
-
-		if ( $scope == $cron_running_place ) {
-			wp_send_json_success();
-		}
-
-		WRIO_Plugin::app()->updatePopulateOption( "{$type}_cron_running", $scope );
-		WRIO_Cron::start( $type );
-
-		wp_send_json_success();
-	}
-
-	/**
-	 * Stop AVIF conversion cron job.
-	 *
-	 * @return void
-	 */
-	public function avif_cron_stop() {
-		check_ajax_referer( 'bulk_conversion' );
-
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( - 1 );
-		}
-
-		$type = 'avif_conversion';
-
-		WRIO_Plugin::app()->updatePopulateOption( "{$type}_cron_running", false );
-		WRIO_Cron::stop( $type );
-
-		wp_send_json_success();
-	}
-
-	/**
-	 * Start AVIF conversion background processing.
-	 *
-	 * @return void
-	 */
-	public function avif_processing_start() {
-		check_ajax_referer( 'bulk_conversion' );
-
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( - 1 );
-		}
-
-		$scope = WRIO_Plugin::app()->request->request( 'scope', null, true );
-
-		if ( empty( $scope ) ) {
-			wp_die( - 1 );
-		}
-
-		$scope = $scope . '_avif';
-
-		// where was runned
-		$process_running_place = WRIO_Plugin::app()->getPopulateOption( "{$scope}_process_running", false );
-
-		if ( $scope == $process_running_place ) {
-			wp_send_json_success();
-		}
-
-		WRIO_Plugin::app()->updatePopulateOption( "{$scope}_process_running", $scope );
-
-		$processing = wrio_get_processing_class( $scope );
-		if ( ! $processing ) {
-			WRIO_Plugin::app()->updatePopulateOption( "{$scope}_process_running", false );
-			wp_send_json_error( [ 'message' => 'Processing class not found for scope: ' . $scope ] );
-		}
-
-		if ( $processing->push_items() ) {
-			$processing->save()->dispatch();
-		} else {
-			WRIO_Plugin::app()->updatePopulateOption( "{$scope}_process_running", false );
-			wp_send_json_success(
-				[
-					'stop' => true,
-				]
-			);
-		}
-
-		wp_send_json_success();
-	}
-
-	/**
-	 * Stop AVIF conversion background processing.
-	 *
-	 * @return void
-	 */
-	public function avif_processing_stop() {
-		check_ajax_referer( 'bulk_conversion' );
-
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( - 1 );
-		}
-
-		$scope = WRIO_Plugin::app()->request->request( 'scope', null, true );
-		if ( empty( $scope ) ) {
-			wp_die( - 1 );
-		}
-
-		$scope = $scope . '_avif';
-
-		WRIO_Plugin::app()->updatePopulateOption( "{$scope}_process_running", false );
-		$processing = wrio_get_processing_class( $scope );
-		if ( $processing ) {
-			$processing->cancel_process();
-		}
-
-		wp_send_json_success();
-	}
-
-	public function bulk_optimization_process() {
-		check_admin_referer( 'bulk_optimization' );
-
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( - 1 );
-		}
-
-		$reset_current_error = (bool) WRIO_Plugin::app()->request->request( 'reset_current_errors' );
-		$scope               = WRIO_Plugin::app()->request->request( 'scope', null, true );
-
-		WRIO_Plugin::app()->logger->info( sprintf( 'Start bulk optimization process! Scope: %s', $scope ) );
-
-		if ( empty( $scope ) ) {
-			wp_die( - 1 );
-		}
-
-		// Use orchestrator for media-library scope
-		if ( 'media-library' === $scope ) {
-			if ( $reset_current_error ) {
-				$media_library = WRIO_Media_Library::get_instance();
-				$media_library->resetCurrentErrors();
-			}
-
-			$orchestrator = WRIO_Optimization_Orchestrator::get_instance();
-			$result       = $orchestrator->execute_next_action( 1 );
-
-			if ( isset( $result['error'] ) ) {
-				$error_massage = $result['error'];
-
-				if ( empty( $error_massage ) ) {
-					$error_massage = __( "Unknown error. Enable error log on the plugin's settings page, then check the error report on the Error Log page. You can export the error report and send it to the support service of the plugin.", 'robin-image-optimizer' );
-				}
-
-				WRIO_Plugin::app()->logger->error( sprintf( 'Bulk optimization error: %s.', $error_massage ) );
-
-				wp_send_json_error( [ 'error_message' => $error_massage ] );
-			}
-
-			WRIO_Plugin::app()->logger->info( sprintf( 'End bulk optimization process! Scope: %s. Remain: %d', $scope, $result['remain'] ) );
-
-			wp_send_json_success( $result );
-		}
-
-		// Fall back to old behavior for custom-folders, nextgen, etc.
-		// Context class name. If plugin expands with add-ons
-		$class_name = 'WRIO_' . wrio_dashes_to_camel_case( $scope, true );
-
-		if ( ! class_exists( $class_name ) ) {
-			WRIO_Plugin::app()->logger->error( sprintf( 'Bulk optimization error: Context class (%s) not found.', $class_name ) );
-
-			// todo: Temporary bug fix.
-			if ( 'custom-folders' === $scope ) {
-				$class_name = 'WRIO_Custom_Folders';
-			} elseif ( 'nextgen-gallery' == $scope ) {
-				$class_name = 'WRIO_Nextgen_Gallery';
-			}
-
-			if ( ! class_exists( $class_name ) ) {
-				wp_send_json_error( [ 'error_message' => 'Context class not found.' ] );
-			}
-		}
-
-		/**
-		 * Create an instance of the class depending on the context in which scope user
-		 * has runned optimization.
-		 *
-		 * @see WRIO_Custom_Folders
-		 * @see WRIO_Nextgen_Gallery
-		 * @var WRIO_Media_Library $optimizer
-		 */
-		$optimizer = new $class_name();
-
-		if ( $reset_current_error ) {
-			$optimizer->resetCurrentErrors();
-		}
-
-		$result = $optimizer->processUnoptimizedImages( 1 );
-
-		if ( is_wp_error( $result ) ) {
-			$error_massage = $result->get_error_message();
-
-			if ( empty( $error_massage ) ) {
-				$error_massage = __( "Unknown error. Enable error log on the plugin's settings page, then check the error report on the Error Log page. You can export the error report and send it to the support service of the plugin.", 'robin-image-optimizer' );
-			}
-
-			WRIO_Plugin::app()->logger->error( sprintf( 'Bulk optimization error: %s.', $result->get_error_message() ) );
-
-			wp_send_json_error( [ 'error_message' => $error_massage ] );
-		}
-
-		// If all images are processed, send completion command
-		if ( $result['remain'] <= 0 ) {
-			$result['end'] = true;
-		}
-
-		WRIO_Plugin::app()->logger->info( sprintf( 'End bulk optimization process! Scope: %s. Remain: %d', $scope, $result['remain'] ) );
-
-		wp_send_json_success( $result );
-	}
-
-	public function bulk_conversion_process() {
-		check_admin_referer( 'bulk_conversion' );
-
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( - 1 );
-		}
-
-		$reset_current_error = (bool) WRIO_Plugin::app()->request->request( 'reset_current_errors' );
-		$scope               = WRIO_Plugin::app()->request->request( 'scope', null, true );
-		$format              = WRIO_Plugin::app()->request->request( 'format', 'webp', true );
-
-		// Validate format
-		if ( ! in_array( $format, [ 'webp', 'avif' ], true ) ) {
-			$format = 'webp';
-		}
-
-		WRIO_Plugin::app()->logger->info( sprintf( 'Start bulk conversion process! Scope: %s, Format: %s', $scope, $format ) );
-
-		if ( empty( $scope ) ) {
-			wp_die( - 1 );
-		}
-
-		// Context class name. If plugin expands with add-ons
-		$class_name = 'WRIO_' . wrio_dashes_to_camel_case( $scope, true );
-
-		if ( ! class_exists( $class_name ) ) {
-			WRIO_Plugin::app()->logger->error( sprintf( 'Bulk conversion error: Context class (%s) not found.', $class_name ) );
-
-			// todo: Temporary bug fix.
-			if ( 'media-library' === $scope ) {
-				$class_name = 'WRIO_Media_Library';
-			} elseif ( 'custom-folders' === $scope ) {
-				$class_name = 'WRIO_Custom_Folders';
-			} elseif ( 'nextgen-gallery' == $scope ) {
-				$class_name = 'WRIO_Nextgen_Gallery';
-			}
-
-			if ( ! class_exists( $class_name ) ) {
-				wp_send_json_error( [ 'error_message' => 'Context class not found.' ] );
-			}
-		}
-
-		/**
-		 * Create an instance of the class depending on the context in which scope user
-		 * has runned optimization.
-		 *
-		 * @see WRIO_Media_Library
-		 * @see WRIO_Custom_Folders
-		 * @see WRIO_Nextgen_Gallery
-		 * @var WRIO_Media_Library $optimizer
-		 */
-		$optimizer = new $class_name();
-
-		if ( $reset_current_error ) {
-			$optimizer->resetCurrentErrors(); // сбрасываем текущие ошибки оптимизации
-		}
-
-		$result = $optimizer->webpUnoptimizedImages( 1, $format );
-
-		if ( is_wp_error( $result ) ) {
-			$error_massage = $result->get_error_message();
-
-			if ( empty( $error_massage ) ) {
-				$error_massage = __( "Unknown error. Enable error log on the plugin's settings page, then check the error report on the Error Log page. You can export the error report and send it to the support service of the plugin.", 'robin-image-optimizer' );
-			}
-
-			WRIO_Plugin::app()->logger->error( sprintf( 'Bulk conversion error: %s.', $result->get_error_message() ) );
-
-			wp_send_json_error( [ 'error_message' => $error_massage ] );
-		}
-
-		// если изображения закончились - посылаем команду завершения
-		if ( $result['remain'] <= 0 ) {
-			$result['end'] = true;
-		}
-
-		WRIO_Plugin::app()->logger->info( sprintf( 'End bulk conversion process! Scope: %s, Format: %s. Remain: %d', $scope, $format, $result['remain'] ) );
-
-		wp_send_json_success( $result );
 	}
 
 	public function reoptimize_image() {
@@ -709,22 +47,24 @@ class WRIO_Bulk_Optimization {
 
 		$backup               = WIO_Backup::get_instance();
 		$media_library        = WRIO_Media_Library::get_instance();
-		$backup_origin_images = WRIO_Plugin::app()->getPopulateOption( 'backup_origin_images', false );
+		$backup_origin_images = WRIO_Plugin::app()->getPopulateOption( 'backup_origin_images', wrio_get_default( 'backup_origin_images' ) );
 
 		if ( $backup_origin_images && ! $backup->isBackupWritable() ) {
-			echo $media_library->getMediaColumnContent( $attachment_id );
-			die();
+			echo $media_library->getMediaColumnContent( $attachment_id ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- the column template escapes every value.
+			wp_die();
 		}
 
-		$optimized_data = $media_library->optimizeAttachment( $attachment_id, $level );
+		// The user asks for it: send failures again too, even permanent ones or before their retry time.
+		\WRIO\Storage\Store::retry_now( 'attachment', $attachment_id );
+		\WRIO\V2\Client::$trigger = 'manual';
+		$optimized_data           = $media_library->optimizeAttachment( $attachment_id, $level );
 
-		if ( $optimized_data && isset( $optimized_data['processing'] ) ) {
-			echo 'processing';
-			die();
+		if ( is_wp_error( $optimized_data ) ) {
+			echo '<p class="wio-restore-error" role="alert">' . esc_html( $optimized_data->get_error_message() ) . '</p>';
 		}
 
-		echo $media_library->getMediaColumnContent( $attachment_id );
-		die();
+		echo $media_library->getMediaColumnContent( $attachment_id ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- the column template escapes every value.
+		wp_die();
 	}
 
 	public function convert_image() {
@@ -738,10 +78,15 @@ class WRIO_Bulk_Optimization {
 		$format        = WRIO_Plugin::app()->request->post( 'format', 'webp', true );
 		$media_library = WRIO_Media_Library::get_instance();
 
-		$media_library->webpConvertAttachment( $attachment_id, $format );
+		if ( in_array( $format, [ 'webp', 'avif' ], true ) ) {
+			// The user asks for it: send failures again too, even permanent ones or before their retry time.
+			\WRIO\Storage\Store::retry_now( 'attachment', $attachment_id );
+			\WRIO\V2\Client::$trigger = 'manual';
+			$media_library->webpConvertAttachment( $attachment_id, $format );
+		}
 
-		echo $media_library->getMediaColumnContent( $attachment_id );
-		die();
+		echo $media_library->getMediaColumnContent( $attachment_id ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- the column template escapes every value.
+		wp_die();
 	}
 
 	public function restore_image() {
@@ -756,240 +101,348 @@ class WRIO_Bulk_Optimization {
 		$media_library  = WRIO_Media_Library::get_instance();
 		$wio_attachment = $media_library->getAttachment( $attachment_id );
 
-		if ( $wio_attachment->isOptimized() ) {
-			$media_library->restoreAttachment( $attachment_id );
+		// An image optimized without a backup has nothing to put back (a stale page, or a direct request): its state stays.
+		if ( $media_library->has_backup( $attachment_id ) ) {
+			$restored = $media_library->restoreAttachment( $attachment_id );
+
+			if ( is_wp_error( $restored ) ) {
+				echo '<p class="wio-restore-error" role="alert">' . esc_html( $restored->get_error_message() ) . '</p>';
+			}
+		} elseif ( $wio_attachment->isOptimized() ) {
+			echo '<p class="wio-restore-error" role="alert">' . esc_html__( 'The original of this image is not kept, so it cannot be restored.', 'robin-image-optimizer' ) . '</p>';
 		}
 
-		echo $media_library->getMediaColumnContent( $attachment_id );
-		die();
+		echo $media_library->getMediaColumnContent( $attachment_id ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- the column template escapes every value.
+		wp_die();
 	}
 
-	public function check_servers_status() {
-		check_ajax_referer( 'bulk_optimization' );
+	/**
+	 * Shared by admin-ajax and REST: one optimization step for a scope.
+	 *
+	 * @param string|null $scope        media-library, custom-folders or nextgen-gallery.
+	 * @param bool        $reset_errors Re-queue the images that failed last time: the first step of a new Start.
+	 * @param mixed       $date_from    First upload date of the media library run, Y-m-d. A new Start sets it.
+	 * @param mixed       $date_to      Last upload date of the media library run, Y-m-d. A new Start sets it.
+	 *
+	 * @return array<string, mixed>|WP_Error
+	 */
+	public static function run_process( $scope, $reset_errors, $date_from = '', $date_to = '' ) {
+		$scope = is_string( $scope ) ? $scope : '';
 
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( - 1 );
+		WRIO_Plugin::app()->logger->info( sprintf( 'Start bulk optimization process! Scope: %s', $scope ) );
+
+		if ( '' === $scope ) {
+			return self::bad_request();
 		}
 
-		// Auto-detect server based on license status
-		$is_premium     = wrio_is_license_activate();
-		$license_source = wrio_get_license_source();
-		$server_name    = $is_premium ? 'server_5' : 'server_2';
-		$return_data    = [ 'server_name' => $server_name ];
+		// The API asked the site to wait (a 429 or any 5xx). The app calls this step again after the wait.
+		$wait = \WRIO\V2\Client::backoff_seconds();
 
-		$headers = [
-			'User-Agent' => '',
+		if ( $wait > 0 ) {
+			return [
+				'wait' => $wait,
+				'end'  => false,
+			];
+		}
+
+		// The server does not know the license key: the run stops with the License message instead of sending every
+		// image again on every step (O-2).
+		$stop = \WRIO\V2\Client::from_settings()->stop_error();
+
+		if ( $stop ) {
+			return new WP_Error( $stop->get_error_code(), $stop->get_error_message(), [ 'status' => 403 ] );
+		}
+
+		$unknown = __( "Unknown error. Enable error log on the plugin's settings page, then check the error report on the Error Log page. You can export the error report and send it to the support service of the plugin.", 'robin-image-optimizer' );
+
+		if ( 'media-library' === $scope ) {
+			if ( $reset_errors ) {
+				WRIO_Image_Query::set_run_dates( $date_from, $date_to );
+				WRIO_Media_Library::get_instance()->resetCurrentErrors();
+			}
+
+			$result = WRIO_Optimization_Orchestrator::get_instance()->execute_next_action( 1 );
+
+			if ( isset( $result['error'] ) ) {
+				$message = ! empty( $result['error'] ) ? $result['error'] : $unknown;
+				WRIO_Plugin::app()->logger->error( sprintf( 'Bulk optimization error: %s.', $message ) );
+
+				return new WP_Error( 'wrio_process_failed', $message, [ 'status' => 500 ] );
+			}
+
+			// The API asked the site to wait during this step, or another process holds the lock of the image, and the
+			// image is still to do: the step answers the wait, so the bulk page does not count the image as done.
+			if ( ! empty( $result['held'] ) ) {
+				$wait = \WRIO\V2\Client::backoff_seconds();
+
+				return [
+					'wait'       => $wait > 0 ? $wait : self::LOCKED_WAIT,
+					// The errors reset already ran: the step after the wait must not reset the failures saved since.
+					'reset_done' => (bool) $reset_errors,
+					'end'        => false,
+				];
+			}
+
+			WRIO_Plugin::app()->logger->info( sprintf( 'End bulk optimization process! Scope: %s. Remain: %d', $scope, $result['remain'] ) );
+
+			return $result;
+		}
+
+		// Context class name. If plugin expands with add-ons.
+		$class_name = 'WRIO_' . wrio_dashes_to_camel_case( $scope, true );
+
+		if ( ! class_exists( $class_name ) ) {
+			WRIO_Plugin::app()->logger->error( sprintf( 'Bulk optimization error: Context class (%s) not found.', $class_name ) );
+
+			if ( 'custom-folders' === $scope ) {
+				$class_name = 'WRIO_Custom_Folders';
+			} elseif ( 'nextgen-gallery' === $scope ) {
+				$class_name = 'WRIO_Nextgen_Gallery';
+			}
+
+			if ( ! class_exists( $class_name ) ) {
+				return new WP_Error( 'wrio_process_failed', __( 'Context class not found.', 'robin-image-optimizer' ), [ 'status' => 500 ] );
+			}
+		}
+
+		/**
+		 * Optimizer for the scope.
+		 *
+		 * @var WRIO_Media_Library $optimizer
+		 */
+		$optimizer = new $class_name();
+
+		if ( $reset_errors ) {
+			$optimizer->resetCurrentErrors();
+		}
+
+		$result = $optimizer->processUnoptimizedImages( 1 );
+
+		if ( is_wp_error( $result ) ) {
+			$message = $result->get_error_message();
+			WRIO_Plugin::app()->logger->error( sprintf( 'Bulk optimization error: %s.', $message ) );
+
+			return new WP_Error( 'wrio_process_failed', '' !== $message ? $message : $unknown, [ 'status' => 500 ] );
+		}
+
+		if ( $result['remain'] <= 0 ) {
+			$result['end'] = true;
+		}
+
+		WRIO_Plugin::app()->logger->info( sprintf( 'End bulk optimization process! Scope: %s. Remain: %d', $scope, $result['remain'] ) );
+
+		return $result;
+	}
+
+	/**
+	 * Start the scheduled (cron) or background run for a scope.
+	 *
+	 * @param string|null $scope     Scope.
+	 * @param mixed       $date_from First upload date of a media library run, Y-m-d.
+	 * @param mixed       $date_to   Last upload date of a media library run, Y-m-d.
+	 *
+	 * @return array<string, mixed>|WP_Error Empty array, or [ 'stop' => true ] when there is nothing to do.
+	 */
+	public static function run_schedule_start( $scope, $date_from = '', $date_to = '' ) {
+		if ( ! is_string( $scope ) || '' === $scope ) {
+			return self::bad_request();
+		}
+
+		if ( 'media-library' === $scope ) {
+			// A new run asks the wrio_should_optimize filter again.
+			WRIO_Image_Query::forget_skips();
+			WRIO_Image_Query::set_run_dates( $date_from, $date_to );
+		}
+
+		if ( ! self::runs_in_background() ) {
+			// Nothing waits: no recurring event and no run. The run itself selects with the same query.
+			// ponytail: only the Media Library is checked here; the first step of another scope ends an empty run.
+			if ( 'media-library' === $scope && ! WRIO_Image_Query::get_instance()->get_next_batch( 1, WRIO_Formats::get_enabled_formats() )[1] ) {
+				WRIO_Cron::stop();
+
+				return [ 'stop' => true ];
+			}
+
+			if ( WRIO_Plugin::app()->getPopulateOption( 'cron_running', false ) !== $scope ) {
+				WRIO_Plugin::app()->updatePopulateOption( 'cron_running', $scope );
+				WRIO_Cron::start();
+			}
+
+			return [];
+		}
+
+		$scope = wrio_processing_scope( $scope );
+		if ( wrio_processing_scope( (string) WRIO_Plugin::app()->getPopulateOption( 'process_running', false ) ) === $scope ) {
+			return [];
+		}
+
+		WRIO_Plugin::app()->updatePopulateOption( 'process_running', $scope );
+
+		$processing = wrio_get_processing_class( $scope );
+		if ( ! $processing ) {
+			WRIO_Plugin::app()->updatePopulateOption( 'process_running', false );
+
+			return new WP_Error( 'wrio_process_failed', 'Processing class not found for scope: ' . $scope, [ 'status' => 500 ] );
+		}
+
+		if ( ! $processing->push_items() ) {
+			WRIO_Plugin::app()->updatePopulateOption( 'process_running', false );
+
+			return [ 'stop' => true ];
+		}
+
+		$processing->save()->dispatch();
+
+		return [];
+	}
+
+	/**
+	 * Stop the scheduled or background run.
+	 *
+	 * @param string|null $scope Scope (needed to cancel a background process).
+	 *
+	 * @return array<string, mixed>|WP_Error
+	 */
+	public static function run_schedule_stop( $scope ) {
+		if ( ! self::runs_in_background() ) {
+			WRIO_Plugin::app()->updatePopulateOption( 'cron_running', false );
+			WRIO_Cron::stop();
+
+			return [];
+		}
+
+		if ( ! is_string( $scope ) || '' === $scope ) {
+			return self::bad_request();
+		}
+
+		WRIO_Plugin::app()->updatePopulateOption( 'process_running', false );
+		$processing = wrio_get_processing_class( $scope );
+		if ( $processing ) {
+			$processing->cancel_process();
+		}
+
+		return [];
+	}
+
+	/**
+	 * Ask the optimization API whether it answers for this site and license.
+	 *
+	 * The answer, and the error data when the server is down, also hold the test time, the seconds left of a
+	 * rate-limit backoff and the last failed request, for the server status popover.
+	 *
+	 * @return array<string, mixed>|WP_Error The plan and the license state.
+	 */
+	public static function run_servers_status() {
+		$account = \WRIO\V2\Client::from_settings()->account();
+		$status  = [
+			'checked_at' => time(),
+			'backoff'    => \WRIO\V2\Client::backoff_seconds(),
+			'last_error' => \WRIO\V2\Client::last_error(),
 		];
 
-		// For SDK (ThemeIsle) licenses, the license was already validated during activation
-		// via ThemeIsle's API, so we can skip the Robin API license check.
-		if ( $is_premium && 'sdk' === $license_source ) {
-			wp_send_json_success( $return_data );
+		if ( is_wp_error( $account ) ) {
+			return new WP_Error( 'wrio_server_down', $account->get_error_message(), [ 'status' => 502 ] + $status );
 		}
 
-		if ( $is_premium ) {
-			$api_url                     = 'https://dashboard.robinoptimizer.com/v1/license/check';
-			$headers['Authorization']    = 'Bearer ' . base64_encode( wrio_get_license_key() );
-			$headers['PluginId']         = wrio_get_freemius_plugin_id();
-			$headers['X-License-Source'] = $license_source;
-			$headers['X-Site-Url']       = home_url();
-		} else {
-			$api_url                  = 'https://dashboard.robinoptimizer.com/v1/free/license/check';
-			$host                     = get_option( 'siteurl' );
-			$headers['Authorization'] = 'Bearer ' . base64_encode( $host );
-			$headers['X-Site-Url']    = home_url();
-		}
-
-		$request = wp_remote_request(
-			$api_url,
-			[
-				'method'  => 'GET',
-				'headers' => $headers,
-			]
-		);
-
-		if ( is_wp_error( $request ) ) {
-			$er_msg = $request->get_error_message();
-
-			$return_data['error'] = $er_msg;
-			wp_send_json_error( $return_data );
-		}
-
-		$response_code = wp_remote_retrieve_response_code( $request );
-
-		if ( $response_code != 200 ) {
-			$return_data['error'] = 'Server response ' . $response_code;
-			wp_send_json_error( $return_data );
-		}
-
-		$data = json_decode( wp_remote_retrieve_body( $request ) );
-
-		if ( isset( $data->response->server_load ) ) {
-			$return_data = [ 'server_load' => $data->response->server_load ];
-		}
-
-		wp_send_json_success( $return_data );
+		return [
+			'plan'    => $account['plan'] ?? '',
+			'license' => $account['license'] ?? '',
+		] + $status;
 	}
 
-	public function check_user_balance() {
-		check_ajax_referer( 'bulk_optimization' );
+	/**
+	 * Number of attachments the plugin can optimize.
+	 *
+	 * @return array{found_attachments: int}
+	 */
+	public static function run_total_attachments() {
+		return [
+			'found_attachments' => (int) WRIO_Image_Query::get_instance()->count_total_attachments(),
+		];
+	}
 
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( - 1 );
-		}
+	/**
+	 * Count the allowed thumbnails of a page of attachments; call again with next_offset and found_thumbs until done.
+	 *
+	 * The caller carries the running total. A total kept on the server mixed the pages of two open tabs.
+	 *
+	 * @param int $offset Attachment offset.
+	 * @param int $limit  Attachments per call.
+	 * @param int $total  Thumbnails counted on the pages before this one.
+	 *
+	 * @return array<string, mixed>
+	 */
+	public static function run_total_thumbs( $offset, $limit, $total = 0 ) {
+		global $wpdb;
 
-		// Auto-detect server based on license status
-		$is_premium     = wrio_is_license_activate();
-		$license_source = wrio_get_license_source();
-		$processor      = WIO_OptimizationTools::getImageProcessor();
+		$limit               = $limit > 0 ? $limit : 200;
+		$allowed_formats_sql = wrio_get_allowed_formats( true );
+		$allowed_sizes       = explode( ',', WRIO_Plugin::app()->getPopulateOption( 'allowed_sizes_thumbnail', wrio_get_default( 'allowed_sizes_thumbnail' ) ) );
+		$excluded            = WRIO_Image_Query::get_instance()->get_exclusion_clause();
 
-		if ( ! $processor->has_quota_limit() ) {
-			wp_send_json_error( [ 'error' => __( 'The server has no quota restrictions!', 'robin-image-optimizer' ) ] );
-		}
+		$query = $wpdb->prepare(
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- formats list and prepared exclusion clause are built by the plugin.
+			"SELECT posts.ID FROM {$wpdb->posts} as posts WHERE post_type = 'attachment' AND post_status = 'inherit' AND post_mime_type IN ({$allowed_formats_sql}){$excluded} LIMIT %d OFFSET %d",
+			$limit,
+			$offset
+		);
 
-		// For SDK (ThemeIsle) licenses, we can't check quota via Robin API yet.
-		// Return unlimited quota - actual limits will be enforced server-side during optimization.
-		if ( $is_premium && 'sdk' === $license_source ) {
-			wp_send_json_success(
-				[
-					'balance'  => -1, // -1 indicates unlimited/unknown
-					'reset_at' => '',
-				]
+		// WPML: skip translated duplicates.
+		if ( defined( 'WPML_PLUGIN_FILE' ) ) {
+			$query = str_replace(
+				'WHERE post_type =',
+				"WHERE NOT EXISTS (
+					SELECT icl.element_id FROM {$wpdb->prefix}icl_translations as icl
+					WHERE icl.element_id = posts.ID AND icl.element_type = 'post_attachment' AND source_language_code IS NOT NULL
+				) AND post_type =",
+				$query
 			);
 		}
 
-		$headers = [];
+		$attachments = $wpdb->get_results( $query ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		$total_count = max( 0, $total );
 
-		if ( $is_premium ) {
-			$api_url                     = 'https://dashboard.robinoptimizer.com/v1/license/remaining';
-			$headers['Authorization']    = 'Bearer ' . base64_encode( wrio_get_license_key() );
-			$headers['PluginId']         = wrio_get_freemius_plugin_id();
-			$headers['X-License-Source'] = $license_source;
-			$headers['X-Site-Url']       = home_url();
-		} else {
-			$api_url                  = 'https://dashboard.robinoptimizer.com/v1/free/license/remaining';
-			$host                     = get_option( 'siteurl' );
-			$headers['Authorization'] = 'Bearer ' . base64_encode( $host );
-			$headers['X-Site-Url']    = home_url();
-		}
-
-		$request = wp_remote_request(
-			$api_url,
-			[
-				'method'  => 'GET',
-				'headers' => $headers,
-			]
-		);
-
-		if ( is_wp_error( $request ) ) {
-			$error_msg = $request->get_error_message();
-
-			$return_data['error'] = $error_msg;
-			wp_send_json_error( $return_data );
-		}
-
-		$response_code = wp_remote_retrieve_response_code( $request );
-		$response_body = wp_remote_retrieve_body( $request );
-
-		if ( $response_code != 200 ) {
-			$return_data['error'] = 'Server response ' . $response_code;
-			if ( $response_code === 401 ) {
-				$error_data           = @json_decode( $response_body );
-				$return_data['error'] = $error_data->message;
-			}
-			wp_send_json_error( $return_data );
-		}
-
-		if ( empty( $response_body ) ) {
-			$return_data['error'] = 'Server responded an empty request body!';
-			wp_send_json_error( $return_data );
-		}
-
-		$data = @json_decode( $response_body );
-
-		if ( ! isset( $data->status ) || $data->status != 'ok' ) {
-			$return_data['error'] = 'Server responded an fail status';
-			wp_send_json_error( $return_data );
-		}
-
-		$current_quota = (int) $data->response->quota;
-		$processor->set_quota_limit( $current_quota );
-
-		$output = [ 'balance' => $current_quota ];
-
-		$reset_at           = (int) $data->response->reset_at;
-		$reset_at          += (int) get_option( 'gmt_offset', 0 );
-		$output['reset_at'] = gmdate( 'd-m-Y H:i', $reset_at );
-
-		wp_send_json_success( $output );
-	}
-
-	/*
-	public function calculate_total_images() {
-		check_ajax_referer( 'bulk_optimization' );
-
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( - 1 );
-		}
-
-		global $wpdb;
-		$db_table         = RIO_Process_Queue::table_name();
-		$sql              = $wpdb->prepare( "SELECT *   FROM {$db_table}
-					WHERE item_type = 'attachment' AND result_status IN (%s, %s)
-					ORDER BY id DESC;", RIO_Process_Queue::STATUS_SUCCESS, RIO_Process_Queue::STATUS_ERROR );
-		$optimized_images = $wpdb->get_results( $sql, ARRAY_A );
-
-		$count = 0;
-		if ( ! empty( $optimized_images ) ) {
-			foreach ( $optimized_images as $row ) {
-				$item  = new RIO_Process_Queue( $row );
-				$count = $count + 1 + (int) $item->get_extra_data()->get_thumbnails_count();
-			}
-		}
-
-		$allowed_formats_sql = wrio_get_allowed_formats( true );
-
-		$sql = "SELECT posts.ID
-					FROM {$wpdb->posts} as posts
-				WHERE post_type = 'attachment'
-					AND post_status = 'inherit'
-					AND post_mime_type IN ( {$allowed_formats_sql} )";
-
-		// If you use a WPML plugin, you need to exclude duplicate images
-		if ( defined( 'WPML_PLUGIN_FILE' ) ) {
-			$sql .= " AND NOT EXISTS
-					(SELECT trnsl.element_id FROM {$wpdb->prefix}icl_translations as trnsl
-						WHERE trnsl.element_id=posts.ID
-						AND trnsl.element_type='post_attachment'
-						AND source_language_code IS NOT NULL
-					)";
-		}
-
-		$attachments = $wpdb->get_results( $sql );
-
-		$allowed_sizes = explode( ',', WRIO_Plugin::app()->getPopulateOption( 'allowed_sizes_thumbnail', '' ) );
-		$total_images  = 0;
-		$upload        = wp_upload_dir();
-		$upload        = $upload['basedir'];
 		foreach ( $attachments as $attachment ) {
 			$meta = wp_get_attachment_metadata( $attachment->ID );
-			if ( $meta ) {
-				if ( isset( $meta['file'] ) && file_exists( "{$upload}/{$meta['file']}" ) ) {
-					$total_images ++;
-				}
-
-				foreach ( $meta['sizes'] as $k => $value ) {
-					if ( in_array( $k, $allowed_sizes ) ) {
-						$total_images ++;
+			if ( $meta && isset( $meta['sizes'] ) ) {
+				// PHP casts a numeric size name to an int key. The option holds strings.
+				foreach ( array_map( 'strval', array_keys( $meta['sizes'] ) ) as $size_key ) {
+					if ( in_array( $size_key, $allowed_sizes, true ) ) {
+						++$total_count;
 					}
 				}
 			}
 		}
 
-		$result_total = $total_images - $count;
+		if ( count( $attachments ) < $limit ) {
+			return [
+				'found_thumbs' => $total_count,
+				'done'         => true,
+			];
+		}
 
-		wp_send_json_success( [
-			'total' => $result_total >= 0 ? $result_total : 0,
-		] );
-	}*/
+		return [
+			'found_thumbs' => $total_count,
+			'done'         => false,
+			'next_offset'  => $offset + $limit,
+		];
+	}
+
+	/**
+	 * Background processing (Pro) or WP cron, the same choice the constructor makes.
+	 *
+	 * @return bool
+	 */
+	protected static function runs_in_background() {
+		return wrio_is_license_activate() && 'background' === WRIO_Plugin::app()->getPopulateOption( 'image_optimization_type', '' );
+	}
+
+	/**
+	 * Error for a missing scope or parameter.
+	 *
+	 * @return WP_Error
+	 */
+	protected static function bad_request() {
+		return new WP_Error( 'wrio_bad_request', __( 'Missing or invalid parameters.', 'robin-image-optimizer' ), [ 'status' => 400 ] );
+	}
 }

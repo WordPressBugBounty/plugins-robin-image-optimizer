@@ -54,9 +54,9 @@ class WRIO_Views {
 	 *
 	 * @since  1.3.0
 	 *
-	 * @param string         $template   The template name.
-	 * @param mixed          $data       Some data to pass to the template.
-	 * @param WRIO_Page|null $page The page.
+	 * @param string      $template   The template name.
+	 * @param mixed       $data       Some data to pass to the template.
+	 * @param object|null $page The page.
 	 *
 	 * @return bool|string       The page contents. False if the template doesn't exist.
 	 */
@@ -82,11 +82,11 @@ class WRIO_Views {
 	 *
 	 * @since  1.3.0
 	 *
-	 * @param string         $template   The template name.
-	 * @param mixed          $data       Some data to pass to the template.
-	 * @param WRIO_Page|null $page The page.
+	 * @param string      $template   The template name.
+	 * @param mixed       $data       Some data to pass to the template.
+	 * @param object|null $page The page.
 	 */
 	public function print_template( $template, $data = [], $page = null ) {
-		echo $this->get_template( $template, $data, $page );
+		echo $this->get_template( $template, $data, $page ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- The template escapes its own output.
 	}
 }

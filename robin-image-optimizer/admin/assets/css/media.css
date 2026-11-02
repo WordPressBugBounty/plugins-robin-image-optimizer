@@ -96,6 +96,9 @@ ul.wio-datas-list .wio-data-item strong {
 	text-align: left;
 	padding-left: 5px;
 }
+.media-sidebar li.wio-data-item {
+	flex-wrap: wrap;
+}
 .media-sidebar .wio-datas-list .wio-data-item .data {
 	width: auto;
 	float: none;
@@ -168,6 +171,10 @@ ul.wio-datas-details.wio-datas-details {
 .nggform .row-actions {
 	z-index: 1;
 }
+/* NextGEN gives its buttons white text and, without button-primary, a transparent background. */
+#ngg_page_content button.button-wio-restore {
+	background-color: #000;
+}
 .wio-datas-actions-links a {
 	position: relative;
 	display: inline-block;
@@ -215,9 +222,17 @@ ul.wio-datas-details.wio-datas-details {
 	margin-right: 2px;
 	font-size: 11px;
 }
+.rtl .wio-datas-actions-links a {
+	padding-left: 0;
+	padding-right: 17px;
+}
+.rtl .wio-datas-actions-links .dashicons {
+	left: auto;
+	right: 0;
+}
 
-/* Button spacing */
-td.column-wio_optimized_file {
+/* Button spacing. Not on a cell that Screen Options hides: display would override the core .hidden rule. */
+td.column-wio_optimized_file:not(.hidden) {
 	display: flex;
 	flex-wrap: wrap;
 	justify-content: center;

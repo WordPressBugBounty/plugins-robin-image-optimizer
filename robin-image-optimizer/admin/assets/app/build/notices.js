@@ -1,0 +1,1 @@
+"function"==typeof window.tsdk_reposition_notice&&document.addEventListener("DOMContentLoaded",()=>{setTimeout(()=>{window.tsdk_reposition_notice();const e=document.getElementById("tsdk_banner")?.querySelector(".themeisle-sale");e&&(e.style.setProperty("display","block","important"),e.style.setProperty("margin-left","0"))},0)});

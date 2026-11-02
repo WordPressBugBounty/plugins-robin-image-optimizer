@@ -94,11 +94,28 @@ class WRIO_Abilities {
 			'minItems'    => 1,
 		];
 
+		// One image, as get_item_status() reports it; a skipped image has a reason, a failed one an error.
 		$items_schema = [
 			'type'  => 'array',
 			'items' => [
-				'type'                 => 'object',
-				'additionalProperties' => true,
+				'type'       => 'object',
+				'properties' => [
+					'id'                   => [ 'type' => 'integer' ],
+					'status'               => [ 'type' => 'string' ],
+					'reason'               => [ 'type' => 'string' ],
+					'error'                => [ 'type' => 'string' ],
+					'level'                => [ 'type' => 'string' ],
+					'original_size'        => [ 'type' => 'integer' ],
+					'optimized_size'       => [ 'type' => 'integer' ],
+					'saved_percent'        => [ 'type' => 'number' ],
+					'thumbnails_optimized' => [ 'type' => 'integer' ],
+					'backed_up'            => [ 'type' => 'boolean' ],
+					'webp_size'            => [ 'type' => 'integer' ],
+					'avif_size'            => [ 'type' => 'integer' ],
+					'excluded'             => [ 'type' => 'boolean' ],
+					'keep_dimensions'      => [ 'type' => 'boolean' ],
+				],
+				'required'   => [ 'id' ],
 			],
 		];
 
@@ -129,11 +146,6 @@ class WRIO_Abilities {
 			'done'     => [ 'type' => 'boolean' ],
 			'cursor'   => [ 'type' => 'string' ],
 			'progress' => $progress_schema,
-		];
-
-		$task_meta = [
-			'mode'        => 'cursor',
-			'results_key' => 'items',
 		];
 
 		wp_register_ability(
@@ -185,15 +197,7 @@ class WRIO_Abilities {
 				],
 				'execute_callback'    => [ __CLASS__, 'optimize_media' ],
 				'permission_callback' => [ __CLASS__, 'can_manage' ],
-				'meta'                => [
-					'annotations'  => [
-						'readonly'    => false,
-						'destructive' => true,
-						'idempotent'  => false,
-					],
-					'show_in_rest' => true,
-					'task'         => array_merge( $task_meta, [ 'status_ability' => 'robin/get-job' ] ),
-				],
+				'meta'                => self::meta( false, true, false ),
 			]
 		);
 
@@ -232,15 +236,7 @@ class WRIO_Abilities {
 				],
 				'execute_callback'    => [ __CLASS__, 'restore_originals' ],
 				'permission_callback' => [ __CLASS__, 'can_manage' ],
-				'meta'                => [
-					'annotations'  => [
-						'readonly'    => false,
-						'destructive' => true,
-						'idempotent'  => false,
-					],
-					'show_in_rest' => true,
-					'task'         => $task_meta,
-				],
+				'meta'                => self::meta( false, true, false ),
 			]
 		);
 
@@ -285,14 +281,7 @@ class WRIO_Abilities {
 				],
 				'execute_callback'    => [ __CLASS__, 'get_job' ],
 				'permission_callback' => [ __CLASS__, 'can_manage' ],
-				'meta'                => [
-					'annotations'  => [
-						'readonly'    => true,
-						'destructive' => false,
-						'idempotent'  => true,
-					],
-					'show_in_rest' => true,
-				],
+				'meta'                => self::meta( true, false, true ),
 			]
 		);
 
@@ -318,23 +307,11 @@ class WRIO_Abilities {
 				'label'               => __( 'Get optimization policy', 'robin-image-optimizer' ),
 				'description'         => __( 'Read the optimization settings: compression mode, conversion formats, automatic optimization, backups, resizing and scheduling.', 'robin-image-optimizer' ),
 				'category'            => self::CATEGORY,
-				'input_schema'        => [
-					'type'                 => 'object',
-					'properties'           => [],
-					'additionalProperties' => false,
-					'default'              => [],
-				],
+				'input_schema'        => self::no_input(),
 				'output_schema'       => $policy_output,
 				'execute_callback'    => [ __CLASS__, 'get_policy' ],
 				'permission_callback' => [ __CLASS__, 'can_manage' ],
-				'meta'                => [
-					'annotations'  => [
-						'readonly'    => true,
-						'destructive' => false,
-						'idempotent'  => true,
-					],
-					'show_in_rest' => true,
-				],
+				'meta'                => self::meta( true, false, true ),
 			]
 		);
 
@@ -351,17 +328,855 @@ class WRIO_Abilities {
 				],
 				'output_schema'       => $policy_output,
 				'execute_callback'    => [ __CLASS__, 'update_policy' ],
-				'permission_callback' => [ __CLASS__, 'can_manage' ],
-				'meta'                => [
-					'annotations'  => [
-						'readonly'    => false,
-						'destructive' => false,
-						'idempotent'  => true,
-					],
-					'show_in_rest' => true,
-				],
+				'permission_callback' => [ __CLASS__, 'can_manage_settings' ],
+				'meta'                => self::meta( false, false, true ),
 			]
 		);
+
+		wp_register_ability(
+			'robin/reset-optimization-policy',
+			[
+				'label'               => __( 'Reset optimization policy', 'robin-image-optimizer' ),
+				'description'         => __( 'Set every optimization setting back to its default, like "Reset to defaults" on the settings page. Returns the effective policy.', 'robin-image-optimizer' ),
+				'category'            => self::CATEGORY,
+				'input_schema'        => self::no_input(),
+				'output_schema'       => $policy_output,
+				'execute_callback'    => [ __CLASS__, 'reset_policy' ],
+				'permission_callback' => [ __CLASS__, 'can_manage_settings' ],
+				'meta'                => self::meta( false, true, true ),
+			]
+		);
+
+		wp_register_ability(
+			'robin/update-media-options',
+			[
+				'label'               => __( 'Update media options', 'robin-image-optimizer' ),
+				'description'         => __( 'Set the per-image options of media library images, as in the attachment details: keep_dimensions (never resize the image, it is still compressed) and exclude (bulk and automatic optimization skip the image). Only the provided options change. robin/get-job reports both.', 'robin-image-optimizer' ),
+				'category'            => self::CATEGORY,
+				'input_schema'        => [
+					'type'                 => 'object',
+					'properties'           => [
+						'media_ids'       => array_merge( $ids_schema, [ 'maxItems' => self::MAX_ITEMS ] ),
+						'keep_dimensions' => [ 'type' => 'boolean' ],
+						'exclude'         => [ 'type' => 'boolean' ],
+					],
+					'required'             => [ 'media_ids' ],
+					'additionalProperties' => false,
+				],
+				'output_schema'       => [
+					'type'       => 'object',
+					'properties' => [
+						'items'   => $items_schema,
+						'skipped' => $items_schema,
+					],
+				],
+				'execute_callback'    => [ __CLASS__, 'update_media_options' ],
+				'permission_callback' => [ __CLASS__, 'can_manage' ],
+				'meta'                => self::meta( false, false, true ),
+			]
+		);
+
+		$scope_input = [
+			'type'                 => 'object',
+			'properties'           => [
+				'scope' => [
+					'type'        => 'string',
+					'description' => __( 'Image library: media-library, or custom-folders and nextgen-gallery (premium).', 'robin-image-optimizer' ),
+					'enum'        => [ 'media-library', 'custom-folders', 'nextgen-gallery' ],
+					'default'     => 'media-library',
+				],
+			],
+			'additionalProperties' => false,
+			'default'              => [],
+		];
+		$any_output  = [
+			'type'                 => 'object',
+			'additionalProperties' => true,
+		];
+		$bulk_output = [
+			'type'       => 'object',
+			'properties' => [
+				'scope'   => [ 'type' => 'string' ],
+				'running' => [
+					'type'        => 'object',
+					'description' => __( 'cron: a scheduled run of this library is on. process: a background run of this library is on.', 'robin-image-optimizer' ),
+					'properties'  => [
+						'cron'    => [ 'type' => 'boolean' ],
+						'process' => [ 'type' => 'boolean' ],
+					],
+					'required'    => [ 'cron', 'process' ],
+				],
+			],
+			'required'   => [ 'scope', 'running' ],
+		];
+
+		wp_register_ability(
+			'robin/get-stats',
+			[
+				'label'               => __( 'Get optimization statistics', 'robin-image-optimizer' ),
+				'description'         => __( 'Read what the bulk optimization page shows for an image library: optimized, unoptimized and failed counts, savings, the last optimized images, the failures by reason, whether a bulk run is running, and the custom folders.', 'robin-image-optimizer' ),
+				'category'            => self::CATEGORY,
+				'input_schema'        => $scope_input,
+				'output_schema'       => [
+					'type'       => 'object',
+					'properties' => [
+						'scope'    => [ 'type' => 'string' ],
+						'stats'    => [
+							'type'        => 'object',
+							'description' => __( 'Image counts and sizes of the library.', 'robin-image-optimizer' ),
+						],
+						'log'      => [
+							'type'        => 'array',
+							'description' => __( 'The last optimized images.', 'robin-image-optimizer' ),
+						],
+						'failures' => [
+							'type'        => 'object',
+							'description' => __( 'Failed images by group; robin/get-failures lists a group.', 'robin-image-optimizer' ),
+							'properties'  => [
+								'total'      => [ 'type' => 'integer' ],
+								'needs_you'  => [ 'type' => 'integer' ],
+								'retrying'   => [ 'type' => 'integer' ],
+								'next_retry' => [ 'type' => [ 'string', 'null' ] ],
+								'groups'     => [ 'type' => 'array' ],
+							],
+						],
+						'running'  => $bulk_output['properties']['running'],
+						'percents' => [
+							'type'                 => 'object',
+							'description'          => __( 'Optimized percent of each library.', 'robin-image-optimizer' ),
+							'additionalProperties' => [ 'type' => 'integer' ],
+						],
+						'features' => [
+							'type'  => 'array',
+							'items' => [ 'type' => 'string' ],
+						],
+						'folders'  => [
+							'type'  => 'array',
+							'items' => [
+								'type'       => 'object',
+								'properties' => [
+									'uid'            => [ 'type' => 'string' ],
+									'path'           => [ 'type' => 'string' ],
+									'filesCount'     => [ 'type' => 'integer' ],
+									'optimizedCount' => [ 'type' => 'integer' ],
+								],
+							],
+						],
+					],
+					'required'   => [ 'scope', 'stats', 'log', 'failures', 'running', 'percents', 'features', 'folders' ],
+				],
+				'execute_callback'    => [ __CLASS__, 'get_stats' ],
+				'permission_callback' => [ __CLASS__, 'can_manage' ],
+				'meta'                => self::meta( true, false, true ),
+			]
+		);
+
+		wp_register_ability(
+			'robin/get-failures',
+			[
+				'label'               => __( 'Get failed images', 'robin-image-optimizer' ),
+				'description'         => __( 'Read one page of the images of a failure group (the group keys are in the failures of robin/get-stats). Send next back as after for the next page.', 'robin-image-optimizer' ),
+				'category'            => self::CATEGORY,
+				'input_schema'        => [
+					'type'                 => 'object',
+					'properties'           => array_merge(
+						$scope_input['properties'],
+						[
+							'group' => [ 'type' => 'string' ],
+							'after' => [
+								'type'    => 'string',
+								'default' => '',
+							],
+						]
+					),
+					'required'             => [ 'group' ],
+					'additionalProperties' => false,
+				],
+				'output_schema'       => [
+					'type'       => 'object',
+					'properties' => [
+						'items'    => [
+							'type'  => 'array',
+							'items' => [ 'type' => 'object' ],
+						],
+						'total'    => [ 'type' => 'integer' ],
+						'next'     => [
+							'type'        => 'string',
+							'description' => __( 'Send it as after for the next page. Empty on the last page.', 'robin-image-optimizer' ),
+						],
+						'per_page' => [ 'type' => 'integer' ],
+					],
+					'required'   => [ 'items', 'total', 'next', 'per_page' ],
+				],
+				'execute_callback'    => [ __CLASS__, 'get_failures' ],
+				'permission_callback' => [ __CLASS__, 'can_manage' ],
+				'meta'                => self::meta( true, false, true ),
+			]
+		);
+
+		wp_register_ability(
+			'robin/start-bulk-optimization',
+			[
+				'label'               => __( 'Start bulk optimization', 'robin-image-optimizer' ),
+				'description'         => __( 'Start optimizing every unoptimized image of a library in the background, with the saved settings (optimization_type and schedule_interval of the policy). Excluded images are skipped. Follow it with robin/get-stats.', 'robin-image-optimizer' ),
+				'category'            => self::CATEGORY,
+				'input_schema'        => $scope_input,
+				'output_schema'       => $bulk_output,
+				'execute_callback'    => [ __CLASS__, 'start_bulk' ],
+				'permission_callback' => [ __CLASS__, 'can_manage' ],
+				'meta'                => self::meta( false, false, true ),
+			]
+		);
+
+		wp_register_ability(
+			'robin/stop-bulk-optimization',
+			[
+				'label'               => __( 'Stop bulk optimization', 'robin-image-optimizer' ),
+				'description'         => __( 'Stop the background bulk optimization of a library. Optimized images stay optimized.', 'robin-image-optimizer' ),
+				'category'            => self::CATEGORY,
+				'input_schema'        => $scope_input,
+				'output_schema'       => $bulk_output,
+				'execute_callback'    => [ __CLASS__, 'stop_bulk' ],
+				'permission_callback' => [ __CLASS__, 'can_manage' ],
+				'meta'                => self::meta( false, false, true ),
+			]
+		);
+
+		wp_register_ability(
+			'robin/get-server-status',
+			[
+				'label'               => __( 'Get optimization server status', 'robin-image-optimizer' ),
+				'description'         => __( 'Ask the optimization server whether it answers for this site and license, and read the plan and its limits.', 'robin-image-optimizer' ),
+				'category'            => self::CATEGORY,
+				'input_schema'        => self::no_input(),
+				'output_schema'       => $any_output,
+				'execute_callback'    => [ __CLASS__, 'get_server_status' ],
+				'permission_callback' => [ __CLASS__, 'can_manage' ],
+				'meta'                => self::meta( true, false, true ),
+			]
+		);
+
+		wp_register_ability(
+			'robin/test-delivery',
+			[
+				'label'               => __( 'Test WebP and AVIF delivery', 'robin-image-optimizer' ),
+				'description'         => __( 'Check that visitors get the WebP and AVIF files with the current delivery mode, like the "Test delivery" button. It writes temporary test files to the uploads folder, the site requests them over loopback HTTP requests, and the files are deleted after. A CDN or a cache in front of the site can answer differently for real visitors.', 'robin-image-optimizer' ),
+				'category'            => self::CATEGORY,
+				'input_schema'        => self::no_input(),
+				'output_schema'       => $any_output,
+				'execute_callback'    => [ __CLASS__, 'test_delivery' ],
+				'permission_callback' => [ __CLASS__, 'can_manage' ],
+				'meta'                => self::meta( true, false, true ),
+			]
+		);
+
+		wp_register_ability(
+			'robin/get-backups',
+			[
+				'label'               => __( 'Get backups', 'robin-image-optimizer' ),
+				'description'         => __( 'Read the size of the backup folder and the number of images that have a backup.', 'robin-image-optimizer' ),
+				'category'            => self::CATEGORY,
+				'input_schema'        => self::no_input(),
+				'output_schema'       => [
+					'type'       => 'object',
+					'properties' => [
+						'count' => [
+							'type'        => 'integer',
+							'description' => __( 'Images with a backup.', 'robin-image-optimizer' ),
+						],
+						'size'  => [
+							'type'        => 'integer',
+							'description' => __( 'Size of the backup folder in bytes.', 'robin-image-optimizer' ),
+						],
+					],
+					'required'   => [ 'count', 'size' ],
+				],
+				'execute_callback'    => [ __CLASS__, 'get_backups' ],
+				'permission_callback' => [ __CLASS__, 'can_manage' ],
+				'meta'                => self::meta( true, false, true ),
+			]
+		);
+
+		wp_register_ability(
+			'robin/restore-all-backups',
+			[
+				'label'               => __( 'Restore all backups', 'robin-image-optimizer' ),
+				'description'         => __( 'Restore the next batch of backed-up images of every library, like "Restore" in Manage backups. While end is false, call again and send the IDs of every failed list so far as skip.', 'robin-image-optimizer' ),
+				'category'            => self::CATEGORY,
+				'input_schema'        => [
+					'type'                 => 'object',
+					'properties'           => [
+						'skip' => [
+							'type'        => 'array',
+							'description' => __( 'Attachment IDs that failed in earlier calls.', 'robin-image-optimizer' ),
+							'items'       => [ 'type' => 'integer' ],
+						],
+					],
+					'additionalProperties' => false,
+					'default'              => [],
+				],
+				'output_schema'       => $any_output,
+				'execute_callback'    => [ __CLASS__, 'restore_all_backups' ],
+				'permission_callback' => [ __CLASS__, 'can_manage' ],
+				'meta'                => self::meta( false, true, false ),
+			]
+		);
+
+		wp_register_ability(
+			'robin/clear-backups',
+			[
+				'label'               => __( 'Delete all backups', 'robin-image-optimizer' ),
+				'description'         => __( 'Delete the backup folder, like "Clear backups" in Manage backups. The optimized images can no longer be restored. This cannot be undone.', 'robin-image-optimizer' ),
+				'category'            => self::CATEGORY,
+				'input_schema'        => [
+					'type'                 => 'object',
+					'properties'           => [
+						'confirm' => [
+							'type'        => 'boolean',
+							'description' => __( 'true: the agent knows the backups go for good.', 'robin-image-optimizer' ),
+							// rest_validate_value_from_schema() knows no const.
+							'enum'        => [ true ],
+						],
+					],
+					'required'             => [ 'confirm' ],
+					'additionalProperties' => false,
+				],
+				'output_schema'       => $any_output,
+				'execute_callback'    => [ __CLASS__, 'clear_backups' ],
+				'permission_callback' => [ __CLASS__, 'can_manage' ],
+				'meta'                => self::meta( false, true, true ),
+			]
+		);
+
+		wp_register_ability(
+			'robin/browse-folders',
+			[
+				'label'               => __( 'Browse folders', 'robin-image-optimizer' ),
+				'description'         => __( 'List the sub-folders of a folder under the site root, to pick a custom folder. Premium.', 'robin-image-optimizer' ),
+				'category'            => self::CATEGORY,
+				'input_schema'        => [
+					'type'                 => 'object',
+					'properties'           => [
+						'dir' => [
+							'type'        => 'string',
+							'description' => __( 'Folder relative to the site root. Empty for the root.', 'robin-image-optimizer' ),
+							'default'     => '',
+						],
+					],
+					'additionalProperties' => false,
+					'default'              => [],
+				],
+				'output_schema'       => [
+					'type'  => 'array',
+					'items' => [
+						'type'       => 'object',
+						'properties' => [
+							'name' => [ 'type' => 'string' ],
+							'path' => [
+								'type'        => 'string',
+								'description' => __( 'Path relative to the site root, for dir or robin/add-custom-folder.', 'robin-image-optimizer' ),
+							],
+							'type' => [
+								'type' => 'string',
+								'enum' => [ 'dir', 'file' ],
+							],
+						],
+					],
+				],
+				'execute_callback'    => [ __CLASS__, 'browse_folders' ],
+				'permission_callback' => [ __CLASS__, 'can_manage' ],
+				'meta'                => self::meta( true, false, true ),
+			]
+		);
+
+		wp_register_ability(
+			'robin/add-custom-folder',
+			[
+				'label'               => __( 'Add a custom folder', 'robin-image-optimizer' ),
+				'description'         => __( 'Add a folder outside the media library to optimize. Then index its images with robin/scan-custom-folder and optimize them with robin/start-bulk-optimization and the custom-folders scope. Premium.', 'robin-image-optimizer' ),
+				'category'            => self::CATEGORY,
+				'input_schema'        => [
+					'type'                 => 'object',
+					'properties'           => [
+						'path' => [
+							'type'        => 'string',
+							'description' => __( 'Folder path relative to the site root, as robin/browse-folders gives it.', 'robin-image-optimizer' ),
+						],
+					],
+					'required'             => [ 'path' ],
+					'additionalProperties' => false,
+				],
+				'output_schema'       => [
+					'type'       => 'object',
+					'properties' => [
+						'uid'             => [ 'type' => 'string' ],
+						'path'            => [ 'type' => 'string' ],
+						'files_count'     => [ 'type' => 'integer' ],
+						'optimized_count' => [ 'type' => 'integer' ],
+						'errors_count'    => [ 'type' => 'integer' ],
+						'network'         => [ 'type' => 'boolean' ],
+					],
+					'required'   => [ 'uid', 'path', 'files_count', 'optimized_count' ],
+				],
+				'execute_callback'    => [ __CLASS__, 'add_custom_folder' ],
+				'permission_callback' => [ __CLASS__, 'can_manage' ],
+				'meta'                => self::meta( false, false, false ),
+			]
+		);
+
+		wp_register_ability(
+			'robin/scan-custom-folder',
+			[
+				'label'               => __( 'Scan a custom folder', 'robin-image-optimizer' ),
+				'description'         => __( 'Index the next batch of images of a custom folder. While the returned offset is below total, call again with the returned offset and total. Premium.', 'robin-image-optimizer' ),
+				'category'            => self::CATEGORY,
+				'input_schema'        => [
+					'type'                 => 'object',
+					'properties'           => [
+						'uid'    => [
+							'type'        => 'string',
+							'description' => __( 'Folder uid, from robin/add-custom-folder or robin/get-stats.', 'robin-image-optimizer' ),
+						],
+						'offset' => [
+							'type'    => 'integer',
+							'minimum' => 0,
+							'default' => 0,
+						],
+						'total'  => [
+							'type'    => 'integer',
+							'minimum' => 0,
+							'default' => 0,
+						],
+					],
+					'required'             => [ 'uid' ],
+					'additionalProperties' => false,
+				],
+				'output_schema'       => [
+					'type'       => 'object',
+					'properties' => [
+						'offset'   => [ 'type' => 'integer' ],
+						'total'    => [ 'type' => 'integer' ],
+						'complete' => [ 'type' => 'boolean' ],
+						'percent'  => [ 'type' => 'number' ],
+					],
+					'required'   => [ 'offset', 'total', 'complete', 'percent' ],
+				],
+				'execute_callback'    => [ __CLASS__, 'scan_custom_folder' ],
+				'permission_callback' => [ __CLASS__, 'can_manage' ],
+				'meta'                => self::meta( false, false, true ),
+			]
+		);
+
+		wp_register_ability(
+			'robin/remove-custom-folder',
+			[
+				'label'               => __( 'Remove a custom folder', 'robin-image-optimizer' ),
+				'description'         => __( 'Stop optimizing a custom folder. Its files stay as they are. Premium.', 'robin-image-optimizer' ),
+				'category'            => self::CATEGORY,
+				'input_schema'        => [
+					'type'                 => 'object',
+					'properties'           => [
+						'uid' => [ 'type' => 'string' ],
+					],
+					'required'             => [ 'uid' ],
+					'additionalProperties' => false,
+				],
+				'output_schema'       => $any_output,
+				'execute_callback'    => [ __CLASS__, 'remove_custom_folder' ],
+				'permission_callback' => [ __CLASS__, 'can_manage' ],
+				'meta'                => self::meta( false, true, true ),
+			]
+		);
+
+		wp_register_ability(
+			'robin/get-log',
+			[
+				'label'               => __( 'Get the error log', 'robin-image-optimizer' ),
+				'description'         => __( 'Read the plugin log, as on the Error Log page. It has lines only while the error_log policy field is on.', 'robin-image-optimizer' ),
+				'category'            => self::CATEGORY,
+				'input_schema'        => self::no_input(),
+				'output_schema'       => $any_output,
+				'execute_callback'    => [ __CLASS__, 'get_log' ],
+				'permission_callback' => [ __CLASS__, 'can_manage' ],
+				'meta'                => self::meta( true, false, true ),
+			]
+		);
+
+		wp_register_ability(
+			'robin/clear-log',
+			[
+				'label'               => __( 'Clear the error log', 'robin-image-optimizer' ),
+				'description'         => __( 'Delete the plugin log files.', 'robin-image-optimizer' ),
+				'category'            => self::CATEGORY,
+				'input_schema'        => self::no_input(),
+				'output_schema'       => $any_output,
+				'execute_callback'    => [ __CLASS__, 'clear_log' ],
+				'permission_callback' => [ __CLASS__, 'can_manage' ],
+				'meta'                => self::meta( false, true, true ),
+			]
+		);
+	}
+
+	/**
+	 * Input schema of an ability without input. It has no "properties": an
+	 * empty PHP array encodes to a JSON array, and JSON Schema wants an object.
+	 *
+	 * @return array<string, mixed>
+	 */
+	private static function no_input() {
+		return [
+			'type'                 => 'object',
+			'additionalProperties' => false,
+			'default'              => [],
+		];
+	}
+
+	/**
+	 * Meta of an ability.
+	 *
+	 * @param bool $read_only   The ability changes nothing.
+	 * @param bool $destructive The ability can delete or overwrite data.
+	 * @param bool $idempotent  A second call with the same input changes nothing more.
+	 *
+	 * @return array<string, mixed>
+	 */
+	private static function meta( $read_only, $destructive, $idempotent ) {
+		return [
+			'annotations'  => [
+				'readonly'    => $read_only,
+				'destructive' => $destructive,
+				'idempotent'  => $idempotent,
+			],
+			'show_in_rest' => true,
+			// The MCP adapter lists only the public abilities.
+			'mcp'          => [ 'public' => true ],
+		];
+	}
+
+	/**
+	 * Run a route handler of the settings app, so an agent and the app share the code, the checks and the errors.
+	 *
+	 * @param string               $handler WRIO_Rest_Controller method.
+	 * @param array<string, mixed> $params  Request parameters.
+	 *
+	 * @return mixed|WP_Error The response data.
+	 */
+	private static function run_route( $handler, array $params = [] ) {
+		WRIO_Rest_Controller::load_admin_environment();
+
+		$request = new WP_REST_Request();
+		$request->set_query_params( $params );
+
+		/**
+		 * Route handler.
+		 *
+		 * @var callable $method
+		 */
+		$method   = [ 'WRIO_Rest_Controller', $handler ];
+		$response = $method( $request );
+
+		return is_wp_error( $response ) ? $response : rest_ensure_response( $response )->get_data();
+	}
+
+	/**
+	 * The scope of a scope input.
+	 *
+	 * @param mixed $input Ability input.
+	 *
+	 * @return string
+	 */
+	private static function scope( $input ) {
+		return is_array( $input ) && isset( $input['scope'] ) ? (string) $input['scope'] : 'media-library';
+	}
+
+	/**
+	 * A text field of an ability input.
+	 *
+	 * @param mixed  $input Ability input.
+	 * @param string $key   Field name.
+	 *
+	 * @return string
+	 */
+	private static function text_input( $input, $key ) {
+		return is_array( $input ) ? (string) ( $input[ $key ] ?? '' ) : '';
+	}
+
+	/**
+	 * Execute robin/reset-optimization-policy.
+	 *
+	 * @return array<string, mixed>
+	 */
+	public static function reset_policy() {
+		WRIO_Settings::reset();
+
+		return self::get_policy();
+	}
+
+	/**
+	 * Execute robin/update-media-options.
+	 *
+	 * @see WRIO_Media_Library::save_attachment_options()
+	 *
+	 * @param mixed $input Ability input.
+	 *
+	 * @return array<string, mixed>|WP_Error
+	 */
+	public static function update_media_options( $input ) {
+		$input   = is_array( $input ) ? $input : [];
+		$ids     = self::sanitize_ids( $input['media_ids'] ?? null, self::MAX_ITEMS );
+		$options = array_intersect_key(
+			[
+				'keep_dimensions' => '_wrio_no_resize',
+				'exclude'         => '_wrio_exclude',
+			],
+			$input
+		);
+
+		if ( is_wp_error( $ids ) ) {
+			return $ids;
+		}
+
+		if ( empty( $options ) ) {
+			return new WP_Error( 'robin_empty_update', __( 'Provide keep_dimensions or exclude.', 'robin-image-optimizer' ), [ 'status' => 400 ] );
+		}
+
+		$items   = [];
+		$skipped = [];
+
+		foreach ( $ids as $attachment_id ) {
+			if ( 'attachment' !== get_post_type( $attachment_id ) ) {
+				$skipped[] = [
+					'id'     => $attachment_id,
+					'reason' => 'not_found',
+				];
+				continue;
+			}
+
+			foreach ( $options as $field => $meta ) {
+				if ( $input[ $field ] ) {
+					update_post_meta( $attachment_id, $meta, 1 );
+				} else {
+					delete_post_meta( $attachment_id, $meta );
+				}
+			}
+
+			$items[] = [
+				'id'              => $attachment_id,
+				'keep_dimensions' => WRIO_Media_Library::keeps_dimensions( $attachment_id ),
+				'exclude'         => (bool) get_post_meta( $attachment_id, '_wrio_exclude', true ),
+			];
+		}
+
+		// The counts leave out the excluded images.
+		WRIO_Image_Query::clear_cache();
+
+		return [
+			'items'   => $items,
+			'skipped' => $skipped,
+		];
+	}
+
+	/**
+	 * Execute robin/get-stats.
+	 *
+	 * @param mixed $input Ability input.
+	 *
+	 * @return mixed|WP_Error
+	 */
+	public static function get_stats( $input ) {
+		return self::run_route( 'get_stats', [ 'scope' => self::scope( $input ) ] );
+	}
+
+	/**
+	 * Execute robin/get-failures.
+	 *
+	 * @param mixed $input Ability input.
+	 *
+	 * @return mixed|WP_Error
+	 */
+	public static function get_failures( $input ) {
+		$input = is_array( $input ) ? $input : [];
+
+		return self::run_route(
+			'get_failures',
+			[
+				'scope' => self::scope( $input ),
+				'group' => (string) ( $input['group'] ?? '' ),
+				'after' => (string) ( $input['after'] ?? '' ),
+			]
+		);
+	}
+
+	/**
+	 * Execute robin/start-bulk-optimization.
+	 *
+	 * @param mixed $input Ability input.
+	 *
+	 * @return mixed|WP_Error
+	 */
+	public static function start_bulk( $input ) {
+		return self::bulk_state( self::run_route( 'schedule_start', [ 'scope' => self::scope( $input ) ] ), self::scope( $input ) );
+	}
+
+	/**
+	 * Execute robin/stop-bulk-optimization.
+	 *
+	 * @param mixed $input Ability input.
+	 *
+	 * @return mixed|WP_Error
+	 */
+	public static function stop_bulk( $input ) {
+		return self::bulk_state( self::run_route( 'schedule_stop', [ 'scope' => self::scope( $input ) ] ), self::scope( $input ) );
+	}
+
+	/**
+	 * The run state of a library after a start or a stop, as robin/get-stats reports it.
+	 *
+	 * @see WRIO_App::get_bulk_data()
+	 *
+	 * @param mixed  $result Route result.
+	 * @param string $scope  Library.
+	 *
+	 * @return array<string, mixed>|WP_Error
+	 */
+	private static function bulk_state( $result, $scope ) {
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		$plugin = WRIO_Plugin::app();
+
+		return [
+			'scope'   => $scope,
+			'running' => [
+				'cron'    => $plugin->getPopulateOption( 'cron_running', false ) === $scope,
+				'process' => wrio_processing_scope( (string) $plugin->getPopulateOption( 'process_running', false ) ) === wrio_processing_scope( $scope ),
+			],
+		];
+	}
+
+	/**
+	 * Execute robin/get-server-status.
+	 *
+	 * @return mixed|WP_Error
+	 */
+	public static function get_server_status() {
+		return self::run_route( 'server_status' );
+	}
+
+	/**
+	 * Execute robin/test-delivery: start the test and let the site request the files itself.
+	 *
+	 * @return mixed|WP_Error
+	 */
+	public static function test_delivery() {
+		$test = self::run_route( 'delivery_test_start' );
+
+		if ( is_wp_error( $test ) ) {
+			return $test;
+		}
+
+		return self::run_route( 'delivery_test_finish', [ 'id' => (string) ( $test['id'] ?? '' ) ] );
+	}
+
+	/**
+	 * Execute robin/get-backups.
+	 *
+	 * @return mixed|WP_Error
+	 */
+	public static function get_backups() {
+		return self::run_route( 'get_backup' );
+	}
+
+	/**
+	 * Execute robin/restore-all-backups.
+	 *
+	 * @param mixed $input Ability input.
+	 *
+	 * @return mixed|WP_Error
+	 */
+	public static function restore_all_backups( $input ) {
+		return self::run_route( 'restore_backup', [ 'skip' => self::positive_ids( (array) ( is_array( $input ) ? $input['skip'] ?? [] : [] ) ) ] );
+	}
+
+	/**
+	 * Execute robin/clear-backups.
+	 *
+	 * @return mixed|WP_Error
+	 */
+	public static function clear_backups() {
+		return self::run_route( 'clear_backup' );
+	}
+
+	/**
+	 * Execute robin/browse-folders.
+	 *
+	 * @param mixed $input Ability input.
+	 *
+	 * @return mixed|WP_Error
+	 */
+	public static function browse_folders( $input ) {
+		return self::run_route( 'browse_folders', [ 'dir' => self::text_input( $input, 'dir' ) ] );
+	}
+
+	/**
+	 * Execute robin/add-custom-folder.
+	 *
+	 * @param mixed $input Ability input.
+	 *
+	 * @return mixed|WP_Error
+	 */
+	public static function add_custom_folder( $input ) {
+		return self::run_route( 'add_folder', [ 'path' => self::text_input( $input, 'path' ) ] );
+	}
+
+	/**
+	 * Execute robin/scan-custom-folder.
+	 *
+	 * @param mixed $input Ability input.
+	 *
+	 * @return mixed|WP_Error
+	 */
+	public static function scan_custom_folder( $input ) {
+		$input = is_array( $input ) ? $input : [];
+
+		return self::run_route(
+			'scan_folder',
+			[
+				'uid'    => (string) ( $input['uid'] ?? '' ),
+				'offset' => (int) ( $input['offset'] ?? 0 ),
+				'total'  => (int) ( $input['total'] ?? 0 ),
+			]
+		);
+	}
+
+	/**
+	 * Execute robin/remove-custom-folder.
+	 *
+	 * @param mixed $input Ability input.
+	 *
+	 * @return mixed|WP_Error
+	 */
+	public static function remove_custom_folder( $input ) {
+		return self::run_route( 'remove_folder', [ 'uid' => self::text_input( $input, 'uid' ) ] );
+	}
+
+	/**
+	 * Execute robin/get-log.
+	 *
+	 * @return array<string, mixed>
+	 */
+	public static function get_log() {
+		return WRIO_App::get_log_data();
+	}
+
+	/**
+	 * Execute robin/clear-log.
+	 *
+	 * @return mixed|WP_Error
+	 */
+	public static function clear_log() {
+		return self::run_route( 'clear_logs' );
 	}
 
 	/**
@@ -376,142 +1191,157 @@ class WRIO_Abilities {
 	}
 
 	/**
+	 * Permission check of the settings changes: the settings page needs the same (see WRIO_Rest_Controller).
+	 *
+	 * @return bool
+	 */
+	public static function can_manage_settings() {
+		return current_user_can( WRIO_Plugin::app()->isNetworkActive() ? 'manage_network_options' : 'manage_options' );
+	}
+
+	/**
 	 * Supported compression modes, as offered on the settings page.
 	 *
 	 * @return string[]
 	 */
 	private static function get_profiles() {
-		return [ 'normal', 'aggresive', 'ultra', 'googlepage', 'custom' ];
+		return WRIO_Settings::schema()['image_optimization_level']['choices'];
 	}
 
 	/**
-	 * Supported schedule intervals, as offered on the settings page.
+	 * Policy field => setting of WRIO_Settings::schema(). The field names are the ones agents use.
 	 *
-	 * @return string[]
+	 * Every setting of the settings page has a field: test-abilities.php fails when a new setting has none.
+	 *
+	 * @return array<string, string>
 	 */
-	private static function get_intervals() {
-		return [ 'wio_1_min', 'wio_2_min', 'wio_5_min', 'wio_10_min', 'wio_30_min', 'wio_hourly', 'wio_daily' ];
-	}
-
-	/**
-	 * Policy field definitions: field => [ option name, type, default ].
-	 *
-	 * Limited to the options the settings page exposes.
-	 *
-	 * @return array<string, array{0: string, 1: string, 2: mixed}>
-	 */
-	private static function get_policy_fields() {
+	public static function get_policy_fields() {
 		return [
-			'compression_mode'     => [ 'image_optimization_level', 'enum', 'normal' ],
-			'custom_quality'       => [ 'image_optimization_level_custom', 'quality', 70 ],
-			'auto_optimize'        => [ 'auto_optimize_when_upload', 'bool', false ],
-			'backup_originals'     => [ 'backup_origin_images', 'bool', true ],
-			'convert_webp'         => [ 'convert_webp_format', 'bool', false ],
-			'convert_avif'         => [ 'convert_avif_format', 'bool', false ],
-			'keep_exif'            => [ 'save_exif_data', 'bool', true ],
-			'optimization_order'   => [ 'image_optimization_order', 'enum', 'asc' ],
-			'resize_larger'        => [ 'resize_larger', 'bool', false ],
-			'resize_max_width'     => [ 'resize_larger_w', 'int', 1600 ],
-			'resize_max_height'    => [ 'resize_larger_h', 'int', 1600 ],
-			'allowed_formats'      => [ 'allowed_formats', 'list', 'image/jpeg,image/png,image/gif' ],
-			'thumbnail_sizes'      => [ 'allowed_sizes_thumbnail', 'list', 'thumbnail,medium' ],
-			'optimization_type'    => [ 'image_optimization_type', 'enum', 'schedule' ],
-			'schedule_interval'    => [ 'image_autooptimize_shedule_time', 'enum', 'wio_5_min' ],
-			'images_per_iteration' => [ 'image_autooptimize_items_number_per_interation', 'int', 3 ],
+			'compression_mode'              => 'image_optimization_level',
+			'custom_quality'                => 'image_optimization_level_custom',
+			'auto_optimize'                 => 'auto_optimize_when_upload',
+			'backup_originals'              => 'backup_origin_images',
+			'convert_webp'                  => 'convert_webp_format',
+			'convert_avif'                  => 'convert_avif_format',
+			'delivery_mode'                 => 'webp_delivery_mode',
+			// save_exif_data is the "Strip EXIF data" switch: true removes the metadata.
+			'strip_exif'                    => 'save_exif_data',
+			'optimization_order'            => 'image_optimization_order',
+			'resize_larger'                 => 'resize_larger',
+			'resize_max_width'              => 'resize_larger_w',
+			'resize_max_height'             => 'resize_larger_h',
+			'allowed_formats'               => 'allowed_formats',
+			'excluded_paths'                => 'excluded_paths',
+			'thumbnail_sizes'               => 'allowed_sizes_thumbnail',
+			'optimization_type'             => 'image_optimization_type',
+			'schedule_interval'             => 'image_autooptimize_shedule_time',
+			'images_per_iteration'          => 'image_autooptimize_items_number_per_interation',
+			'show_media_column'             => 'show_media_column',
+			'error_log'                     => 'error_log',
+			'frontend_error_log'            => 'keep_error_log_on_frontend',
+			'delete_converted_on_uninstall' => 'delete_converted_on_uninstall',
+			'fetchpriority_first_image'     => 'fetchpriority_first_image',
 		];
 	}
 
 	/**
-	 * Allowed values of the enum and list policy fields.
+	 * Descriptions of the policy fields.
 	 *
-	 * @param string $field Policy field name.
-	 *
-	 * @return string[]
+	 * @return array<string, string>
 	 */
-	private static function get_policy_choices( $field ) {
-		switch ( $field ) {
-			case 'compression_mode':
-				return self::get_profiles();
-			case 'optimization_order':
-				return [ 'asc', 'desc' ];
-			case 'optimization_type':
-				return [ 'schedule', 'background' ];
-			case 'schedule_interval':
-				return self::get_intervals();
-			case 'allowed_formats':
-				return [ 'image/jpeg', 'image/png', 'image/gif' ];
-			case 'thumbnail_sizes':
-				return array_map( 'strval', array_keys( wrio_get_image_sizes() ) );
-		}
-
-		return [];
+	private static function get_policy_descriptions() {
+		return [
+			'compression_mode'              => __( 'Compression mode: normal (lossless), aggresive (lossy), ultra (high), googlepage or custom (uses custom_quality). googlepage requires an active premium license.', 'robin-image-optimizer' ),
+			'custom_quality'                => __( 'Quality of the custom compression mode, 1-100.', 'robin-image-optimizer' ),
+			'auto_optimize'                 => __( 'Optimize new uploads automatically.', 'robin-image-optimizer' ),
+			'backup_originals'              => __( 'Keep a backup of each original before it is optimized, so that it can be restored.', 'robin-image-optimizer' ),
+			'convert_webp'                  => __( 'Make a WebP copy of each optimized image.', 'robin-image-optimizer' ),
+			'convert_avif'                  => __( 'Make an AVIF copy of each optimized image. Requires an active premium license.', 'robin-image-optimizer' ),
+			'delivery_mode'                 => __( 'How visitors get the WebP and AVIF copies: picture (wrap images in picture tags), url (rewrite the image URLs) or redirect (the server picks the format from the Accept header; only on Apache with .htaccess, otherwise picture is used).', 'robin-image-optimizer' ),
+			'strip_exif'                    => __( 'Remove EXIF, XMP and IPTC metadata from optimized images. The color profile stays.', 'robin-image-optimizer' ),
+			'optimization_order'            => __( 'Order of a bulk run: asc (oldest first), desc (newest first) or largest (largest files first).', 'robin-image-optimizer' ),
+			'resize_larger'                 => __( 'Resize originals that are larger than resize_max_width x resize_max_height. An image with keep_dimensions keeps its size.', 'robin-image-optimizer' ),
+			'resize_max_width'              => __( 'Maximum width in pixels when resize_larger is on. 0 means no limit.', 'robin-image-optimizer' ),
+			'resize_max_height'             => __( 'Maximum height in pixels when resize_larger is on. 0 means no limit.', 'robin-image-optimizer' ),
+			'allowed_formats'               => __( 'Image types to optimize.', 'robin-image-optimizer' ),
+			'excluded_paths'                => __( 'Bulk and automatic optimization skip the images whose path in the uploads folder contains one of these patterns. * matches any text and ? matches one character, for example 2019/* or banner-?.jpg.', 'robin-image-optimizer' ),
+			'thumbnail_sizes'               => __( 'Registered image sizes to optimize along with the main file.', 'robin-image-optimizer' ),
+			'optimization_type'             => __( 'How a bulk run works in the background: schedule (WP-Cron) or background (background process; requires an active premium license).', 'robin-image-optimizer' ),
+			'schedule_interval'             => __( 'Interval of the scheduled bulk run.', 'robin-image-optimizer' ),
+			'images_per_iteration'          => __( 'Images of one scheduled run.', 'robin-image-optimizer' ),
+			'show_media_column'             => __( 'Show the Robin column in the Media Library.', 'robin-image-optimizer' ),
+			'fetchpriority_first_image'     => __( 'Add fetchpriority="high" to the first image of the post content, so the browser loads it first.', 'robin-image-optimizer' ),
+			'error_log'                     => __( 'Write the plugin log and show the Error Log page.', 'robin-image-optimizer' ),
+			'frontend_error_log'            => __( 'Also log the WebP and AVIF delivery problems of the frontend. Works only with error_log.', 'robin-image-optimizer' ),
+			'delete_converted_on_uninstall' => __( 'Delete the WebP and AVIF files that the plugin made when the plugin is deleted.', 'robin-image-optimizer' ),
+		];
 	}
 
 	/**
-	 * JSON schema properties of the policy fields.
+	 * JSON schema properties of the policy fields, from the setting types.
 	 *
 	 * @return array<string, array<string, mixed>>
 	 */
 	private static function get_policy_schema_properties() {
-		$bool   = [ 'type' => 'boolean' ];
-		$string = [ 'type' => 'string' ];
+		$schema       = WRIO_Settings::schema();
+		$descriptions = self::get_policy_descriptions();
+		$properties   = [];
 
-		return [
-			'compression_mode'     => [
-				'type' => 'string',
-				'enum' => self::get_profiles(),
-			],
-			'custom_quality'       => [
-				'type'        => 'integer',
-				'description' => __( 'Custom quality 1-100', 'robin-image-optimizer' ),
-				'minimum'     => 1,
-				'maximum'     => 100,
-			],
-			'auto_optimize'        => array_merge( $bool, [ 'description' => __( 'Auto optimization on upload', 'robin-image-optimizer' ) ] ),
-			'backup_originals'     => $bool,
-			'convert_webp'         => $bool,
-			'convert_avif'         => array_merge( $bool, [ 'description' => __( 'AVIF conversion requires an active premium license.', 'robin-image-optimizer' ) ] ),
-			'keep_exif'            => $bool,
-			'optimization_order'   => [
-				'type' => 'string',
-				'enum' => [ 'asc', 'desc' ],
-			],
-			'resize_larger'        => $bool,
-			'resize_max_width'     => [
-				'type'    => 'integer',
-				'minimum' => 1,
-			],
-			'resize_max_height'    => [
-				'type'    => 'integer',
-				'minimum' => 1,
-			],
-			'allowed_formats'      => [
-				'type'        => 'array',
-				'description' => __( 'Optimize formats', 'robin-image-optimizer' ),
-				'items'       => [
-					'type' => 'string',
-					'enum' => [ 'image/jpeg', 'image/png', 'image/gif' ],
-				],
-			],
-			'thumbnail_sizes'      => [
-				'type'        => 'array',
-				'description' => __( 'Registered image sizes to optimize along with the main file.', 'robin-image-optimizer' ),
-				'items'       => $string,
-			],
-			'optimization_type'    => [
-				'type'        => 'string',
-				'description' => __( 'Background optimization type', 'robin-image-optimizer' ),
-				'enum'        => [ 'schedule', 'background' ],
-			],
-			'schedule_interval'    => [
-				'type' => 'string',
-				'enum' => self::get_intervals(),
-			],
-			'images_per_iteration' => [
-				'type'    => 'integer',
-				'minimum' => 1,
-			],
-		];
+		foreach ( self::get_policy_fields() as $field => $name ) {
+			$setting  = $schema[ $name ];
+			$property = [ 'description' => $descriptions[ $field ] ];
+
+			switch ( $setting['type'] ) {
+				case 'bool':
+					$property['type'] = 'boolean';
+					break;
+				case 'int':
+					$property['type'] = 'integer';
+					foreach ( [
+						'min' => 'minimum',
+						'max' => 'maximum',
+					] as $key => $keyword ) {
+						if ( isset( $setting[ $key ] ) ) {
+							$property[ $keyword ] = $setting[ $key ];
+						}
+					}
+					break;
+				case 'enum':
+					$property['type'] = 'string';
+					$property['enum'] = array_values( array_map( 'strval', $setting['choices'] ) );
+					break;
+				case 'list':
+					$property['type']  = 'array';
+					$property['items'] = [
+						'type' => 'string',
+						'enum' => array_values( array_map( 'strval', $setting['choices'] ) ),
+					];
+					break;
+				default:
+					// patterns: one pattern per item.
+					$property['type']  = 'array';
+					$property['items'] = [ 'type' => 'string' ];
+			}
+
+			$properties[ $field ] = $property;
+		}
+
+		return $properties;
+	}
+
+	/**
+	 * Unique positive integer IDs of a raw list.
+	 *
+	 * Not absint(): it turns -5 into 5, which is another attachment.
+	 *
+	 * @param array<mixed> $raw Raw IDs.
+	 *
+	 * @return int[]
+	 */
+	private static function positive_ids( $raw ) {
+		$ids = array_map( 'intval', array_filter( $raw, 'is_numeric' ) );
+
+		return array_values( array_unique( array_filter( $ids, static fn( $id ) => $id > 0 ) ) );
 	}
 
 	/**
@@ -524,20 +1354,21 @@ class WRIO_Abilities {
 	 */
 	private static function sanitize_ids( $raw, $max ) {
 		if ( ! is_array( $raw ) ) {
-			return new WP_Error( 'robin_invalid_media_ids', __( 'media_ids must be a list of attachment IDs.', 'robin-image-optimizer' ) );
+			return new WP_Error( 'robin_invalid_media_ids', __( 'media_ids must be a list of attachment IDs.', 'robin-image-optimizer' ), [ 'status' => 400 ] );
 		}
 
-		$ids = array_values( array_unique( array_filter( array_map( 'absint', $raw ) ) ) );
+		$ids = self::positive_ids( $raw );
 
 		if ( empty( $ids ) ) {
-			return new WP_Error( 'robin_invalid_media_ids', __( 'media_ids must contain at least one attachment ID.', 'robin-image-optimizer' ) );
+			return new WP_Error( 'robin_invalid_media_ids', __( 'media_ids must contain at least one attachment ID.', 'robin-image-optimizer' ), [ 'status' => 400 ] );
 		}
 
 		if ( count( $ids ) > $max ) {
 			return new WP_Error(
 				'robin_batch_too_large',
 				// translators: %d is the maximum number of attachments per call.
-				sprintf( __( 'Too many attachments. The maximum per call is %d.', 'robin-image-optimizer' ), $max )
+				sprintf( __( 'Too many attachments. The maximum per call is %d.', 'robin-image-optimizer' ), $max ),
+				[ 'status' => 400 ]
 			);
 		}
 
@@ -645,7 +1476,7 @@ class WRIO_Abilities {
 			return 0;
 		}
 
-		$invalid = new WP_Error( 'robin_invalid_cursor', __( 'Invalid cursor. Send the cursor returned by the previous call together with the same input.', 'robin-image-optimizer' ) );
+		$invalid = new WP_Error( 'robin_invalid_cursor', __( 'Invalid cursor. Send the cursor returned by the previous call together with the same input.', 'robin-image-optimizer' ), [ 'status' => 400 ] );
 
 		if ( ! is_string( $input['cursor'] ) ) {
 			return $invalid;
@@ -710,7 +1541,8 @@ class WRIO_Abilities {
 			return new WP_Error(
 				'robin_invalid_profile',
 				// translators: %s is the field name.
-				sprintf( __( 'Invalid value for "%s".', 'robin-image-optimizer' ), 'profile' )
+				sprintf( __( 'Invalid value for "%s".', 'robin-image-optimizer' ), 'profile' ),
+				[ 'status' => 400 ]
 			);
 		}
 
@@ -719,23 +1551,20 @@ class WRIO_Abilities {
 				return new WP_Error(
 					'robin_invalid_format',
 					// translators: %s is the field name.
-					sprintf( __( 'Invalid value for "%s".', 'robin-image-optimizer' ), 'format' )
+					sprintf( __( 'Invalid value for "%s".', 'robin-image-optimizer' ), 'format' ),
+					[ 'status' => 400 ]
 				);
 			}
 
-			if ( ! class_exists( 'WRIO_Format_Converter_Factory' ) ) {
-				return new WP_Error( 'robin_conversion_unavailable', __( 'Format conversion is not available on this site.', 'robin-image-optimizer' ) );
-			}
-
 			if ( 'avif' === $format && ! wrio_is_avif_available() ) {
-				return new WP_Error( 'robin_premium_required', __( 'AVIF conversion requires an active premium license.', 'robin-image-optimizer' ) );
+				return new WP_Error( 'wrio_premium_required', __( 'AVIF conversion requires an active premium license.', 'robin-image-optimizer' ), [ 'status' => 403 ] );
 			}
 		}
 
 		// Same guard as the upload hook and the media library "optimize" action.
-		$backup_originals = WRIO_Plugin::app()->getPopulateOption( 'backup_origin_images', false );
+		$backup_originals = WRIO_Plugin::app()->getPopulateOption( 'backup_origin_images', wrio_get_default( 'backup_origin_images' ) );
 		if ( ( '' === $format || '' !== $profile ) && $backup_originals && ! self::is_backup_writable() ) {
-			return new WP_Error( 'robin_backup_not_writable', __( 'No access for writing backups.', 'robin-image-optimizer' ) );
+			return new WP_Error( 'robin_backup_not_writable', __( 'No access for writing backups.', 'robin-image-optimizer' ), [ 'status' => 409 ] );
 		}
 
 		$offset = self::decode_cursor( $input, $ids );
@@ -781,15 +1610,23 @@ class WRIO_Abilities {
 				continue;
 			}
 
-			try {
-				$processing = false;
+			\WRIO\V2\Client::$trigger = 'manual';
 
-				if ( '' !== $profile ) {
-					$result     = $media_library->optimizeAttachment( $attachment_id, $profile );
-					$processing = isset( $result['processing'] );
+			try {
+				$optimized = '' !== $profile ? $media_library->optimizeAttachment( $attachment_id, $profile ) : null;
+
+				// The restore before the re-optimization failed: the image keeps its optimized files.
+				if ( is_wp_error( $optimized ) ) {
+					$items[] = [
+						'id'     => $attachment_id,
+						'status' => 'error',
+						'error'  => $optimized->get_error_message(),
+					];
+					continue;
 				}
 
-				if ( '' !== $format && ! $processing ) {
+				// The optimization already converted to the enabled formats.
+				if ( '' !== $format && ( '' === $profile || ! in_array( $format, WRIO_Formats::get_enabled_formats(), true ) ) ) {
 					$media_library->webpConvertAttachment( $attachment_id, $format );
 				}
 
@@ -827,13 +1664,15 @@ class WRIO_Abilities {
 	 * @return void
 	 */
 	private static function queue_attachment( $attachment_id ) {
-		$optimize_type = WRIO_Plugin::app()->getOption( 'image_optimization_type', 'schedule' );
+		\WRIO\V2\Client::queue_trigger( $attachment_id, 'manual' );
+
+		$optimize_type = WRIO_Plugin::app()->getPopulateOption( 'image_optimization_type', 'schedule' );
 
 		if ( wrio_is_license_activate() && 'background' === $optimize_type ) {
 			$processing = wrio_get_processing_class( 'media-library' );
 
 			if ( $processing instanceof WRIO_Media_Processing && $processing->push_items( [ $attachment_id ] ) ) {
-				$processing->save()->dispatch();
+				$processing->save( true )->dispatch();
 
 				return;
 			}
@@ -940,7 +1779,7 @@ class WRIO_Abilities {
 			$job_id = (string) $input['job_id'];
 
 			if ( 0 !== strpos( $job_id, self::JOB_PREFIX ) ) {
-				return new WP_Error( 'robin_invalid_job_id', __( 'Unknown job_id.', 'robin-image-optimizer' ) );
+				return new WP_Error( 'robin_invalid_job_id', __( 'Unknown job_id.', 'robin-image-optimizer' ), [ 'status' => 400 ] );
 			}
 
 			$raw = explode( ',', substr( $job_id, strlen( self::JOB_PREFIX ) ) );
@@ -950,13 +1789,18 @@ class WRIO_Abilities {
 			$raw = array_merge( $raw, $input['media_ids'] );
 		}
 
-		$ids = array_values( array_unique( array_filter( array_map( 'absint', $raw ) ) ) );
+		$ids = self::positive_ids( $raw );
+
+		if ( empty( $ids ) ) {
+			return new WP_Error( 'robin_invalid_job_id', __( 'Provide a job_id or media_ids.', 'robin-image-optimizer' ), [ 'status' => 400 ] );
+		}
 
 		if ( count( $ids ) > self::MAX_ITEMS ) {
 			return new WP_Error(
 				'robin_batch_too_large',
 				// translators: %d is the maximum number of attachments per call.
-				sprintf( __( 'Too many attachments. The maximum per call is %d.', 'robin-image-optimizer' ), self::MAX_ITEMS )
+				sprintf( __( 'Too many attachments. The maximum per call is %d.', 'robin-image-optimizer' ), self::MAX_ITEMS ),
+				[ 'status' => 400 ]
 			);
 		}
 
@@ -984,7 +1828,7 @@ class WRIO_Abilities {
 
 		if ( $pending > 0 ) {
 			$state = 'working';
-		} elseif ( $total > 0 && $errors === $total ) {
+		} elseif ( $errors === $total ) {
 			$state = 'failed';
 		}
 
@@ -1072,6 +1916,8 @@ class WRIO_Abilities {
 			'backed_up'            => (bool) $params['backuped'],
 			'webp_size'            => (int) $params['webp_size'],
 			'avif_size'            => (int) $params['avif_size'],
+			'excluded'             => WRIO_Image_Query::get_instance()->is_excluded( $attachment_id ),
+			'keep_dimensions'      => WRIO_Media_Library::keeps_dimensions( $attachment_id ),
 		];
 	}
 
@@ -1081,44 +1927,16 @@ class WRIO_Abilities {
 	 * @return array<string, mixed>
 	 */
 	public static function get_policy() {
-		$app     = WRIO_Plugin::app();
-		$premium = (bool) wrio_is_license_activate();
-		$policy  = [];
+		// The effective values: a free plan and the server limits apply, as on the settings page.
+		$settings = WRIO_Settings::get();
+		$policy   = [];
 
-		foreach ( self::get_policy_fields() as $field => $definition ) {
-			list( $option, $type, $default ) = $definition;
-
-			$value = $app->getPopulateOption( $option, $default );
-
-			switch ( $type ) {
-				case 'bool':
-					$value = true === $value || 1 === $value || '1' === $value || 'true' === $value;
-					break;
-				case 'int':
-				case 'quality':
-					$value = (int) $value;
-					break;
-				case 'list':
-					$value = array_values( array_filter( array_map( 'trim', explode( ',', (string) $value ) ) ) );
-					break;
-				default:
-					$value = (string) $value;
-			}
-
-			$policy[ $field ] = $value;
+		foreach ( self::get_policy_fields() as $field => $name ) {
+			$policy[ $field ] = 'excluded_paths' === $name ? array_values( array_filter( explode( "\n", (string) $settings[ $name ] ), static fn( $line ) => '' !== $line ) ) : $settings[ $name ];
 		}
 
-		// Effective values on installs without a license, as the plugin itself resolves them.
-		if ( ! $premium ) {
-			$policy['convert_avif'] = false;
-
-			if ( 'background' === $policy['optimization_type'] ) {
-				$policy['optimization_type'] = 'schedule';
-			}
-		}
-
-		$policy['formats']         = class_exists( 'WRIO_Format_Converter_Factory' ) ? WRIO_Format_Converter_Factory::get_enabled_formats() : [];
-		$policy['premium']         = $premium;
+		$policy['formats']         = WRIO_Formats::get_enabled_formats();
+		$policy['premium']         = (bool) wrio_is_license_activate();
 		$policy['backup_writable'] = self::is_backup_writable();
 
 		return $policy;
@@ -1127,6 +1945,9 @@ class WRIO_Abilities {
 	/**
 	 * Execute robin/update-optimization-policy.
 	 *
+	 * Saves through WRIO_Settings::save(), like the settings page: the .htaccess rules, the page cache and the
+	 * image counts follow the new values.
+	 *
 	 * @param mixed $input Ability input.
 	 *
 	 * @return array<string, mixed>|WP_Error
@@ -1134,6 +1955,7 @@ class WRIO_Abilities {
 	public static function update_policy( $input ) {
 		$input   = is_array( $input ) ? $input : [];
 		$fields  = self::get_policy_fields();
+		$schema  = WRIO_Settings::schema();
 		$unknown = array_diff( array_keys( $input ), array_keys( $fields ) );
 		$updates = [];
 
@@ -1141,83 +1963,85 @@ class WRIO_Abilities {
 			return new WP_Error(
 				'robin_unknown_field',
 				// translators: %s is a comma separated list of field names.
-				sprintf( __( 'Unknown policy fields: %s', 'robin-image-optimizer' ), implode( ', ', array_map( 'sanitize_key', $unknown ) ) )
+				sprintf( __( 'Unknown policy fields: %s', 'robin-image-optimizer' ), implode( ', ', array_map( 'sanitize_key', $unknown ) ) ),
+				[ 'status' => 400 ]
 			);
 		}
 
 		if ( empty( $input ) ) {
-			return new WP_Error( 'robin_empty_update', __( 'Provide at least one policy field to update.', 'robin-image-optimizer' ) );
+			return new WP_Error( 'robin_empty_update', __( 'Provide at least one policy field to update.', 'robin-image-optimizer' ), [ 'status' => 400 ] );
 		}
 
 		foreach ( $input as $field => $value ) {
-			list( $option, $type ) = $fields[ $field ];
-
-			$value = self::sanitize_policy_value( $field, $type, $value );
+			$value = self::sanitize_policy_value( $field, $schema[ $fields[ $field ] ], $value );
 
 			if ( is_wp_error( $value ) ) {
 				return $value;
 			}
 
-			$updates[ $option ] = $value;
+			$updates[ $fields[ $field ] ] = $value;
 		}
 
+		// The settings page locks these on a free plan; WRIO_Settings::save() would quietly drop them.
 		if ( ! wrio_is_license_activate() ) {
 			if ( ! empty( $updates['convert_avif_format'] ) ) {
-				return new WP_Error( 'robin_premium_required', __( 'AVIF conversion requires an active premium license.', 'robin-image-optimizer' ) );
+				return new WP_Error( 'wrio_premium_required', __( 'AVIF conversion requires an active premium license.', 'robin-image-optimizer' ), [ 'status' => 403 ] );
 			}
 
 			if ( isset( $updates['image_optimization_type'] ) && 'background' === $updates['image_optimization_type'] ) {
-				return new WP_Error( 'robin_premium_required', __( 'Background optimization requires an active premium license.', 'robin-image-optimizer' ) );
+				return new WP_Error( 'wrio_premium_required', __( 'Background optimization requires an active premium license.', 'robin-image-optimizer' ), [ 'status' => 403 ] );
+			}
+
+			if ( isset( $updates['image_optimization_level'] ) && 'googlepage' === $updates['image_optimization_level'] ) {
+				return new WP_Error( 'wrio_premium_required', __( 'The googlepage compression mode requires an active premium license.', 'robin-image-optimizer' ), [ 'status' => 403 ] );
 			}
 		}
 
-		// Nothing is saved unless every field validated, the same way the settings form saves.
-		foreach ( $updates as $option => $value ) {
-			WRIO_Plugin::app()->updatePopulateOption( $option, $value );
+		// Nothing is saved unless every field validated. The save also tests the loopback request before it turns
+		// Background optimization on, and saves nothing when that test fails.
+		$saved = WRIO_Settings::save( $updates );
+
+		if ( is_wp_error( $saved ) ) {
+			return $saved;
 		}
 
 		return self::get_policy();
 	}
 
 	/**
-	 * Validate one policy value and convert it to its stored form.
+	 * Validate one policy value and convert it to the value WRIO_Settings::save() takes.
 	 *
-	 * @param string $field Policy field name.
-	 * @param string $type  Field type.
-	 * @param mixed  $value Raw value.
+	 * @param string               $field   Policy field name.
+	 * @param array<string, mixed> $setting Setting schema.
+	 * @param mixed                $value   Raw value.
 	 *
-	 * @return int|string|WP_Error
+	 * @return bool|int|string|string[]|WP_Error
 	 */
-	private static function sanitize_policy_value( $field, $type, $value ) {
+	private static function sanitize_policy_value( $field, $setting, $value ) {
 		$invalid = new WP_Error(
 			'robin_invalid_value',
 			// translators: %s is the field name.
-			sprintf( __( 'Invalid value for "%s".', 'robin-image-optimizer' ), $field )
+			sprintf( __( 'Invalid value for "%s".', 'robin-image-optimizer' ), $field ),
+			[ 'status' => 400 ]
 		);
 
-		switch ( $type ) {
+		switch ( $setting['type'] ) {
 			case 'bool':
 				if ( ! is_bool( $value ) && ! in_array( $value, [ 0, 1, '0', '1', 'true', 'false' ], true ) ) {
 					return $invalid;
 				}
 
-				return ( true === $value || 1 === $value || '1' === $value || 'true' === $value ) ? 1 : 0;
+				return true === $value || 1 === $value || '1' === $value || 'true' === $value;
 
 			case 'int':
-			case 'quality':
-				if ( ! is_numeric( $value ) || (int) $value < 1 || ( 'quality' === $type && (int) $value > 100 ) ) {
+				if ( ! is_numeric( $value ) || ( isset( $setting['min'] ) && (int) $value < $setting['min'] ) || ( isset( $setting['max'] ) && (int) $value > $setting['max'] ) ) {
 					return $invalid;
 				}
 
-				// The settings form stores the resize and quality values as strings.
-				return 'images_per_iteration' === $field ? (int) $value : (string) (int) $value;
+				return (int) $value;
 
 			case 'enum':
-				if ( ! is_string( $value ) || ! in_array( $value, self::get_policy_choices( $field ), true ) ) {
-					return $invalid;
-				}
-
-				return $value;
+				return is_string( $value ) && in_array( $value, $setting['choices'], true ) ? $value : $invalid;
 
 			case 'list':
 				if ( ! is_array( $value ) ) {
@@ -1226,15 +2050,18 @@ class WRIO_Abilities {
 
 				$value = array_values( array_unique( array_map( 'strval', $value ) ) );
 
-				if ( array_diff( $value, self::get_policy_choices( $field ) ) ) {
+				if ( array_diff( $value, array_map( 'strval', $setting['choices'] ) ) || ( 'allowed_formats' === $field && empty( $value ) ) ) {
 					return $invalid;
 				}
 
-				if ( 'allowed_formats' === $field && empty( $value ) ) {
+				return $value;
+
+			case 'patterns':
+				if ( ! is_array( $value ) || array_filter( $value, static fn( $line ) => ! is_string( $line ) ) ) {
 					return $invalid;
 				}
 
-				return implode( ',', $value );
+				return implode( "\n", $value );
 		}
 
 		return $invalid;

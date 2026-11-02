@@ -22,21 +22,6 @@ class WIO_OptimizePageTemplate {
 	}
 
 	/**
-	 * Выводит контент страницы с учётом мультисайта
-	 *
-	 * @param WRIO_Page $page
-	 *
-	 * @throws Exception
-	 */
-
-	/*
-	public function showPageContent( WRIO_Page $page ) {
-		do_action( 'wbcr/rio/multisite_current_blog' );
-		$this->pageContent( $page );
-		do_action( 'wbcr/rio/multisite_restore_blog' );
-	}*/
-
-	/**
 	 * Выбор сайта для мультисайт режима
 	 */
 	/*
@@ -86,6 +71,7 @@ class WIO_OptimizePageTemplate {
 	 * @type bool $backuped Сделана ли резервная копия
 	 * @type float $diff_percent Разница между оригиналом и оптимизацией в процентах
 	 * @type float $diff_percent_all Общая оптимизация в процентах
+	 * @type bool $can_convert Optional. Whether to show the WebP/AVIF convert buttons. Default true.
 	 * }
 	 *
 	 * @return string
@@ -93,9 +79,9 @@ class WIO_OptimizePageTemplate {
 	public function getMediaColumnTemplate( $params ) {
 		ob_start();
 
-		$ajaxActionOptimize = apply_filters( 'wbcr/rio/optimize_template/reoptimize_ajax_action', 'wio_reoptimize_image', $this->page_type );
-		$ajaxActionConvert  = apply_filters( 'wbcr/rio/optimize_template/convert_ajax_action', 'wio_convert_image', $this->page_type );
-		$ajaxActionRestore  = apply_filters( 'wbcr/rio/optimize_template/restore_ajax_action', 'wio_restore_image', $this->page_type );
+		$ajax_action_optimize = apply_filters( 'wbcr/rio/optimize_template/reoptimize_ajax_action', 'wio_reoptimize_image', $this->page_type ); // phpcs:ignore WordPress.NamingConventions.ValidHookName.UseUnderscores -- Public hook name.
+		$ajax_action_convert  = apply_filters( 'wbcr/rio/optimize_template/convert_ajax_action', 'wio_convert_image', $this->page_type ); // phpcs:ignore WordPress.NamingConventions.ValidHookName.UseUnderscores -- Public hook name.
+		$ajax_action_restore  = apply_filters( 'wbcr/rio/optimize_template/restore_ajax_action', 'wio_restore_image', $this->page_type ); // phpcs:ignore WordPress.NamingConventions.ValidHookName.UseUnderscores -- Public hook name.
 
 		$attachment_id        = $params['attachment_id'];
 		$is_optimized         = $params['is_optimized'];
@@ -103,11 +89,14 @@ class WIO_OptimizePageTemplate {
 		$attachment_file_size = $params['attachment_file_size'];
 		$is_skipped           = $params['is_skipped'];
 		$is_supported_format  = isset( $params['is_supported_format'] ) ? $params['is_supported_format'] : true;
-		$webp_size            = $params['webp_size'];
+		$can_convert          = isset( $params['can_convert'] ) ? $params['can_convert'] : true;
+		$webp_size            = isset( $params['webp_size'] ) ? $params['webp_size'] : 0;
 		$avif_size            = isset( $params['avif_size'] ) ? $params['avif_size'] : 0;
 		$webp_percent         = isset( $params['webp_percent'] ) ? $params['webp_percent'] : 0;
 		$avif_percent         = isset( $params['avif_percent'] ) ? $params['avif_percent'] : 0;
 		$backuped             = isset( $params['backuped'] ) ? $params['backuped'] : false;
+		$other_levels         = isset( $params['other_levels'] ) ? $params['other_levels'] : $backuped;
+		$error_msg            = isset( $params['error_msg'] ) ? $params['error_msg'] : '';
 
 		if ( $is_skipped ) {
 			return (string) ob_get_clean();
@@ -118,7 +107,16 @@ class WIO_OptimizePageTemplate {
 			return (string) ob_get_clean();
 		}
 
+		// Why bulk and automatic runs skip the image, also once a manual click optimized it.
+		$excluded      = [
+			'image'  => __( 'this image is excluded in its options', 'robin-image-optimizer' ),
+			'path'   => __( 'its path matches an "Exclude paths" pattern', 'robin-image-optimizer' ),
+			'filter' => __( 'the wrio_should_optimize filter skips it', 'robin-image-optimizer' ),
+		][ $params['excluded'] ?? '' ] ?? '';
+		$excluded_html = '' === $excluded ? '' : '<ul class="wio-datas-list wio-excluded"><li class="wio-data-item"><span class="data">' . esc_html__( 'Excluded:', 'robin-image-optimizer' ) . '</span> <strong>' . esc_html( $excluded ) . '</strong></li></ul>';
+
 		if ( $is_optimized ) {
+			echo $excluded_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above.
 			$original_main_size   = $params['original_main_size'];
 			$thumbnails_optimized = $params['thumbnails_optimized'];
 			$optimization_level   = $params['optimization_level'];
@@ -130,131 +128,133 @@ class WIO_OptimizePageTemplate {
 			<ul class="wio-datas-list" data-size="<?php echo esc_attr( size_format( $attachment_file_size ) ); ?>"
 				data-dimensions="<?php echo esc_attr( $attach_dimensions ); ?>">
 				<li class="wio-data-item"><span
-							class="data"><?php _e( 'New Filesize:', 'robin-image-optimizer' ); ?></span>
+							class="data"><?php esc_html_e( 'New Filesize:', 'robin-image-optimizer' ); ?></span>
 					<strong class="big"><?php echo esc_attr( size_format( $attachment_file_size, 1 ) ); ?></strong>
 					<span class="wio-chart-value">(<?php echo esc_attr( $diff_percent ); ?>%)</span></li>
 				<?php if ( $webp_size ) : ?>
 				<li class="wio-data-item"><span
-							class="data"><?php _e( 'WebP Filesize:', 'robin-image-optimizer' ); ?></span>
+							class="data"><?php esc_html_e( 'WebP Filesize:', 'robin-image-optimizer' ); ?></span>
 					<strong class="big"><?php echo esc_attr( size_format( $webp_size, 1 ) ); ?></strong>
 					<span class="wio-chart-value">(<?php echo esc_attr( $webp_percent ); ?>%)</span></li>
 				<?php endif; ?>
 				<?php if ( $avif_size ) : ?>
 				<li class="wio-data-item"><span
-							class="data"><?php _e( 'AVIF Filesize:', 'robin-image-optimizer' ); ?></span>
+							class="data"><?php esc_html_e( 'AVIF Filesize:', 'robin-image-optimizer' ); ?></span>
 					<strong class="big"><?php echo esc_attr( size_format( $avif_size, 1 ) ); ?></strong>
 					<span class="wio-chart-value">(<?php echo esc_attr( $avif_percent ); ?>%)</span></li>
 				<?php endif; ?>
 				<li class="wio-data-item">
-					<span class="data"><?php _e( 'Original Filesize:', 'robin-image-optimizer' ); ?></span>
+					<span class="data"><?php esc_html_e( 'Original Filesize:', 'robin-image-optimizer' ); ?></span>
 					<strong class="original"><?php echo esc_attr( size_format( $original_main_size, 1 ) ); ?></strong>
 				</li>
-				<li class="wio-data-item"><span class="data"><?php _e( 'Level:', 'robin-image-optimizer' ); ?></span>
+				<li class="wio-data-item"><span class="data"><?php esc_html_e( 'Level:', 'robin-image-optimizer' ); ?></span>
 					<strong>
 						<?php
 						if ( ! $error_msg ) {
 							// если уровень кастомный от 1 до 100
 							if ( is_numeric( $optimization_level ) ) {
-								echo __( 'Custom', 'robin-image-optimizer' ) . ' ' . intval( $optimization_level ) . '%';
-							} else {
+								echo esc_html__( 'Custom', 'robin-image-optimizer' ) . ' ' . intval( $optimization_level ) . '%';
+							} elseif ( 'normal' === $optimization_level ) {
 								// если уровень один из настроек
-								if ( $optimization_level == 'normal' ) {
-									echo __( 'Lossless', 'robin-image-optimizer' );
-								} elseif ( $optimization_level == 'aggresive' ) {
-									echo __( 'Lossy', 'robin-image-optimizer' );
-								} else {
-									echo __( 'High', 'robin-image-optimizer' );
-								}
+								echo esc_html__( 'Lossless', 'robin-image-optimizer' );
+							} elseif ( 'aggresive' === $optimization_level ) {
+								echo esc_html__( 'Lossy', 'robin-image-optimizer' );
+							} elseif ( 'googlepage' === $optimization_level ) {
+								echo esc_html__( 'G PageSpeed', 'robin-image-optimizer' );
+							} else {
+								echo esc_html__( 'High', 'robin-image-optimizer' );
 							}
 						}
 						?>
 					</strong>
 				</li>
 				<li class="wio-data-item">
-					<span class="data"><?php _e( 'Thumbnails Optimized:', 'robin-image-optimizer' ); ?></span>
+					<span class="data"><?php esc_html_e( 'Thumbnails Optimized:', 'robin-image-optimizer' ); ?></span>
 					<strong class="original"><?php echo intval( $thumbnails_optimized ); ?></strong>
 				</li>
 				<li class="wio-data-item">
-					<span class="data"><?php _e( 'Overall Saving:', 'robin-image-optimizer' ); ?></span>
+					<span class="data"><?php esc_html_e( 'Overall Saving:', 'robin-image-optimizer' ); ?></span>
 					<strong class="original"><?php echo esc_attr( $diff_percent_all ); ?>%</strong>
 				</li>
 				<?php if ( $error_msg ) : ?>
 					<li class="wio-data-item">
-						<span class="data"><?php _e( 'Error Message:', 'robin-image-optimizer' ); ?></span>
+						<span class="data"><?php esc_html_e( 'Error Message:', 'robin-image-optimizer' ); ?></span>
 						<strong><?php echo esc_attr( $error_msg ); ?></strong></li>
 				<?php endif; ?>
 			</ul>
 			<div class="wio-datas-actions-links" style="display:inline;">
-				<?php if ( $optimization_level != 'normal' ) : ?>
-					<a data-action="<?php echo esc_attr( $ajaxActionOptimize ); ?>"
+				<?php // A new level starts from the original (see WRIO\V2\Optimizer::has_original()). ?>
+				<?php if ( $other_levels && 'normal' !== $optimization_level ) : ?>
+					<a data-action="<?php echo esc_attr( $ajax_action_optimize ); ?>"
 						data-id="<?php echo esc_attr( $attachment_id ); ?>"
 						data-level="normal"
-						data-nonce="<?php echo wp_create_nonce( 'reoptimize' ); ?>"
+						data-nonce="<?php echo esc_attr( wp_create_nonce( 'reoptimize' ) ); ?>"
 						href="#"
 						class="wio-reoptimize button-wio-manual-override-upload"
-						data-waiting-label="<?php _e( 'Optimization in progress', 'robin-image-optimizer' ); ?>">
+						data-waiting-label="<?php esc_attr_e( 'Optimization in progress', 'robin-image-optimizer' ); ?>">
 						<span class="dashicons dashicons-admin-generic"></span>
 						<span
 							class="wio-hide-if-small"
 						>
-							<?php _e( 'Re-Optimize to:', 'robin-image-optimizer' ); ?>
-						</span><?php _e( 'Lossless', 'robin-image-optimizer' ); ?>
+							<?php esc_html_e( 'Re-Optimize to:', 'robin-image-optimizer' ); ?>
+						</span><?php esc_html_e( 'Lossless', 'robin-image-optimizer' ); ?>
 						<span class="wio-hide-if-small"></span>
 					</a>
 				<?php endif; ?>
-				<?php if ( $optimization_level != 'aggresive' ) : ?>
-					<a data-action="<?php echo esc_attr( $ajaxActionOptimize ); ?>"
+				<?php if ( $other_levels && 'aggresive' !== $optimization_level ) : ?>
+					<a data-action="<?php echo esc_attr( $ajax_action_optimize ); ?>"
 						data-id="<?php echo esc_attr( $attachment_id ); ?>"
 						data-level="aggresive"
-						data-nonce="<?php echo wp_create_nonce( 'reoptimize' ); ?>"
+						data-nonce="<?php echo esc_attr( wp_create_nonce( 'reoptimize' ) ); ?>"
 						href="#"
 						class="wio-reoptimize button-wio-manual-override-upload"
-						data-waiting-label="<?php _e( 'Optimization in progress', 'robin-image-optimizer' ); ?>">
+						data-waiting-label="<?php esc_attr_e( 'Optimization in progress', 'robin-image-optimizer' ); ?>">
 						<span class="dashicons dashicons-admin-generic"></span>
 						<span
 							class="wio-hide-if-small"
 						>
-							<?php _e( 'Re-Optimize to:', 'robin-image-optimizer' ); ?>
+							<?php esc_html_e( 'Re-Optimize to:', 'robin-image-optimizer' ); ?>
 						</span>
-						<?php _e( 'Lossy', 'robin-image-optimizer' ); ?>
+						<?php esc_html_e( 'Lossy', 'robin-image-optimizer' ); ?>
 						<span class="wio-hide-if-small"></span>
 					</a>
 				<?php endif; ?>
-				<?php if ( $optimization_level != 'ultra' ) : ?>
-					<a data-action="<?php echo esc_attr( $ajaxActionOptimize ); ?>"
+				<?php if ( $other_levels && 'ultra' !== $optimization_level ) : ?>
+					<a data-action="<?php echo esc_attr( $ajax_action_optimize ); ?>"
 						data-id="<?php echo esc_attr( $attachment_id ); ?>"
 						data-level="ultra"
-						data-nonce="<?php echo wp_create_nonce( 'reoptimize' ); ?>"
+						data-nonce="<?php echo esc_attr( wp_create_nonce( 'reoptimize' ) ); ?>"
 						href="#"
 						class="wio-reoptimize button-wio-manual-override-upload"
-						data-waiting-label="<?php _e( 'Optimization in progress', 'robin-image-optimizer' ); ?>">
+						data-waiting-label="<?php esc_attr_e( 'Optimization in progress', 'robin-image-optimizer' ); ?>">
 						<span class="dashicons dashicons-admin-generic"></span>
 						<span
 							class="wio-hide-if-small"
 						>
-							<?php _e( 'Re-Optimize to:', 'robin-image-optimizer' ); ?>
+							<?php esc_html_e( 'Re-Optimize to:', 'robin-image-optimizer' ); ?>
 						</span>
-						<?php _e( 'High', 'robin-image-optimizer' ); ?>
+						<?php esc_html_e( 'High', 'robin-image-optimizer' ); ?>
 						<span class="wio-hide-if-small"></span>
 					</a>
 				<?php endif; ?>
-				<?php // WebP conversion is available to all users ?>
-				<a data-action="<?php echo esc_attr( $ajaxActionConvert ); ?>"
+				<?php if ( $can_convert ) : ?>
+					<?php // WebP conversion is available to all users ?>
+				<a data-action="<?php echo esc_attr( $ajax_action_convert ); ?>"
 					data-id="<?php echo esc_attr( $attachment_id ); ?>"
 					data-format="webp"
-					data-nonce="<?php echo wp_create_nonce( 'convert' ); ?>"
+					data-nonce="<?php echo esc_attr( wp_create_nonce( 'convert' ) ); ?>"
 					href="#"
 					class="wio-convert button-wio-manual-override-upload"
 					data-waiting-label="<?php esc_html_e( 'Convert in progress', 'robin-image-optimizer' ); ?>">
 					<span class="dashicons dashicons-images-alt2"></span>
 					<?php echo esc_html( $webp_size ? __( 'Re-convert to WebP', 'robin-image-optimizer' ) : __( 'Convert to WebP', 'robin-image-optimizer' ) ); ?>
 				</a>
-				<?php // AVIF conversion is a premium-only feature ?>
-				<?php if ( wrio_is_license_activate() ) : ?>
-					<a data-action="<?php echo esc_attr( $ajaxActionConvert ); ?>"
+					<?php // AVIF conversion is a premium-only feature ?>
+					<?php if ( wrio_is_license_activate() ) : ?>
+					<a data-action="<?php echo esc_attr( $ajax_action_convert ); ?>"
 						data-id="<?php echo esc_attr( $attachment_id ); ?>"
 						data-format="avif"
-						data-nonce="<?php echo wp_create_nonce( 'convert' ); ?>"
+						data-nonce="<?php echo esc_attr( wp_create_nonce( 'convert' ) ); ?>"
 						href="#"
 						class="wio-convert button-wio-manual-override-upload"
 						data-waiting-label="<?php esc_html_e( 'Convert in progress', 'robin-image-optimizer' ); ?>">
@@ -262,11 +262,12 @@ class WIO_OptimizePageTemplate {
 						<?php echo esc_html( $avif_size ? __( 'Re-convert to AVIF', 'robin-image-optimizer' ) : __( 'Convert to AVIF', 'robin-image-optimizer' ) ); ?>
 					</a>
 				<?php endif; ?>
+				<?php endif; ?>
 				<?php if ( $backuped ) : ?>
 					<a
-						href="#" data-action="<?php echo esc_attr( $ajaxActionRestore ); ?>"
+						href="#" data-action="<?php echo esc_attr( $ajax_action_restore ); ?>"
 						data-id="<?php echo esc_attr( $attachment_id ); ?>"
-						data-nonce="<?php echo wp_create_nonce( 'restore' ); ?>"
+						data-nonce="<?php echo esc_attr( wp_create_nonce( 'restore' ) ); ?>"
 						class="button-wio-restore attachment-has-backup"
 						data-waiting-label="<?php esc_html_e( 'Recovery in progress', 'robin-image-optimizer' ); ?>"
 					>
@@ -303,20 +304,26 @@ class WIO_OptimizePageTemplate {
 						<span class="wio-chart-value">(<?php echo esc_attr( $avif_saving ); ?>%)</span>
 					</li>
 					<?php endif; ?>
+					<?php if ( $error_msg ) : ?>
+					<li class="wio-data-item">
+						<span class="data"><?php esc_html_e( 'Error Message:', 'robin-image-optimizer' ); ?></span>
+						<strong><?php echo esc_html( $error_msg ); ?></strong></li>
+					<?php endif; ?>
 				</ul>
 				<div class="wio-datas-actions-links" style="display:inline;">
-					<a data-action="<?php echo esc_attr( $ajaxActionOptimize ); ?>"
+					<a data-action="<?php echo esc_attr( $ajax_action_optimize ); ?>"
 						data-id="<?php echo esc_attr( $attachment_id ); ?>"
 						data-level=""
-						data-nonce="<?php echo wp_create_nonce( 'reoptimize' ); ?>"
+						data-nonce="<?php echo esc_attr( wp_create_nonce( 'reoptimize' ) ); ?>"
 						href="#"
 						class="wio-reoptimize button-wio-manual-override-upload"
 						data-waiting-label="<?php esc_attr_e( 'Optimization in progress', 'robin-image-optimizer' ); ?>">
 						<span class="dashicons dashicons-admin-generic"></span>
 						<?php esc_html_e( 'Optimize', 'robin-image-optimizer' ); ?>
 					</a>
-					<?php // WebP conversion is available to all users ?>
-					<a data-action="<?php echo esc_attr( $ajaxActionConvert ); ?>"
+					<?php if ( $can_convert ) : ?>
+						<?php // WebP conversion is available to all users ?>
+					<a data-action="<?php echo esc_attr( $ajax_action_convert ); ?>"
 						data-id="<?php echo esc_attr( $attachment_id ); ?>"
 						data-format="webp"
 						data-nonce="<?php echo esc_attr( wp_create_nonce( 'convert' ) ); ?>"
@@ -326,9 +333,9 @@ class WIO_OptimizePageTemplate {
 						<span class="dashicons dashicons-images-alt2"></span>
 						<?php echo esc_html( $webp_size ? __( 'Re-convert to WebP', 'robin-image-optimizer' ) : __( 'Convert to WebP', 'robin-image-optimizer' ) ); ?>
 					</a>
-					<?php // AVIF conversion is a premium-only feature ?>
-					<?php if ( wrio_is_license_activate() ) : ?>
-						<a data-action="<?php echo esc_attr( $ajaxActionConvert ); ?>"
+						<?php // AVIF conversion is a premium-only feature ?>
+						<?php if ( wrio_is_license_activate() ) : ?>
+						<a data-action="<?php echo esc_attr( $ajax_action_convert ); ?>"
 							data-id="<?php echo esc_attr( $attachment_id ); ?>"
 							data-format="avif"
 							data-nonce="<?php echo esc_attr( wp_create_nonce( 'convert' ) ); ?>"
@@ -339,9 +346,10 @@ class WIO_OptimizePageTemplate {
 							<?php echo esc_html( $avif_size ? __( 'Re-convert to AVIF', 'robin-image-optimizer' ) : __( 'Convert to AVIF', 'robin-image-optimizer' ) ); ?>
 						</a>
 					<?php endif; ?>
+					<?php endif; ?>
 					<?php if ( $backuped ) : ?>
 					<a
-						href="#" data-action="<?php echo esc_attr( $ajaxActionRestore ); ?>"
+						href="#" data-action="<?php echo esc_attr( $ajax_action_restore ); ?>"
 						data-id="<?php echo esc_attr( $attachment_id ); ?>"
 						data-nonce="<?php echo esc_attr( wp_create_nonce( 'restore' ) ); ?>"
 						class="button-wio-restore attachment-has-backup"
@@ -355,11 +363,19 @@ class WIO_OptimizePageTemplate {
 				<!-- .wio-datas-actions-links -->
 				<?php
 			} else {
-				// No conversions yet - show buttons
+				// No conversions yet - show buttons, and the error of the last try.
+				echo $excluded_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above.
 				?>
+				<?php if ( $error_msg ) : ?>
+				<ul class="wio-datas-list">
+					<li class="wio-data-item">
+						<span class="data"><?php esc_html_e( 'Error Message:', 'robin-image-optimizer' ); ?></span>
+						<strong><?php echo esc_html( $error_msg ); ?></strong></li>
+				</ul>
+				<?php endif; ?>
 				<button
-					type="button" data-action="<?php echo esc_attr( $ajaxActionOptimize ); ?>"
-					data-nonce="<?php echo wp_create_nonce( 'reoptimize' ); ?>"
+					type="button" data-action="<?php echo esc_attr( $ajax_action_optimize ); ?>"
+					data-nonce="<?php echo esc_attr( wp_create_nonce( 'reoptimize' ) ); ?>"
 					data-id="<?php echo esc_attr( $attachment_id ); ?>" data-level=""
 					class="wio-reoptimize button button-primary button-large"
 					data-waiting-label="<?php esc_attr_e( 'Optimization in progress', 'robin-image-optimizer' ); ?>"
@@ -368,10 +384,11 @@ class WIO_OptimizePageTemplate {
 				>
 					<?php esc_html_e( 'Optimize', 'robin-image-optimizer' ); ?>
 				</button>
-				<?php // WebP conversion is available to all users ?>
+				<?php if ( $can_convert ) : ?>
+					<?php // WebP conversion is available to all users ?>
 				<button
-					type="button" data-action="<?php echo esc_attr( $ajaxActionConvert ); ?>"
-					data-nonce="<?php echo wp_create_nonce( 'convert' ); ?>"
+					type="button" data-action="<?php echo esc_attr( $ajax_action_convert ); ?>"
+					data-nonce="<?php echo esc_attr( wp_create_nonce( 'convert' ) ); ?>"
 					data-id="<?php echo esc_attr( $attachment_id ); ?>"
 					data-format="webp"
 					class="wio-convert button button-primary button-large"
@@ -381,11 +398,11 @@ class WIO_OptimizePageTemplate {
 				>
 					<?php esc_html_e( 'Convert to WebP', 'robin-image-optimizer' ); ?>
 				</button>
-				<?php // AVIF conversion is a premium-only feature ?>
-				<?php if ( wrio_is_license_activate() ) : ?>
+					<?php // AVIF conversion is a premium-only feature ?>
+					<?php if ( wrio_is_license_activate() ) : ?>
 					<button
-						type="button" data-action="<?php echo esc_attr( $ajaxActionConvert ); ?>"
-						data-nonce="<?php echo wp_create_nonce( 'convert' ); ?>"
+						type="button" data-action="<?php echo esc_attr( $ajax_action_convert ); ?>"
+						data-nonce="<?php echo esc_attr( wp_create_nonce( 'convert' ) ); ?>"
 						data-id="<?php echo esc_attr( $attachment_id ); ?>"
 						data-format="avif"
 						class="wio-convert button button-primary button-large"
@@ -395,6 +412,19 @@ class WIO_OptimizePageTemplate {
 					>
 						<?php esc_html_e( 'Convert to AVIF', 'robin-image-optimizer' ); ?>
 					</button>
+				<?php endif; ?>
+				<?php endif; ?>
+				<?php // The main file failed, and the optimized thumbnails have backups. ?>
+				<?php if ( $backuped ) : ?>
+				<button
+					type="button" data-action="<?php echo esc_attr( $ajax_action_restore ); ?>"
+					data-nonce="<?php echo esc_attr( wp_create_nonce( 'restore' ) ); ?>"
+					data-id="<?php echo esc_attr( $attachment_id ); ?>"
+					class="button-wio-restore attachment-has-backup button button-large"
+					data-waiting-label="<?php esc_attr_e( 'Recovery in progress', 'robin-image-optimizer' ); ?>"
+				>
+					<?php esc_html_e( 'Restore original', 'robin-image-optimizer' ); ?>
+				</button>
 				<?php endif; ?>
 				<?php
 			}

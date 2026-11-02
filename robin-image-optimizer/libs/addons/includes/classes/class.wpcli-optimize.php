@@ -30,12 +30,17 @@ class WRIO_CLI_Commands {
 	 */
 	public function optimize( $args, $assoc_args ) {
 		list( $scope )   = $args;
-		$process_running = WRIO_Plugin::app()->getPopulateOption( 'process_running', $scope );
+		$process_running = WRIO_Plugin::app()->getPopulateOption( 'process_running', false );
 
 		if ( ! $process_running ) {
 			$processing = wrio_get_processing_class( $scope );
 			if ( $scope && is_object( $processing ) ) {
 				WP_CLI::log( "Scope: {$scope}" );
+				// The upload dates of an earlier run from the bulk page do not limit a CLI run of the media library.
+				// Other scopes keep them: a scheduled media library run can still use them.
+				if ( 'media-library' === $scope ) {
+					WRIO_Image_Query::set_run_dates( '', '' );
+				}
 				$push_items = $processing->push_items();
 				if ( $push_items ) {
 					WP_CLI::log( "Items pushed: {$push_items}" );
@@ -70,7 +75,7 @@ class WRIO_CLI_Commands {
 	public function stop( $args, $assoc_args ) {
 		list( $scope ) = $args;
 
-		$process_running = WRIO_Plugin::app()->getPopulateOption( 'process_running', $scope );
+		$process_running = WRIO_Plugin::app()->getPopulateOption( 'process_running', false );
 
 		if ( $process_running ) {
 			$processing = wrio_get_processing_class( $scope );
@@ -129,6 +134,41 @@ class WRIO_CLI_Commands {
 		} else {
 			WP_CLI::error( 'Undefined scope' );
 		}
+	}
+
+	/**
+	 * Run the waiting optimization and conversion work now, in this process, without a loopback request. For a
+	 * system cron job.
+	 *
+	 * ## OPTIONS
+	 *
+	 * <action>
+	 * : What to do with the queue.
+	 * ---
+	 * options:
+	 *   - run
+	 * ---
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp robin queue run
+	 *
+	 * @when after_wp_load
+	 *
+	 * @param array<int, string> $args Positional arguments.
+	 *
+	 * @return void
+	 */
+	public function queue( $args ) {
+		if ( 'run' !== ( $args[0] ?? '' ) ) {
+			WP_CLI::error( 'Unknown action. Use: wp robin queue run' );
+		}
+
+		foreach ( wrio_run_queue() as $scope => $empty ) {
+			WP_CLI::log( "{$scope}: " . ( $empty ? 'done' : 'work left, it waits for a retry or a backoff' ) );
+		}
+
+		WP_CLI::log( 'Queue run ended.' );
 	}
 }
 

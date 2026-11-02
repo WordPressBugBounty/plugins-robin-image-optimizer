@@ -8,6 +8,11 @@ namespace WRIO\WEBP;
 class Server {
 
 	/**
+	 * Site option set when the .htaccess rules wait for a web request, which knows the server type.
+	 */
+	const PENDING_SYNC_OPTION = 'wrio_htaccess_sync_pending';
+
+	/**
 	 * return the server home path
 	 *
 	 * @since  1.0.4
@@ -48,13 +53,22 @@ class Server {
 	}
 
 	/**
+	 * Server signature; empty on CLI, cron and test runs where the header is absent.
+	 *
+	 * @return string
+	 */
+	public static function server_software() {
+		return isset( $_SERVER['SERVER_SOFTWARE'] ) ? (string) $_SERVER['SERVER_SOFTWARE'] : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+	}
+
+	/**
 	 * Return if the server run Apache
 	 *
 	 * @since  1.0.4
 	 * @return bool
 	 */
 	public static function is_apache() {
-		$is_apache = ( strpos( $_SERVER['SERVER_SOFTWARE'], 'Apache' ) !== false || strpos( $_SERVER['SERVER_SOFTWARE'], 'LiteSpeed' ) !== false );
+		$is_apache = ( strpos( self::server_software(), 'Apache' ) !== false || strpos( self::server_software(), 'LiteSpeed' ) !== false );
 
 		return $is_apache;
 	}
@@ -66,9 +80,80 @@ class Server {
 	 * @return bool
 	 */
 	public static function is_nginx() {
-		$is_nginx = ( strpos( $_SERVER['SERVER_SOFTWARE'], 'nginx' ) !== false );
+		$is_nginx = ( strpos( self::server_software(), 'nginx' ) !== false );
 
 		return $is_nginx;
+	}
+
+	/**
+	 * Regular expression that matches an Accept header which rejects a format with "q=0".
+	 *
+	 * @param string $format webp or avif.
+	 *
+	 * @return string
+	 */
+	private static function rejects( $format ) {
+		return '(^|,)[ \t]*image/' . $format . '[ \t]*(;[^,;]*)*;[ \t]*q[ \t]*=[ \t]*0(\.0*)?[ \t]*(;|,|$)';
+	}
+
+	/**
+	 * Rules that serve the AVIF and WebP files at the original JPEG and PNG URLs on nginx, which reads no .htaccess
+	 * file: the site owner adds them to the server block. Only the Accept header decides, and every answer sends
+	 * Vary: Accept.
+	 *
+	 * @return string
+	 */
+	public static function nginx_rules() {
+		$avif = \WRIO_Formats::is_avif_enabled();
+		// Only enabled formats, as in the Apache rules: converted files can stay on disk after conversion is turned off.
+		$webp = \WRIO_Formats::is_webp_enabled();
+
+		return implode(
+			"\n",
+			array_filter(
+				[
+					'# BEGIN Robin Image Optimizer: WebP and AVIF by the Accept header',
+					// Server level: an "if" in a location answers with its own configuration, which has no try_files.
+					// A suffix no file has: an empty one would make the next candidate the original, which exists.
+					$avif ? 'set $wrio_avif ".wrio-none";' : '',
+					$webp ? 'set $wrio_webp ".wrio-none";' : '',
+					$avif ? 'if ($http_accept ~* "image/avif") { set $wrio_avif ".avif"; }' : '',
+					// "q=0" rejects a format, as in the Apache rules.
+					$avif ? 'if ($http_accept ~* "' . self::rejects( 'avif' ) . '") { set $wrio_avif ".wrio-none"; }' : '',
+					$webp ? 'if ($http_accept ~* "image/webp") { set $wrio_webp ".webp"; }' : '',
+					$webp ? 'if ($http_accept ~* "' . self::rejects( 'webp' ) . '") { set $wrio_webp ".wrio-none"; }' : '',
+					'location ~* \.(?:jpe?g|png)$ {',
+					'    add_header Vary Accept;',
+					'    try_files ' . ( $avif ? '$uri$wrio_avif ' : '' ) . ( $webp ? '$uri$wrio_webp ' : '' ) . '$uri =404;',
+					'}',
+					$avif ? '# nginx before 1.24 needs "image/avif avif;" in mime.types.' : '',
+					'# END Robin Image Optimizer',
+				]
+			)
+		);
+	}
+
+	/**
+	 * Rules that deny web access to the backups and the logs on nginx, which ignores the .htaccess files of
+	 * wrio_protect_dir(). A "^~" prefix location wins over the regular expression locations, also the image one above.
+	 *
+	 * @return string
+	 */
+	public static function nginx_deny_rules() {
+		// ponytail: the folders of this site only; a "wbcr/rio/backup/backup_dir" filter outside uploads needs its own rule.
+		$uploads = (string) wp_parse_url( wp_upload_dir( null, false )['baseurl'], PHP_URL_PATH );
+		// A prefix without the secret key of the log folder: it covers every key and the old folder without one.
+		$logs = (string) wp_parse_url( content_url( 'logs/wbcr_image_optimizer' ), PHP_URL_PATH );
+
+		return implode(
+			"\n",
+			[
+				'# BEGIN Robin Image Optimizer: deny web access to backups and logs',
+				'location ^~ ' . untrailingslashit( $uploads ) . '/' . \WIO_Backup::BACKUP_DIR_NAME . '/ { deny all; }',
+				'location ^~ ' . $logs . ' { deny all; }',
+				'# END Robin Image Optimizer',
+			]
+		);
 	}
 
 	/**
@@ -78,7 +163,7 @@ class Server {
 	 * @return bool
 	 */
 	public static function is_iss() {
-		$is_IIS = ! static::is_apache() && ( strpos( $_SERVER['SERVER_SOFTWARE'], 'Microsoft-IIS' ) !== false || strpos( $_SERVER['SERVER_SOFTWARE'], 'ExpressionDevServer' ) !== false );
+		$is_IIS = ! static::is_apache() && ( strpos( self::server_software(), 'Microsoft-IIS' ) !== false || strpos( self::server_software(), 'ExpressionDevServer' ) !== false );
 
 		return $is_IIS;
 	}
@@ -90,7 +175,7 @@ class Server {
 	 * @return bool
 	 */
 	public static function is_iis7() {
-		$is_iis7 = static::is_iss() && intval( substr( $_SERVER['SERVER_SOFTWARE'], strpos( $_SERVER['SERVER_SOFTWARE'], 'Microsoft-IIS/' ) + 14 ) ) >= 7;
+		$is_iis7 = static::is_iss() && intval( substr( self::server_software(), strpos( self::server_software(), 'Microsoft-IIS/' ) + 14 ) ) >= 7;
 
 		return $is_iis7;
 	}
@@ -211,30 +296,112 @@ class Server {
 	}
 
 	/**
+	 * After the settings are saved: write the WebP redirect rules when the
+	 * redirect delivery mode is active on Apache, clear them otherwise.
+	 *
+	 * @param mixed $plugin Plugin that saved.
+	 * @param mixed $page   Page object with an id.
+	 *
+	 * @return void
+	 */
+	public static function sync_htaccess_rules_after_save( $plugin, $page ) {
+		if ( ! is_object( $plugin ) || ! method_exists( $plugin, 'getPluginName' ) || \WRIO_Plugin::app()->getPluginName() !== $plugin->getPluginName() ) {
+			return;
+		}
+		if ( ! is_object( $page ) || ! isset( $page->id ) || 'rio_settings' !== $page->id ) {
+			return;
+		}
+		self::sync_htaccess_rules();
+	}
+
+	/**
+	 * The types of the converted files. Apache names a file by each of its extensions: without these, a server whose
+	 * mime.types has no AVIF serves photo.jpg.avif as image/jpeg.
+	 */
+	const MIME_RULES = '<IfModule mod_mime.c>
+  AddType image/webp .webp
+  AddType image/avif .avif
+</IfModule>';
+
+	/**
+	 * Write the redirect rules when the redirect delivery mode is active on Apache, and only the types of the
+	 * converted files in the other modes, which link those files. Clear them when delivery is off. A license change
+	 * adds or removes the AVIF rule.
+	 *
+	 * @return void
+	 */
+	public static function sync_htaccess_rules(): void {
+		// WP-CLI and system cron have no server signature, so the server type is unknown there. A plugin update
+		// from WP-CLI runs the migrations in such a process: the next web request writes the rules.
+		if ( '' === self::server_software() ) {
+			update_site_option( self::PENDING_SYNC_OPTION, 1 );
+			return;
+		}
+
+		if ( ! self::is_apache() || ! self::server_use_htaccess() ) {
+			return;
+		}
+
+		global $wpdb;
+
+		// One request writes the rules at a time, else a request that read the settings before a save can write
+		// its rules after the rules of the save. A request that finds the lock leaves the sync to the next request.
+		// MySQL frees the lock when the request ends. Only 0 means another request holds it: SQLite sites return
+		// other values and run without the lock.
+		$lock = 'wrio_htaccess_' . md5( $wpdb->dbname . $wpdb->base_prefix );
+
+		if ( '0' === (string) $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK( %s, 0 )', $lock ) ) ) {
+			update_site_option( self::PENDING_SYNC_OPTION, 1 );
+			return;
+		}
+
+		try {
+			// Read the settings that another request saved after this one loaded the options.
+			wp_cache_delete( 'alloptions', 'options' );
+			wp_cache_delete( 'notoptions', 'options' );
+			wp_cache_delete( get_current_network_id() . ':notoptions', 'site-options' );
+
+			foreach ( [ 'convert_webp_format', 'convert_avif_format', 'webp_delivery_mode' ] as $option ) {
+				wp_cache_delete( \WRIO_Plugin::app()->getOptionName( $option ), 'options' );
+				wp_cache_delete( get_current_network_id() . ':' . \WRIO_Plugin::app()->getOptionName( $option ), 'site-options' );
+			}
+
+			if ( ! HTML\Delivery::should_use_converted_images() ) {
+				self::htaccess_clear_webp_rules();
+			} elseif ( HTML\Delivery::is_redirect_delivery_mode() ) {
+				self::htaccess_update_webp_rules();
+			} else {
+				static::write_rules( self::MIME_RULES );
+			}
+		} finally {
+			$wpdb->query( $wpdb->prepare( 'SELECT RELEASE_LOCK( %s )', $lock ) );
+		}
+	}
+
+	/**
+	 * Writes the rules that a process with no server signature could not write.
+	 *
+	 * @return void
+	 */
+	public static function sync_pending_htaccess_rules(): void {
+		if ( '' === self::server_software() || ! get_site_option( self::PENDING_SYNC_OPTION ) ) {
+			return;
+		}
+
+		delete_site_option( self::PENDING_SYNC_OPTION );
+		self::sync_htaccess_rules();
+	}
+
+	/**
 	 * Cleans webp rules from htaccess file. Use when deactivating a plugin
 	 * or turn off webp support option.
 	 *
 	 * @since  1.0.4
 	 */
 	public static function htaccess_clear_webp_rules() {
-		$wp_upload_dir                 = wp_upload_dir();
-		$root_htaccess_file_path       = static::get_home_path() . DIRECTORY_SEPARATOR . '.htaccess';
-		$wp_content_htaccess_file_path = trailingslashit( WP_CONTENT_DIR ) . '.htaccess';
-
-		static::insert_with_markers( $root_htaccess_file_path, '' );
-
-		if ( isset( $wp_upload_dir['error'] ) && $wp_upload_dir['error'] !== false ) {
-			\WRIO_Plugin::app()->logger->error( 'It is not possible to update webp rules for htaccess, because upload dir is not writable.' );
-		} else {
-
-			$upload_base                = $wp_upload_dir['basedir'];
-			$uploads_htaccess_file_path = trailingslashit( $upload_base ) . '.htaccess';
-
-			static::insert_with_markers( $uploads_htaccess_file_path, '' );
-		}
-
-		static::insert_with_markers( $wp_content_htaccess_file_path, '' );
+		static::write_rules( '' );
 	}
+
 
 	/**
 	 * Add webp rules in htaccess file. Use when activating a plugin
@@ -245,67 +412,103 @@ class Server {
 	 * @param bool $clear
 	 */
 	public static function htaccess_update_webp_rules() {
-		// [BS] Backward compat. 11/03/2019 - remove possible settings from root .htaccess
-		$wp_upload_dir                 = wp_upload_dir();
-		$root_htaccess_file_path       = static::get_home_path() . DIRECTORY_SEPARATOR . '.htaccess';
-		$wp_content_htaccess_file_path = trailingslashit( WP_CONTENT_DIR ) . '.htaccess';
+		// Only enabled formats: converted files can stay on disk after conversion is turned off.
+		$avif = ! \WRIO_Formats::is_avif_enabled() ? '' : '
+  ##### AVIF first, for the browsers that accept it (ex. test.jpg.avif) #####
+  RewriteCond %{HTTP_ACCEPT} image/avif [NC]
+  RewriteCond %{HTTP_ACCEPT} "!(^|,)[ \t]*image/avif[ \t]*(;[^,;]*)*;[ \t]*q[ \t]*=[ \t]*0(?:\.0*)?[ \t]*(;|,|$)" [NC]
+  RewriteCond %{REQUEST_URI} ^(.+)\.(?:jpe?g|png)$ [NC]
+  RewriteCond %{DOCUMENT_ROOT}%{REQUEST_URI}.avif -f
+  RewriteRule ^(.+)$ $1.avif [NC,T=image/avif,L]
+';
+
+		$webp = ! \WRIO_Formats::is_webp_enabled() ? '' : '
+  ##### TRY FIRST the file appended with .webp (ex. test.jpg.webp) #####
+  # Does the browser accept webp? Only the Accept header decides: Vary: Accept
+  # cannot describe a choice made from the user agent.
+  RewriteCond %{HTTP_ACCEPT} image/webp [NC]
+  RewriteCond %{HTTP_ACCEPT} "!(^|,)[ \t]*image/webp[ \t]*(;[^,;]*)*;[ \t]*q[ \t]*=[ \t]*0(?:\.0*)?[ \t]*(;|,|$)" [NC]
+  # AND is the request a jpg or png?
+  RewriteCond %{REQUEST_URI} ^(.+)\.(?:jpe?g|png)$ [NC]
+  # AND does a .ext.webp image exist?
+  RewriteCond %{DOCUMENT_ROOT}%{REQUEST_URI}.webp -f
+  # THEN send the webp image
+  RewriteRule ^(.+)$ $1.webp [NC,T=image/webp,L]
+
+  ##### IF NOT, try the file with replaced extension (test.webp) #####
+  RewriteCond %{HTTP_ACCEPT} image/webp [NC]
+  RewriteCond %{HTTP_ACCEPT} "!(^|,)[ \t]*image/webp[ \t]*(;[^,;]*)*;[ \t]*q[ \t]*=[ \t]*0(?:\.0*)?[ \t]*(;|,|$)" [NC]
+  # AND is the request a jpg or png? (also grab the basepath %1 to match in the next rule)
+  RewriteCond %{REQUEST_URI} ^(.+)\.(?:jpe?g|png)$ [NC]
+  # AND does a .ext.webp image exist?
+  RewriteCond %{DOCUMENT_ROOT}/%1.webp -f
+  # THEN send the webp image
+  RewriteRule (.+)\.(?:jpe?g|png)$ $1.webp [NC,T=image/webp,L]
+';
 
 		$rules = '
 <IfModule mod_rewrite.c>
   RewriteEngine On
 
-  ##### TRY FIRST the file appended with .webp (ex. test.jpg.webp) #####
-  # Does browser explicitly support webp?
-  RewriteCond %{HTTP_USER_AGENT} Chrome [OR]
-  # OR Is request from Page Speed
-  RewriteCond %{HTTP_USER_AGENT} "Google Page Speed Insights" [OR]
-  # OR does this browser explicitly support webp
-  RewriteCond %{HTTP_ACCEPT} image/webp
-  # AND is the request a jpg or png?
-  RewriteCond %{REQUEST_URI} ^(.+)\.(?:jpe?g|png)$
-  # AND does a .ext.webp image exist?
-  RewriteCond %{DOCUMENT_ROOT}%{REQUEST_URI}.webp -f
-  # THEN send the webp image and set the env var webp
-  RewriteRule ^(.+)$ $1.webp [NC,T=image/webp,E=webp,L]
-
-  ##### IF NOT, try the file with replaced extension (test.webp) #####
-  RewriteCond %{HTTP_USER_AGENT} Chrome [OR]
-  RewriteCond %{HTTP_USER_AGENT} "Google Page Speed Insights" [OR]
-  RewriteCond %{HTTP_ACCEPT} image/webp
-  # AND is the request a jpg or png? (also grab the basepath %1 to match in the next rule)
-  RewriteCond %{REQUEST_URI} ^(.+)\.(?:jpe?g|png)$
-  # AND does a .ext.webp image exist?
-  RewriteCond %{DOCUMENT_ROOT}/%1.webp -f
-  # THEN send the webp image and set the env var webp
-  RewriteRule (.+)\.(?:jpe?g|png)$ $1.webp [NC,T=image/webp,E=webp,L]
+  # Every JPEG or PNG answer depends on the Accept header, also the original. A rule that reads it
+  # and always applies makes mod_rewrite send Vary: Accept, also on servers without mod_headers.
+  RewriteCond %{HTTP_ACCEPT} ^(.*)$
+  RewriteRule \.(?:jpe?g|png)$ - [NC,E=WRIO_ACCEPT:%1]
+' . $avif . '
+' . $webp . '
 
 </IfModule>
 <IfModule mod_headers.c>
-  # If REDIRECT_webp env var exists, append Accept to the Vary header
-  Header append Vary Accept env=REDIRECT_webp
+  # The answer for a JPEG or PNG URL depends on the Accept header, also when the original is served,
+  # so caches and CDNs must keep one copy per format. It does not depend on a rewrite env var, which
+  # some servers (LiteSpeed) do not set.
+  <FilesMatch "(?i)\.(jpe?g|png|webp|avif)$">
+    Header merge Vary Accept
+  </FilesMatch>
 </IfModule>
 
-<IfModule mod_mime.c>
-  AddType image/webp .webp
-</IfModule>
+' . self::MIME_RULES . '
         ';
 
-		static::insert_with_markers( $root_htaccess_file_path, $rules );
+		static::write_rules( $rules );
+	}
+
+	/**
+	 * Write the rules block of the plugin into the .htaccess files of the site root, wp-content and uploads. Empty
+	 * rules remove the block.
+	 *
+	 * @param string $rules Rules between the markers.
+	 *
+	 * @return void
+	 */
+	protected static function write_rules( $rules ) {
+		$wp_upload_dir = wp_upload_dir();
+
+		static::insert_with_markers( static::get_home_path() . DIRECTORY_SEPARATOR . '.htaccess', $rules );
 
 		if ( isset( $wp_upload_dir['error'] ) && $wp_upload_dir['error'] !== false ) {
 			\WRIO_Plugin::app()->logger->error( 'It is not possible to update webp rules for htaccess, because upload dir is not writable.' );
 		} else {
-
-			$upload_base                = $wp_upload_dir['basedir'];
-			$uploads_htaccess_file_path = trailingslashit( $upload_base ) . '.htaccess';
-
-			static::insert_with_markers( $uploads_htaccess_file_path, $rules );
+			static::insert_with_markers( trailingslashit( $wp_upload_dir['basedir'] ) . '.htaccess', $rules );
 		}
 
-		static::insert_with_markers( $wp_content_htaccess_file_path, $rules );
+		static::insert_with_markers( trailingslashit( WP_CONTENT_DIR ) . '.htaccess', $rules );
 	}
 
+	/**
+	 * Writes the plugin's rules block into an .htaccess file, logging why when it cannot.
+	 *
+	 * @param string $file_path Path to the .htaccess file.
+	 * @param string $content   Rules to place between the markers; empty removes them.
+	 *
+	 * @return void
+	 */
 	public static function insert_with_markers( $file_path, $content ) {
+		// Settings are saved over REST too, where wp-admin helpers are not loaded.
+		if ( ! function_exists( 'insert_with_markers' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/misc.php';
+		}
+
 		if ( ! static::is_writable_htaccess( $file_path ) ) {
 			\WRIO_Plugin::app()->logger->error( sprintf( 'It is not possible to update webp rules for htaccess, because file (%s) is not writable.', $file_path ) );
 		} else {

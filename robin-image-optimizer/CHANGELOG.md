@@ -1,3 +1,43 @@
+####   Version 2.1.0 (2026-11-02)
+
+- Added new, easier admin pages for Bulk Optimization, Settings, License, and Error Log.
+- Added single-request optimization for the image and its WebP and AVIF conversions, for faster results.
+- Added a bulk summary before start, pause, and resume, largest-first order, and an upload date filter.
+- Added an Optimize with Robin bulk action to the Media Library.
+- Added a Failures section that explains why each image failed, with Retry and Ignore buttons.
+- Added an automatic pause and retry when the optimization server is busy.
+- Added options to exclude images or folders from optimization and to keep an images original dimensions.
+- Added a developer filter to skip images from optimization.
+- Added a count of optimized images that still need a WebP or AVIF copy.
+- Added a Test delivery button that checks that visitors get WebP and AVIF files.
+- Added ready-to-copy Nginx rules and a Cloudflare warning for Redirection mode.
+- Added the backup count and size to Manage backups.
+- Added options to delete WebP and AVIF files on uninstall and to hide the Robin Media Library column.
+- Added AVIF delivery in Image URLs mode and high-priority loading for the first image on a page.
+- Added AI assistant support for everything the Robin admin pages can do.
+- Added support for WordPress 7.1 in-browser image processing.
+- Changed how Robin stores optimization data; existing data moves over automatically on update.
+- Fixed new uploads waiting behind a running bulk optimization.
+- Fixed several bulk optimization issues with large libraries, damaged images, missing files, and interrupted runs.
+- Fixed background optimization stalling on sites where scheduled tasks do not run.
+- Fixed edited and replaced images not being optimized again.
+- Fixed WebP and AVIF files being kept when larger than the original, and GIF images being converted.
+- Fixed browsers, caches, and servers getting the wrong image format, including AVIF images labeled as WebP.
+- Fixed WebP delivery rules missing after a WP-CLI update or plugin reactivation.
+- Fixed page caches keeping old image markup after delivery settings change.
+- Fixed page crashes when another plugin loads its own HTML parser.
+- Fixed several backup and restore issues that could lose original images.
+- Fixed scheduled optimization stopping on hosts with low PHP limits.
+- Fixed images being resized while the resize setting was off.
+- Fixed reactivation turning backup and EXIF settings back on.
+- Fixed leftover files and data after deleting images or uninstalling.
+- Fixed several security issues.
+- Fixed several multisite issues, including admins changing other sites images.
+- Fixed wrong sizes and percentages in the optimization log.
+- Fixed the Robin menu on phones and in right-to-left languages.
+- Fixed the bulk progress dropping to 0% after WebP or AVIF was turned on.
+- Fixed PHP 8.5 deprecation notices.
+
 #####   Version 2.0.9 (2026-09-29)
 
 - Fixed frontend page failures when Picture delivery processes converted images.

@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Adds new columns and renames existing ones in order to add support for the new social buttons.
  *
  */
-class WIOUpdate010802 extends Wbcr_Factory600_Update {
+class WIOUpdate010802 {
 
 	/**
 	 * Handles the installation process for the plugin, including cleanup of

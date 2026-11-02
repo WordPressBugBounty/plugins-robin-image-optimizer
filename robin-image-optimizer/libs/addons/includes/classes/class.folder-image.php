@@ -40,8 +40,8 @@ class WRIO_Folder_Image {
 	/**
 	 * Инициализация картинки из custom folder
 	 *
-	 * @param int         $image_id     номер картинки в таблице folders
-	 * @param array|false $image_data   метаданные картинки
+	 * @param int                                    $image_id   номер картинки в таблице folders.
+	 * @param array|false|RIO_Process_Queue|stdClass $image_data метаданные картинки, or its queue row.
 	 */
 	public function __construct( $image_id, $image_data = false ) {
 		$this->id = $image_id;
@@ -59,13 +59,17 @@ class WRIO_Folder_Image {
 		}
 
 		/**
-		 * @var WRIO_CF_Image_Extra_Data $extra_data
+		 * Extra data of the queue row, null when the row was deleted.
+		 *
+		 * @var WRIO_CF_Image_Extra_Data|null $extra_data
 		 */
 		$extra_data = $this->optimization_data->get_extra_data();
-		// Use get_home_path() to match how real_path_to_relative() calculates relative paths in class.folder.php
-		$base_path        = is_main_site() ? get_home_path() : wp_upload_dir()['basedir'] . '/';
-		$this->path       = wp_normalize_path( untrailingslashit( $base_path ) . $extra_data->get_file_path() );
-		$this->url        = home_url( wp_normalize_path( $extra_data->get_file_path() ) );
+		// A deleted queue row has no extra data, so the image has an empty path. WRIO_Custom_Folders::optimizeImage() skips it.
+		$file_path = $extra_data instanceof WRIO_CF_Image_Extra_Data ? (string) $extra_data->get_file_path() : '';
+		// The same root as real_path_to_relative() in class.folder.php.
+		$base_path        = WRIO_Custom_Folders::get_storage_root();
+		$this->path       = '' === $file_path ? '' : wp_normalize_path( untrailingslashit( $base_path ) . $file_path );
+		$this->url        = '' === $file_path ? '' : home_url( wp_normalize_path( $file_path ) );
 		$this->folder_uid = $this->optimization_data->get_item_hash_alternative();
 	}
 
@@ -122,6 +126,7 @@ class WRIO_Folder_Image {
 
 		$table_name = RIO_Process_Queue::table_name();
 		$sql        = $wpdb->prepare(
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Plugin table name.
 			"SELECT * FROM {$table_name} WHERE id = %d AND item_type = %s LIMIT 1;",
 			[
 				$this->id,
@@ -129,7 +134,7 @@ class WRIO_Folder_Image {
 			]
 		);
 
-		$row = $wpdb->get_row( $sql );
+		$row = $wpdb->get_row( $sql ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Prepared above.
 
 		if ( ! empty( $row ) ) {
 			$this->optimization_data->configure( $row );
@@ -167,18 +172,91 @@ class WRIO_Folder_Image {
 	}
 
 	/**
-	 * Optimize folder image.
+	 * Optimize the image under its lock.
 	 *
-	 * @param string $optimization_level   Level of optimization.
+	 * The lock covers the backup too: a process that dies during the backup counts a crash, as in the optimizer.
 	 *
-	 * @return array
+	 * @param string $optimization_level Level of optimization.
+	 *
+	 * @return array<string, int>
 	 */
 	public function optimize( $optimization_level = '' ) {
-		$is_image_backuped = $this->backup();
+		// Null: another process optimizes the image now, and writes its row.
+		return \WRIO\Storage\Store::with_lock( 'cf_image', (int) $this->id, fn() => $this->optimize_locked( $optimization_level ) ) ?? [
+			'errors_count'    => 0,
+			'original_size'   => 0,
+			'optimized_size'  => 0,
+			'optimized_count' => 0,
+		];
+	}
+
+	/**
+	 * Save a failure that stops the optimization in the queue row: the column shows it, not an older reason.
+	 *
+	 * @param WP_Error $error The failure.
+	 *
+	 * @return void
+	 */
+	private function save_failure( WP_Error $error ) {
+		$extra_data = $this->getOptimizationData()->get_extra_data();
+		$extra_data = $extra_data instanceof WRIO_CF_Image_Extra_Data ? $extra_data : new WRIO_CF_Image_Extra_Data();
+		$extra_data->set_failure( 'optimization', $error );
+		$this->getOptimizationData()->configure(
+			[
+				'result_status' => RIO_Process_Queue::STATUS_ERROR,
+				'extra_data'    => $extra_data,
+			]
+		);
+		$this->getOptimizationData()->save();
+	}
+
+	/**
+	 * The work of optimize().
+	 *
+	 * @param string $optimization_level Level of optimization.
+	 *
+	 * @return array<string, int>
+	 */
+	private function optimize_locked( $optimization_level ) {
+		// A missing file goes on to the optimizer, which saves it as missing_file.
+		$path = WRIO_Custom_Folders::validate_path( $this->path, true, $this->get_root() );
+
+		if ( is_wp_error( $path ) ) {
+			WRIO_Plugin::app()->logger->error( sprintf( 'Skipping optimization of custom folder image %s: %s', $this->path, $path->get_error_message() ) );
+			\WRIO\Storage\Store::fail(
+				[
+					'source'    => 'cf_image',
+					'object_id' => (int) $this->id,
+				],
+				$this->path,
+				'path_denied'
+			);
+
+			$this->save_failure( $path );
+
+			return [
+				'errors_count'    => 1,
+				'original_size'   => 0,
+				'optimized_size'  => 0,
+				'optimized_count' => 0,
+			];
+		}
+
+		// After MAX_CRASHES the optimizer saves the "crashed" failure: skip the backup, which can be what stops PHP.
+		$is_image_backuped = \WRIO\Storage\Store::crashes( 'cf_image', (int) $this->id ) >= \WRIO\Storage\Store::MAX_CRASHES ? false : $this->backup();
 
 		if ( is_wp_error( $is_image_backuped ) ) {
 
 			WRIO_Plugin::app()->logger->error( sprintf( 'Failed to backup with message: %s. Skipping optimization of custom folder', $is_image_backuped->get_error_message() ) );
+			\WRIO\Storage\Store::fail(
+				[
+					'source'    => 'cf_image',
+					'object_id' => (int) $this->id,
+				],
+				$this->path,
+				'backup_failed'
+			);
+			$this->save_failure( $is_image_backuped );
 
 			return [
 				'errors_count'    => 1,
@@ -187,268 +265,77 @@ class WRIO_Folder_Image {
 				'optimized_count' => 0,
 			];
 		}
-		// делаем рисайз
-		$image_processor = WIO_OptimizationTools::getImageProcessor();
-		if ( ! $optimization_level ) {
-			$optimization_level = WRIO_Plugin::app()->getPopulateOption( 'image_optimization_level', 'normal' );
-		}
-		if ( $optimization_level == 'custom' ) {
-			$custom_quality     = WRIO_Plugin::app()->getPopulateOption( 'image_optimization_level_custom', 100 );
-			$optimization_level = intval( $custom_quality );
-		}
-		$optimization_data           = $this->getOptimizationData();
-		$results                     = [];
-		$results['processing_level'] = $optimization_level;
-		$main_file_path              = $this->path;
-		$main_file_url               = $this->url;
-		clearstatcache(); // на всякий случай очистим кеш файловой статистики
-		$original_main_size = filesize( $main_file_path ); // оптимизированный размер только главной картинки
+		$optimization_level = \WRIO\V2\Optimizer::stored_level( $optimization_level );
+		$optimization_data  = $this->getOptimizationData();
+		$summary            = ( new \WRIO\V2\Optimizer() )->optimize_item( 'cf_image', (int) $this->id, $this->get_files(), $optimization_level, [], true === $is_image_backuped );
 
-		$optimized_img_data = $image_processor->process(
+		// Another process optimizes the image now, and writes its row.
+		if ( \WRIO\V2\Optimizer::is_locked( $summary['error'] ) ) {
+			return [
+				'errors_count'    => 0,
+				'original_size'   => 0,
+				'optimized_size'  => 0,
+				'optimized_count' => 0,
+			];
+		}
+
+		$extra_data = $optimization_data->get_extra_data();
+		$extra_data = $extra_data instanceof WRIO_CF_Image_Extra_Data ? $extra_data : new WRIO_CF_Image_Extra_Data();
+		$extra_data->clear_failure();
+
+		if ( $summary['error'] ) {
+			$extra_data->set_failure( 'optimization', $summary['error'] );
+		}
+
+		$mime_type = (string) wp_get_image_mime( $this->path );
+
+		$optimization_data->configure(
 			[
-				'image_url'  => $main_file_url,
-				'image_path' => $main_file_path,
-				'quality'    => $image_processor->quality( $optimization_level ),
-				'save_exif'  => WRIO_Plugin::app()->getPopulateOption( 'save_exif_data', false ),
+				'result_status'      => $summary['error'] ? RIO_Process_Queue::STATUS_ERROR : RIO_Process_Queue::STATUS_SUCCESS,
+				'processing_level'   => $optimization_level,
+				'is_backed_up'       => $is_image_backuped,
+				'original_size'      => $summary['original_size'],
+				'final_size'         => $summary['optimized_size'],
+				'original_mime_type' => $mime_type,
+				'final_mime_type'    => $mime_type,
+				'extra_data'         => $extra_data,
 			]
 		);
-
-		if ( is_wp_error( $optimized_img_data ) ) {
-			$results['result_status'] = 'error';
-			/**
-			 * @var $extra_data WRIO_CF_Image_Extra_Data
-			 */
-			$extra_data = $optimization_data->get_extra_data();
-			$extra_data->set_error( 'optimization' );
-			$extra_data->set_error_msg( $optimized_img_data->get_error_message() );
-			$results['extra_data'] = $extra_data;
-			$optimization_data->configure( $results );
-			$optimization_data->save();
-
-			return [
-				'errors_count'    => 1,
-				'original_size'   => 0,
-				'optimized_size'  => 0,
-				'optimized_count' => 0,
-			];
-		}
-
-		// отложенная оптимизация
-		if ( isset( $optimized_img_data['status'] ) && $optimized_img_data['status'] == 'processing' ) {
-			$results['result_status'] = 'processing';
-			$results['is_backed_up']  = $is_image_backuped;
-			$results['original_size'] = 0;
-			$results['final_size']    = 0;
-
-			/**
-			 * @var $extra_data WRIO_CF_Image_Extra_Data
-			 */
-			$extra_data = $optimization_data->get_extra_data();
-			$extra_data->set_main_optimized_data( $optimized_img_data );
-			$results['extra_data'] = $extra_data;
-			$optimization_data->configure( $results );
-			$optimization_data->save();
-
-			return [
-				'processing'     => 1,
-				'original_size'  => 0,
-				'optimized_size' => 0,
-			];
-		}
-
-		$this->replaceOriginalFile( $optimized_img_data );
-
-		// некоторые провайдеры не отдают оптимизированный размер, поэтому после замены файла получаем его сами
-		if ( ! $optimized_img_data['optimized_size'] ) {
-			clearstatcache();
-			$optimized_img_data['optimized_size'] = filesize( $main_file_path );
-		}
-		// при отрицательной оптимизации ставим значение оригинала
-		if ( $optimized_img_data['optimized_size'] > $original_main_size ) {
-			$optimized_img_data['optimized_size'] = $original_main_size;
-		}
-
-		$original_size  = $original_main_size;
-		$optimized_size = $optimized_img_data['optimized_size'];
-
-		$results['result_status'] = 'success';
-		$results['final_size']    = $optimized_size;
-		$results['original_size'] = $original_size;
-		$results['is_backed_up']  = $is_image_backuped;
-
-		/**
-		 * @var $extra_data WRIO_CF_Image_Extra_Data
-		 */
-		$extra_data = $optimization_data->get_extra_data();
-		$extra_data->set_main_optimized_data( null );
-		$extra_data->set_error( null );
-		$extra_data->set_error_msg( null );
-		$results['extra_data'] = $extra_data;
-		$mime_type             = '';
-		if ( function_exists( 'wp_get_image_mime' ) ) {
-			$mime_type = wp_get_image_mime( $main_file_path );
-		}
-		$results['original_mime_type'] = $mime_type;
-		$results['final_mime_type']    = $mime_type;
-		$optimization_data->configure( $results );
 		$optimization_data->save();
 
 		return [
-			'errors_count'    => 0,
-			'original_size'   => $original_size,
-			'optimized_size'  => $optimized_size,
-			'optimized_count' => 1,
+			'errors_count'    => $summary['error'] ? 1 : 0,
+			'original_size'   => $summary['original_size'],
+			'optimized_size'  => $summary['optimized_size'],
+			'optimized_count' => $summary['error'] ? 0 : 1,
 		];
 	}
 
 	/**
-	 * Отложенная оптимизация аттачмента
+	 * The file of the image, in the format of WRIO\V2\Optimizer::run().
 	 *
-	 * @return bool|array
+	 * @return array<string, array{path: string, url: string, optimize: bool}>
 	 */
-	public function deferredOptimization() {
-		$results = [
-			'original_size'   => 0,
-			'optimized_size'  => 0,
-			'optimized_count' => 0,
-			'processing'      => 1,
+	public function get_files() {
+		return [
+			'original' => [
+				'path'     => $this->path,
+				'url'      => $this->url,
+				'optimize' => true,
+			],
 		];
-
-		$image_processor   = WIO_OptimizationTools::getImageProcessor();
-		$optimization_data = $this->getOptimizationData();
-
-		if ( $optimization_data->get_result_status() != 'processing' ) {
-			return false;
-		}
-		// проверяем главную картинку
-		/**
-		 * @var $extra_data WRIO_CF_Image_Extra_Data
-		 */
-		$extra_data          = $optimization_data->get_extra_data();
-		$main_optimized_data = $extra_data->get_main_optimized_data();
-		$main_image_url      = '';
-		if ( ! $main_optimized_data['optimized_img_url'] ) {
-			$main_image_url = $image_processor->checkDeferredOptimization( $main_optimized_data );
-			if ( $main_image_url ) {
-				$main_optimized_data['optimized_img_url'] = $main_image_url;
-				$extra_data->set_main_optimized_data( $main_optimized_data );
-			}
-		}
-
-		$thumbnails_processed = true; // для кастомных папок нет превьюшек, поэтому всегда true
-
-		// когда все файлы получены - сохраняем и возвращаем результат
-		if ( $main_image_url && $thumbnails_processed ) {
-			$original_size      = 0;
-			$optimized_size     = 0;
-			$original_main_size = filesize( $this->get( 'path' ) );
-			$original_size      = $original_size + $original_main_size;
-			$this->replaceOriginalFile(
-				[
-					'optimized_img_url' => $main_image_url,
-				]
-			);
-			clearstatcache();
-			$optimized_main_size = filesize( $this->get( 'path' ) );
-
-			// при отрицательной оптимизации ставим значение оригинала
-			if ( $optimized_main_size > $original_main_size ) {
-				$optimized_main_size = $original_main_size;
-			}
-
-			$optimized_size = $optimized_size + $optimized_main_size;
-			clearstatcache();
-			$mime_type = '';
-
-			if ( function_exists( 'wp_get_image_mime' ) ) {
-				$mime_type = wp_get_image_mime( $this->get( 'path' ) );
-			}
-
-			$optimization_data->configure(
-				[
-					'final_size'         => $optimized_size,
-					'original_size'      => $original_size,
-					'result_status'      => 'success',
-					'original_mime_type' => $mime_type,
-					'final_mime_type'    => $mime_type,
-				]
-			);
-			$extra_data->set_original_main_size( $original_main_size );
-
-			// удаляем промежуточные данные
-			$extra_data->set_main_optimized_data( null );
-			$extra_data->set_error( null );
-			$extra_data->set_error_msg( null );
-
-			$results['optimized_count'] = 1;
-			$results['original_size']   = $original_size;
-			$results['optimized_size']  = $optimized_size;
-			unset( $results['processing'] );
-		}
-
-		$optimization_data->set_extra_data( $extra_data );
-		$optimization_data->save();
-
-		return $results;
 	}
 
 	/**
-	 * Заменяет оригинальный файл на оптимизированный
+	 * Root of the path checks of this image: the root of its folder.
 	 *
-	 * @param array $optimized_img_data   результат оптимизации ввиде массива данных
+	 * @return string Root for WRIO_Custom_Folders::validate_path(). Empty for the default root.
 	 */
-	public function replaceOriginalFile( $optimized_img_data ) {
-		$optimized_img_url = $optimized_img_data['optimized_img_url'];
-		if ( isset( $optimized_img_data['not_need_download'] ) and $optimized_img_data['not_need_download'] ) {
-			$optimized_file = $optimized_img_url;
-		} else {
-			$optimized_file = $this->remoteDownloadImage( $optimized_img_url );
-		}
-		if ( isset( $optimized_img_data['not_need_replace'] ) and $optimized_img_data['not_need_replace'] ) {
-			// если картинка уже оптимизирована и провайдер её не может уменьшить - он может вернуть положительный ответ, но без самой картинки. В таком случае ничего заменять не надо
-			return true;
-		}
-		if ( ! $optimized_file ) {
-			return false;
-		}
-		$path = $this->path;
+	public function get_root(): string {
+		$folders = WRIO_Custom_Folders::get_instance();
+		$folder  = $folders instanceof WRIO_Custom_Folders ? $folders->getFolder( (string) $this->folder_uid ) : false;
 
-		if ( ! is_file( $path ) ) {
-			return false;
-		}
-
-		file_put_contents( $path, $optimized_file );
-
-		return true;
-	}
-
-	/**
-	 * Загрузка картинки с удалённого сервера
-	 *
-	 * todo: RIO-18 можем ли мы создать универсальный метод для всех внешних запросов, чтобы не дублировать код?
-	 *
-	 * @param string $url
-	 *
-	 * @return string
-	 */
-	protected function remoteDownloadImage( $url ) {
-		if ( ! function_exists( 'curl_version' ) ) {
-			return file_get_contents( $url );
-		}
-
-		$ch = curl_init();
-		curl_setopt( $ch, CURLOPT_HEADER, 0 );
-		curl_setopt( $ch, CURLOPT_RETURNTRANSFER, 1 );
-		curl_setopt( $ch, CURLOPT_URL, $url );
-
-		$image_body = curl_exec( $ch );
-		$http_code  = curl_getinfo( $ch, CURLINFO_HTTP_CODE );
-		if ( $http_code != '200' ) {
-			$image_body = false;
-		}
-		curl_close( $ch );
-
-		return $image_body;
+		return $folder instanceof WRIO_Folder ? $folder->get_root() : '';
 	}
 
 	/**
@@ -471,8 +358,18 @@ class WRIO_Folder_Image {
 			return $restored;
 		}
 
+		if ( true !== $restored ) {
+			// translators: %s: Image file name.
+			return new WP_Error( 'restore_failed', sprintf( __( 'Could not restore %s from its backup.', 'robin-image-optimizer' ), wp_basename( $this->path ) ) );
+		}
+
+		\WRIO\V2\Format_Rows::delete( $this->get_files() );
+		\WRIO\Storage\Store::restored( 'cf_image', (int) $this->id, $this->get_files() );
+
+		// The backup is used and deleted: the Settings backup count must not count the image.
 		$optimization_data = $this->getOptimizationData();
 		$optimization_data->set_result_status( 'unoptimized' );
+		$optimization_data->set_is_backed_up( false );
 		$optimization_data->save();
 
 		/**

@@ -1,37 +1,36 @@
 <IfModule mod_rewrite.c>
   RewriteEngine On
 
-  ##### TRY FIRST the file appended with .webp (ex. test.jpg.webp) #####
-  # Does browser explicitly support webp?
-  RewriteCond %{HTTP_USER_AGENT} Chrome [OR]
-  # OR Is request from Page Speed
-  RewriteCond %{HTTP_USER_AGENT} "Google Page Speed Insights" [OR]
-  # OR does this browser explicitly support webp
-  RewriteCond %{HTTP_ACCEPT} image/webp
-  # AND is the request a jpg or png?
+  # The same rules as the ones Robin writes (WRIO\WEBP\Server::htaccess_update_webp_rules()): only the Accept
+  # header decides, because Vary: Accept cannot describe a choice made from the user agent.
+
+  ##### AVIF first, for the browsers that accept it (ex. test.jpg.avif) #####
+  RewriteCond %{HTTP_ACCEPT} image/avif
   RewriteCond %{REQUEST_URI} ^(.+)\.(?:jpe?g|png)$
-  # AND does a .ext.webp image exist?
+  RewriteCond %{DOCUMENT_ROOT}%{REQUEST_URI}.avif -f
+  RewriteRule ^(.+)$ $1.avif [NC,T=image/avif,L]
+
+  ##### TRY FIRST the file appended with .webp (ex. test.jpg.webp) #####
+  RewriteCond %{HTTP_ACCEPT} image/webp
+  RewriteCond %{REQUEST_URI} ^(.+)\.(?:jpe?g|png)$
   RewriteCond %{DOCUMENT_ROOT}%{REQUEST_URI}.webp -f
-  # THEN send the webp image and set the env var webp
-  RewriteRule ^(.+)$ $1.webp [NC,T=image/webp,E=webp,L]
+  RewriteRule ^(.+)$ $1.webp [NC,T=image/webp,L]
 
   ##### IF NOT, try the file with replaced extension (test.webp) #####
-  RewriteCond %{HTTP_USER_AGENT} Chrome [OR]
-  RewriteCond %{HTTP_USER_AGENT} "Google Page Speed Insights" [OR]
   RewriteCond %{HTTP_ACCEPT} image/webp
-  # AND is the request a jpg or png? (also grab the basepath %1 to match in the next rule)
   RewriteCond %{REQUEST_URI} ^(.+)\.(?:jpe?g|png)$
-  # AND does a .ext.webp image exist?
   RewriteCond %{DOCUMENT_ROOT}/%1.webp -f
-  # THEN send the webp image and set the env var webp
-  RewriteRule (.+)\.(?:jpe?g|png)$ $1.webp [NC,T=image/webp,E=webp,L]
+  RewriteRule (.+)\.(?:jpe?g|png)$ $1.webp [NC,T=image/webp,L]
 
 </IfModule>
 <IfModule mod_headers.c>
-  # If REDIRECT_webp env var exists, append Accept to the Vary header
-  Header append Vary Accept env=REDIRECT_webp
+  # Every answer for a JPEG or PNG URL depends on the Accept header, also when the original is served.
+  <FilesMatch "(?i)\.(jpe?g|png|webp|avif)$">
+    Header merge Vary Accept
+  </FilesMatch>
 </IfModule>
 
 <IfModule mod_mime.c>
   AddType image/webp .webp
+  AddType image/avif .avif
 </IfModule>

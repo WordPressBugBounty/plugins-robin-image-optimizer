@@ -42,7 +42,6 @@ class WRIO_Nextgen_Gallery {
 
 		add_action( 'wp_ajax_wio_ng_reoptimize_image', 'wbcr_riop_reoptimizeImage' );
 		add_action( 'wp_ajax_wio_ng_restore_image', 'wbcr_riop_restoreImage' );
-		add_action( 'wp_ajax_wio_process_ng_images', 'wbcr_riop_optimizeImages' );
 
 		add_action( 'admin_enqueue_scripts', [ $this, 'enqueueMeadiaScripts' ], 10 );
 		add_action( 'ngg_delete_picture', [ $this, 'deleteImageHook' ], 10, 2 );
@@ -61,7 +60,6 @@ class WRIO_Nextgen_Gallery {
 		add_filter( 'wbcr/rio/optimize_template/restore_ajax_action', [ $this, 'restoreAjaxAction' ], 10, 2 );
 		// add_filter( 'wbcr/rio/multisite_blogs', [ $this, 'multisiteBlogs' ], 10, 2 );
 		add_action( 'wbcr/rio/optimize_template/optimized_percent', [ $this, 'optimizedPercent' ], 10, 2 );
-		add_action( 'wbcr/riop/queue_item_saved', [ $this, 'webpSuccess' ], 10, 1 );
 	}
 
 	/**
@@ -138,7 +136,7 @@ class WRIO_Nextgen_Gallery {
 			return;
 		}
 		wp_enqueue_style( 'wio-install-addons', WRIO_PLUGIN_URL . '/admin/assets/css/media.css', [], WRIO_Plugin::app()->getPluginVersion() );
-		wp_enqueue_script( 'wio-install-addons', WRIO_PLUGIN_URL . '/admin/assets/js/single-optimization.js', [ 'jquery' ], WRIO_Plugin::app()->getPluginVersion() );
+		WRIO_App::enqueue_script( 'wio-install-addons', 'single-optimization' );
 	}
 
 	/**
@@ -217,6 +215,11 @@ class WRIO_Nextgen_Gallery {
 			if ( $optimized_size and $original_size ) {
 				$diff_percent_all = round( ( $original_size - $optimized_size ) * 100 / $original_size );
 			}
+		} else {
+			// The main file failed: show why, and the restore of an optimized thumbnail.
+			$extra_data = $nextgen_image->getOptimizationData()->get_extra_data();
+			$error_msg  = $extra_data instanceof WRIO_Nextgen_Extra_Data ? $extra_data->get_error_msg() : '';
+			$backuped   = $nextgen_image->has_backup();
 		}
 		$params = [
 			'attachment_id'        => $image_id,
@@ -230,6 +233,7 @@ class WRIO_Nextgen_Gallery {
 			'optimization_level'   => $optimization_level,
 			'error_msg'            => $error_msg,
 			'backuped'             => $backuped,
+			'other_levels'         => \WRIO\V2\Optimizer::has_original( 'nextgen', (int) $image_id ),
 			'diff_percent'         => $diff_percent,
 			'diff_percent_all'     => $diff_percent_all,
 			'is_skipped'           => false,
@@ -260,74 +264,31 @@ class WRIO_Nextgen_Gallery {
 	 * @param int    $image_id номер картинки в таблице nextgen
 	 * @param string $level качество
 	 *
-	 * @return array
+	 * @return array{stop: WP_Error|null}|array{error: WP_Error}|array{errors_count: int, original_size: int, optimized_size: int, optimized_count: int}
 	 */
 	public function optimizeNextgenImage( $image_id, $level = '' ) {
-		$nextgen_image     = $this->getNextgenImage( $image_id );
-		$optimization_data = $nextgen_image->getOptimizationData();
-		if ( 'processing' == $optimization_data->get_result_status() ) {
-			return $this->deferredOptimizeNextgenImage( $image_id );
+		$nextgen_image = $this->getNextgenImage( $image_id );
+
+		// A bulk run (no level) on a done image: only a format that was turned on later is missing.
+		if ( '' === (string) $level && $nextgen_image->isOptimized() && wrio_converts_only( 'nextgen', (int) $image_id, $nextgen_image->get_files() ) ) {
+			$error = ( new \WRIO\V2\Optimizer() )->convert_item( 'nextgen', (int) $image_id, $nextgen_image->get_files(), WRIO_Formats::get_enabled_formats() );
+
+			return [ 'stop' => wrio_convert_stop_error( 'nextgen', (int) $image_id, $error ) ];
 		}
-		$image_statistics = WRIO_Image_Statistic_Nextgen::get_instance();
-		if ( $nextgen_image->isOptimized() ) {
-			$optimized_size      = $optimization_data->get_final_size();
-			$original_size       = $optimization_data->get_original_size();
-			$webp_optimized_size = wrio_get_webp_main_size( $optimization_data );
-			$image_statistics->deductFromField( 'webp_optimized_size', $webp_optimized_size );
-			$image_statistics->deductFromField( 'optimized_size', $optimized_size );
-			$image_statistics->deductFromField( 'original_size', $original_size );
+
+		// See WRIO_Media_Library::optimizeAttachment(): a new level needs the original.
+		$no_original = $nextgen_image->isOptimized() ? \WRIO\V2\Optimizer::no_original( 'nextgen', (int) $image_id, $level, $nextgen_image->getOptimizationData()->get_processing_level() ) : null;
+
+		if ( $no_original ) {
+			return [ 'error' => $no_original ];
+		}
+
+		if ( $nextgen_image->isOptimized() && \WRIO\V2\Optimizer::restores_first( 'nextgen', (int) $image_id, $level, $nextgen_image->getOptimizationData()->get_processing_level() ) ) {
 			$nextgen_image->restore();
 		}
-		$image_optimized_data = $nextgen_image->optimize( $level );
-		$original_size        = $image_optimized_data['original_size'];
-		$optimized_size       = $image_optimized_data['optimized_size'];
-		$image_statistics->addToField( 'optimized_size', $optimized_size );
-		$image_statistics->addToField( 'original_size', $original_size );
-		$image_statistics->save();
 
-		return $image_optimized_data;
+		return $nextgen_image->optimize( $level );
 	}
-
-	/**
-	 * Отложенная оптимизация nextgen_image.
-	 *
-	 * @param int $image_id
-	 *
-	 * @return array|bool array on success, false on failure.
-	 */
-	protected function deferredOptimizeNextgenImage( $image_id ) {
-		$nextgen_image     = $this->getNextgenImage( $image_id );
-		$optimization_data = $nextgen_image->getOptimizationData();
-		$image_processor   = WIO_OptimizationTools::getImageProcessor();
-
-		// если текущий сервер оптимизации не поддерживает отложенную оптимизацию, а в очереди есть аттачменты - ставим им ошибку
-		if ( ! $image_processor->isDeferred() ) {
-			$optimization_data->set_result_status( 'error' );
-
-			/**
-			 * @var WRIO_Nextgen_Extra_Data $extra_data
-			 */
-			$extra_data = $optimization_data->get_extra_data();
-			$extra_data->set_error( 'deferred' );
-			$extra_data->set_error_msg( 'server not support deferred optimization' );
-			$optimization_data->set_extra_data( $extra_data );
-			$optimization_data->save();
-
-			WRIO_Plugin::app()->logger->error( sprintf( 'Server %s does not support deferred optimization', get_class( $image_processor ) ) );
-
-			return false;
-		}
-		$optimized_data = $nextgen_image->deferredOptimization();
-		if ( $optimized_data ) {
-			$image_statistics = WRIO_Image_Statistic_Nextgen::get_instance();
-			$image_statistics->addToField( 'optimized_size', $optimized_data['optimized_size'] );
-			$image_statistics->addToField( 'original_size', $optimized_data['original_size'] );
-			$image_statistics->save();
-		}
-
-		return $optimized_data;
-	}
-
 
 	/**
 	 * Обработка не оптимизированных изображений
@@ -338,18 +299,24 @@ class WRIO_Nextgen_Gallery {
 	 */
 	public function processUnoptimizedImages( $max_process_per_request = 5 ) {
 		$backup               = WRIOP_Backup::get_instance();
-		$backup_origin_images = WRIO_Plugin::app()->getPopulateOption( 'backup_origin_images', false );
-		if ( $backup_origin_images and ! $backup->isBackupWritable() ) {
+		$backup_origin_images = WRIO_Plugin::app()->getPopulateOption( 'backup_origin_images', wrio_get_default( 'backup_origin_images' ) );
+		if ( $backup_origin_images && ! $backup->isBackupWritable() ) {
 			return new WP_Error( 'unwritable_backup_dir', __( 'No access for writing backups.', 'robin-image-optimizer' ) );
 		}
 		if ( ! $backup->isUploadWritable() ) {
 			return new WP_Error( 'unwritable_upload_dir', __( 'No access for writing backups.', 'robin-image-optimizer' ) );
 		}
+		// An unknown license key fails every image without a file row: the run would pick the same image forever.
+		$limits = \WRIO\V2\Client::from_settings()->limits();
+
+		if ( is_wp_error( $limits ) ) {
+			return $limits;
+		}
+
 		$image_statistics = WRIO_Image_Statistic_Nextgen::get_instance();
 
 		// выборка неоптимизированных изображений
 		$gallery_images       = $image_statistics->getUnoptimized( $max_process_per_request ); // тут будет выборка
-		$total_unoptimized    = $image_statistics->getUnoptimizedCount(); // тут общее кол-во неоптимизированных
 		$gallery_images_count = 0;
 		if ( isset( $gallery_images ) ) {
 			$gallery_images_count = count( $gallery_images );
@@ -359,21 +326,22 @@ class WRIO_Nextgen_Gallery {
 
 		// обработка
 		if ( $gallery_images_count ) {
-			foreach ( $gallery_images as $gallery_image ) {
-				$this->optimizeNextgenImage( $gallery_image->pid );
+			foreach ( array_values( $gallery_images ) as $index => $gallery_image ) {
+				if ( $index > 0 && ! wrio_has_time_left() ) {
+					$gallery_images_count = $index;
+					break;
+				}
+
+				$result = $this->optimizeNextgenImage( $gallery_image->pid );
+
+				if ( ! empty( $result['stop'] ) ) {
+					return $result['stop'];
+				}
 			}
 		}
 
-		$remain = $total_unoptimized - $gallery_images_count;
-		// проверяем, есть ли аттачменты в очереди на отложенную оптимизацию
-		$optimized_data = $this->processDeferredOptimization();
-		if ( $optimized_data ) {
-			$optimized_count = $optimized_data['optimized_count'];
-			$remain          = $total_unoptimized - $optimized_count;
-		}
-		if ( $remain <= 0 ) {
-			$remain = 0;
-		}
+		// Counted again: an image whose request failed stays to do.
+		$remain   = (int) $image_statistics->getUnoptimizedCount();
 		$responce = [
 			'remain'          => $remain,
 			'end'             => false,
@@ -386,53 +354,14 @@ class WRIO_Nextgen_Gallery {
 	}
 
 	/**
-	 * Отложенная оптимизация
-	 *
-	 * @return bool|array
-	 */
-	protected function processDeferredOptimization() {
-		global $wpdb;
-		$db_table = RIO_Process_Queue::table_name();
-		$image_id = $wpdb->get_var( "SELECT object_id FROM {$db_table} WHERE item_type = 'nextgen' and result_status = 'processing' LIMIT 1;" );
-		if ( ! $image_id ) {
-			return false;
-		}
-		$nextgen_image  = $this->getNextgenImage( $image_id );
-		$optimized_data = $nextgen_image->deferredOptimization();
-		if ( $optimized_data ) {
-			$image_statistics = WRIO_Image_Statistic_Nextgen::get_instance();
-			$image_statistics->addToField( 'optimized_size', $optimized_data['optimized_size'] );
-			$image_statistics->addToField( 'original_size', $optimized_data['original_size'] );
-			$image_statistics->save();
-
-			return $optimized_data;
-		}
-
-		return false;
-	}
-
-	/**
 	 * Сбрасывает текущие ошибки оптимизации
 	 * Позволяет изображениям, которые оптимизированы с ошибкой, заново пройти оптимизацию.
 	 *
 	 * @return void
 	 */
 	public function resetCurrentErrors() {
-		// do_action( 'wbcr/rio/multisite_current_blog' );
-
-		global $wpdb;
-
-		$db_table = RIO_Process_Queue::table_name();
-
-		$wpdb->delete(
-			$db_table,
-			[
-				'item_type'     => 'nextgen',
-				'result_status' => 'error',
-			],
-			[ '%s', '%s' ]
-		);
-		// do_action( 'wbcr/rio/multisite_restore_blog' );
+		RIO_Process_Queue::reset_errors( 'nextgen' );
+		\WRIO\Storage\Store::errors_reset( 'nextgen' );
 	}
 
 	/**
@@ -442,17 +371,12 @@ class WRIO_Nextgen_Gallery {
 		$image_id      = isset( $image->pid ) ? $image->pid : 0;
 		$nextgen_image = new WRIO_Image_Nextgen( $image_id );
 		if ( $nextgen_image->isOptimized() ) {
-			$optimization_data   = $nextgen_image->getOptimizationData();
-			$image_statistics    = WRIO_Image_Statistic_Nextgen::get_instance();
-			$optimized_size      = $optimization_data->get_final_size();
-			$original_size       = $optimization_data->get_original_size();
-			$webp_optimized_size = wrio_get_webp_main_size( $optimization_data );
-			$image_statistics->deductFromField( 'webp_optimized_size', $webp_optimized_size );
-			$image_statistics->deductFromField( 'optimized_size', $optimized_size );
-			$image_statistics->deductFromField( 'original_size', $original_size );
-			$image_statistics->save();
+			$optimization_data = $nextgen_image->getOptimizationData();
 
-			if ( ! $nextgen_image->restore() ) {
+			// restore() returns true or a WP_Error: a WP_Error is truthy.
+			if ( is_wp_error( $nextgen_image->restore() ) ) {
+				// NextGEN has already replaced the image; its old conversions no longer match.
+				$nextgen_image->forget_conversions();
 				WRIO_Plugin::app()->logger->error( sprintf( 'Failed to restore Nextgen image. Object info: %s', wp_json_encode( $nextgen_image ) ) );
 			}
 
@@ -470,20 +394,16 @@ class WRIO_Nextgen_Gallery {
 		if ( $nextgen_image->isOptimized() ) {
 			$restored = $nextgen_image->restore();
 
-			if ( ! is_wp_error( $restored ) ) {
-				$optimization_data   = $nextgen_image->getOptimizationData();
-				$image_statistics    = WRIO_Image_Statistic_Nextgen::get_instance();
-				$optimized_size      = $optimization_data->get_final_size();
-				$original_size       = $optimization_data->get_original_size();
-				$webp_optimized_size = wrio_get_webp_main_size( $optimization_data );
-				$image_statistics->deductFromField( 'webp_optimized_size', $webp_optimized_size );
-				$image_statistics->deductFromField( 'optimized_size', $optimized_size );
-				$image_statistics->deductFromField( 'original_size', $original_size );
-				$image_statistics->save();
-
+			if ( is_wp_error( $restored ) ) {
+				// The picture is deleted; its conversions and backups must not stay behind.
+				$nextgen_image->forget_conversions();
+				$backup = WRIOP_Backup::get_instance();
+				if ( $backup instanceof WRIOP_Backup ) {
+					$backup->deleteNextgenBackups( $nextgen_image );
+				}
 				WRIO_Plugin::app()->logger->error( sprintf( 'Failed to restore Nextgen image. Object info: %s', wp_json_encode( $nextgen_image ) ) );
-
-				$optimization_data->delete();
+			} else {
+				$nextgen_image->getOptimizationData()->delete();
 			}
 		}
 		$this->deleteNextgenOptimizationData( $image_id );
@@ -527,64 +447,6 @@ class WRIO_Nextgen_Gallery {
 		}
 
 		return $percent;
-	}
-
-	/**
-	 * Сохраняет WebP размер
-	 *
-	 * @param RIO_Process_Queue $queue_model
-	 *
-	 * @return bool
-	 */
-	public function webpSuccess( $queue_model ) {
-		if ( ! class_exists( 'WRIO\WEBP\Listener' ) ) {
-			return false; // если не установлена премиум версия, то WebP не активен
-		}
-		if ( $queue_model->get_item_type() !== WRIO\WEBP\Listener::DEFAULT_TYPE ) {
-			return false;
-		}
-		if ( $queue_model->get_result_status() !== RIO_Process_Queue::STATUS_SUCCESS ) {
-			return false;
-		}
-
-		/**
-		 * @var RIOP_WebP_Extra_Data $extra_data
-		 */
-		$extra_data = $queue_model->get_extra_data();
-		$item_type  = $extra_data->get_convert_from();
-
-		if ( $item_type != 'nextgen' ) {
-			return false;
-		}
-
-		if ( ! $queue_model->object_id ) {
-			return false;
-		}
-
-		$optimization_data = new RIO_Process_Queue(
-			[
-				'object_id' => $queue_model->object_id,
-				'item_type' => 'nextgen',
-			]
-		);
-
-		$optimization_data->load();
-
-		/**
-		 * @var WRIO_Nextgen_Extra_Data $extra_data
-		 */
-		$extra_data = $optimization_data->get_extra_data();
-		if ( ! $extra_data ) {
-			return false;
-		}
-
-		$extra_data->set_webp_main_size( $queue_model->get_final_size() );
-		$optimization_data->set_extra_data( $extra_data );
-		add_filter( 'wbcr/riop/queue_item_save_execute_hook', '__return_false' );
-		$optimization_data->save();
-		remove_filter( 'wbcr/riop/queue_item_save_execute_hook', '__return_false' );
-
-		return true;
 	}
 
 	/**

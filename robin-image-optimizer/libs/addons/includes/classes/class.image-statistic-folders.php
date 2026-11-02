@@ -13,6 +13,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 class WRIO_Image_Statistic_Folders extends WRIO_Image_Statistic {
 
 	/**
+	 * The source of the state rows of the items.
+	 */
+	const SOURCE = 'cf_image';
+
+	/**
 	 * The single instance of the class.
 	 *
 	 * @since  1.3.0
@@ -22,34 +27,29 @@ class WRIO_Image_Statistic_Folders extends WRIO_Image_Statistic {
 	protected static $_instance;
 
 	/**
-	 * Сохранение статистики
-	 */
-	public function save() {
-		WRIO_Plugin::app()->updateOption( 'folders_original_size', $this->statistic['original_size'] );
-		WRIO_Plugin::app()->updateOption( 'folders_optimized_size', $this->statistic['optimized_size'] );
-	}
-
-	/**
 	 * Загрузка статистики и расчёт некоторых параметров
 	 *
 	 * @return array
 	 */
 	public function load() {
-		$original_size   = WRIO_Plugin::app()->getOption( 'folders_original_size', 0 );
-		$optimized_size  = WRIO_Plugin::app()->getOption( 'folders_optimized_size', 0 );
+		if ( \WRIO\Storage\Backfill::reads() ) {
+			// A skipped file is done: it counts as optimized, as for the attachments.
+			$sizes         = \WRIO\Storage\Queries::sum_sizes( 'cf_image', 'optimized' );
+			$error_count   = $this->count_where( \WRIO\Storage\Queries::error( 'cf_image', 'q.id' ) );
+			$skipped_count = 0;
+		} else {
+			$sizes         = RIO_Process_Queue::sum_sizes( 'cf_image' );
+			$error_count   = RIO_Process_Queue::count_by_type_status( 'cf_image', 'error' );
+			$skipped_count = RIO_Process_Queue::count_by_type_status( 'cf_image', 'skip' );
+		}
+
+		$original_size   = $sizes['original_size'];
+		$optimized_size  = $sizes['final_size'];
 		$total_images    = $this->getTotalCount();
-		$error_count     = RIO_Process_Queue::count_by_type_status( 'cf_image', 'error' );
-		$skipped_count   = RIO_Process_Queue::count_by_type_status( 'cf_image', 'skip' );
 		$optimized_count = $this->getOptimizedCount();
 
 		if ( ! $total_images ) {
 			$total_images = 0;
-			if ( $original_size || $optimized_size ) {
-				// если нет картинок, то и размеров не должно быть
-				$original_size  = $this->statistic['original_size'] = 0;
-				$optimized_size = $this->statistic['optimized_size'] = 0;
-				$this->save();
-			}
 		}
 		if ( ! $error_count ) {
 			$error_count = 0;
@@ -60,15 +60,12 @@ class WRIO_Image_Statistic_Folders extends WRIO_Image_Statistic {
 		if ( ! $optimized_count ) {
 			$optimized_count = 0;
 		}
-		// unoptimized count: all - optimized - error - skip
-		$unoptimized_count = $total_images - $optimized_count - $error_count - $skipped_count;
-		if ( $optimized_size and $original_size ) {
-			$percent_diff      = round( ( $original_size - $optimized_size ) * 100 / $original_size, 1 );
-			$percent_diff_line = round( $optimized_size * 100 / $original_size, 0 );
-		} else {
-			$percent_diff      = 0;
-			$percent_diff_line = 100;
-		}
+		// unoptimized count: all - optimized - error - skip. With the state rows it is counted, not subtracted: a file
+		// can be done and have an error (a failed format) at the same time.
+		$unoptimized_count                        = \WRIO\Storage\Backfill::reads()
+			? $this->count_where( \WRIO\Storage\Queries::untouched( 'cf_image', 'q.id' ) )
+			: max( 0, $total_images - $optimized_count - $error_count - $skipped_count );
+		list( $percent_diff, $percent_diff_line ) = static::size_percents( $original_size, $optimized_size );
 		if ( $total_images ) {
 			$optimized_images_percent = round( $optimized_count * 100 / $total_images );
 		} else {
@@ -115,18 +112,27 @@ class WRIO_Image_Statistic_Folders extends WRIO_Image_Statistic {
 		return $total_images;
 	}
 
+	/**
+	 * Number of optimized files.
+	 *
+	 * @return int
+	 */
 	public function getOptimizedCount() {
+		if ( \WRIO\Storage\Backfill::reads() ) {
+			return $this->count_where( \WRIO\Storage\Queries::done( 'optimized', 'cf_image', 'q.id' ) );
+		}
+
 		$current_folder = apply_filters( 'wriop_cf_current_folder', false );
 		if ( $current_folder ) {
 			global $wpdb;
 			$db_table        = RIO_Process_Queue::table_name();
-			$sql_optimized   = $wpdb->prepare( "SELECT COUNT(*) FROM {$db_table} WHERE item_type = 'cf_image' AND item_hash_alternative = %s AND result_status = 'success';", $current_folder );
-			$optimized_count = $wpdb->get_var( $sql_optimized );
+			$sql_optimized   = $wpdb->prepare( "SELECT COUNT(*) FROM {$db_table} WHERE item_type = 'cf_image' AND item_hash_alternative = %s AND result_status = 'success';", $current_folder ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Plugin table name.
+			$optimized_count = $wpdb->get_var( $sql_optimized ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Prepared above.
 		} else {
 			$optimized_count = RIO_Process_Queue::count_by_type_status( 'cf_image', 'success' );
 		}
 
-		return $optimized_count;
+		return (int) $optimized_count;
 	}
 
 	/**
@@ -135,9 +141,14 @@ class WRIO_Image_Statistic_Folders extends WRIO_Image_Statistic {
 	public function getUnoptimizedCount() {
 		global $wpdb;
 
+		if ( \WRIO\Storage\Backfill::reads() ) {
+			return $this->count_where( \WRIO\Storage\Queries::work( 'cf_image', 'q.id' ) );
+		}
+
 		$db_table       = RIO_Process_Queue::table_name();
 		$current_folder = apply_filters( 'wriop_cf_current_folder', false );
 
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Plugin table name.
 		if ( $current_folder ) {
 			$sql_unoptimized = $wpdb->prepare(
 				"
@@ -160,8 +171,9 @@ class WRIO_Image_Statistic_Folders extends WRIO_Image_Statistic {
 				RIO_Process_Queue::STATUS_PROCESSING
 			);
 		}
+		// phpcs:enable
 
-		$unoptimized = $wpdb->get_var( $sql_unoptimized );
+		$unoptimized = $wpdb->get_var( $sql_unoptimized ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Prepared above.
 
 		return $unoptimized;
 	}
@@ -181,13 +193,16 @@ class WRIO_Image_Statistic_Folders extends WRIO_Image_Statistic {
 		$db_table          = RIO_Process_Queue::table_name();
 		$current_folder    = apply_filters( 'wriop_cf_current_folder', false );
 
-		if ( $current_folder ) {
-			$sql_unoptimized = $wpdb->prepare( "SELECT * FROM {$db_table} WHERE item_type = 'cf_image' AND item_hash_alternative = %s AND result_status = 'unoptimized' LIMIT %d", $current_folder, $limit );
+		if ( \WRIO\Storage\Backfill::reads() ) {
+			// A file that waits for a retry is not picked, so a bulk run ends. A done file with a due WebP is.
+			$sql_unoptimized = $this->rows_where( 'q.*', \WRIO\Storage\Queries::work( 'cf_image', 'q.id' ) ) . ' ORDER BY q.id LIMIT ' . absint( $limit );
+		} elseif ( $current_folder ) {
+			$sql_unoptimized = $wpdb->prepare( "SELECT * FROM {$db_table} WHERE item_type = 'cf_image' AND item_hash_alternative = %s AND result_status = 'unoptimized' LIMIT %d", $current_folder, $limit ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- plugin table.
 		} else {
 			$sql_unoptimized = "SELECT * FROM {$db_table} WHERE item_type = 'cf_image' AND result_status = 'unoptimized' LIMIT " . intval( $limit );
 		}
 
-		$result = $wpdb->get_results( $sql_unoptimized );
+		$result = $wpdb->get_results( $sql_unoptimized ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Prepared above, or fixed SQL with an integer limit.
 
 		if ( ! empty( $result ) ) {
 			foreach ( $result as $key => $data ) {
@@ -198,40 +213,12 @@ class WRIO_Image_Statistic_Folders extends WRIO_Image_Statistic {
 		return $unoptimized_items;
 	}
 
-	public function getDeferredUnoptimized( $limit = 10 ) {
-		global $wpdb;
-
-		$db_table       = RIO_Process_Queue::table_name();
-		$current_folder = apply_filters( 'wriop_cf_current_folder', false );
-		if ( $current_folder ) {
-			$sql_unoptimized = $wpdb->prepare( "SELECT * FROM {$db_table} WHERE item_type = 'cf_image' AND item_hash_alternative = %s AND result_status = 'processing' LIMIT %d", $current_folder, $limit );
-		} else {
-			$sql_unoptimized = "SELECT * FROM {$db_table} WHERE item_type = 'cf_image' and result_status = 'processing' LIMIT " . intval( $limit );
-		}
-		$unoptimized = $wpdb->get_results( $sql_unoptimized );
-
-		return $unoptimized;
-	}
-
 	/**
 	 * Returns the result of the last optimized images.
 	 *
 	 * @param int $limit Limit.
 	 *
-	 * @return array<int, array{
-	 *     id: int|string,
-	 *     file_name: string,
-	 *     url: string,
-	 *     thumbnail_url: string,
-	 *     original_size: string,
-	 *     optimized_size: string,
-	 *     webp_size?: string,
-	 *     original_saving: string,
-	 *     thumbnails_count: int,
-	 *     type: string,
-	 *     total_saving: string,
-	 *     error_msg?: string
-	 * }>
+	 * @return array<int, array<string, mixed>> Log entries: id, file_name, url, thumbnail_url, sizes, savings, type, error_msg.
 	 */
 	public function get_last_optimized_images( $limit = 100 ) {
 		global $wpdb;
@@ -239,6 +226,24 @@ class WRIO_Image_Statistic_Folders extends WRIO_Image_Statistic {
 		$items    = [];
 		$db_table = RIO_Process_Queue::table_name();
 
+		if ( \WRIO\Storage\Backfill::reads() ) {
+			$logged = array_column( static::last_logged( 'cf_image', (int) $limit ), null, 'object_id' );
+
+			if ( empty( $logged ) ) {
+				return [];
+			}
+
+			$ids  = implode( ',', array_map( 'intval', array_keys( $logged ) ) );
+			$rows = $wpdb->get_results( "SELECT * FROM {$db_table} WHERE item_type = 'cf_image' AND id IN ( {$ids} ) ORDER BY FIELD( id, {$ids} )", ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- plugin table, integer IDs.
+
+			foreach ( (array) $rows as $row ) {
+				$items[] = static::with_log( $this->format_for_log( new RIO_Process_Queue( $row ) ), $logged[ $row['id'] ] );
+			}
+
+			return $items;
+		}
+
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Plugin table name.
 		$sql = $wpdb->prepare(
 			"SELECT *
 					FROM {$db_table} as t1 
@@ -251,8 +256,9 @@ class WRIO_Image_Statistic_Folders extends WRIO_Image_Statistic {
 			RIO_Process_Queue::STATUS_ERROR,
 			$limit
 		);
+		// phpcs:enable
 
-		$optimized_images = $wpdb->get_results( $sql, ARRAY_A );
+		$optimized_images = $wpdb->get_results( $sql, ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Prepared above.
 
 		foreach ( $optimized_images as $row ) {
 			$items[] = $this->format_for_log( new RIO_Process_Queue( $row ) );
@@ -264,16 +270,52 @@ class WRIO_Image_Statistic_Folders extends WRIO_Image_Statistic {
 	/**
 	 * Get the last optimized image record for a specific model.
 	 *
-	 * @param RIO_Process_Queue $model Queue model instance.
+	 * @param RIO_Process_Queue|int     $model  Queue model, or the ID of a queue row (the bulk step passes one).
+	 * @param array<string, mixed>|null $logged Its latest history row from last_logged(). Null: read it.
 	 *
 	 * @return array<int, array<string, mixed>>
 	 * @since  1.1
 	 */
-	public function get_last_optimized_image( $model ) {
-		$items   = [];
-		$items[] = $this->format_for_log( $model );
+	public function get_last_optimized_image( $model, $logged = null ) {
+		$item = $this->format_for_log( $model );
 
-		return $items;
+		if ( \WRIO\Storage\Backfill::reads() ) {
+			// The bulk step passes the ID of the queue row, the log list a queue row.
+			$id   = is_object( $model ) ? (int) $model->get_id() : (int) $model;
+			$item = static::with_log( $item, $logged ?? static::last_logged( 'cf_image', 1, $id )[0] ?? null );
+		}
+
+		return [ $item ];
+	}
+
+	/**
+	 * SQL of the queue rows of the custom-folder files (one per file), in the current folder when one is set.
+	 *
+	 * @param string $select    Columns of "q".
+	 * @param string $condition SQL condition on "q", without placeholders.
+	 *
+	 * @return string
+	 */
+	protected function rows_where( $select, $condition ) {
+		global $wpdb;
+
+		$sql    = 'SELECT ' . $select . ' FROM ' . RIO_Process_Queue::table_name() . " q WHERE q.item_type = 'cf_image' AND " . $condition;
+		$folder = apply_filters( 'wriop_cf_current_folder', false );
+
+		return $folder ? $wpdb->prepare( $sql . ' AND q.item_hash_alternative = %s', $folder ) : $sql; // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- the condition has no placeholders.
+	}
+
+	/**
+	 * Number of custom-folder files that match a condition.
+	 *
+	 * @param string $condition SQL condition on "q", without placeholders.
+	 *
+	 * @return int
+	 */
+	protected function count_where( $condition ) {
+		global $wpdb;
+
+		return (int) $wpdb->get_var( $this->rows_where( 'COUNT(*)', $condition ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- prepared in rows_where().
 	}
 
 	/**
@@ -310,10 +352,10 @@ class WRIO_Image_Statistic_Folders extends WRIO_Image_Statistic {
 			'file_name'        => wp_basename( $main_file ),
 			'original_size'    => size_format( $optimization_data->original_size, 2 ),
 			'optimized_size'   => size_format( $optimization_data->final_size, 2 ),
-			'original_saving'  => round( $main_saving ) . '%',
+			'original_saving'  => static::percent_label( $main_saving ),
 			'thumbnails_count' => 0,
 			'type'             => 'success',
-			'total_saving'     => round( $total_saving ) . '%',
+			'total_saving'     => static::percent_label( $total_saving ),
 		];
 
 		/**
@@ -322,14 +364,8 @@ class WRIO_Image_Statistic_Folders extends WRIO_Image_Statistic {
 		$extra_data = $optimization_data->get_extra_data();
 
 		if ( ! empty( $extra_data ) ) {
-			$webp_size = $extra_data->get_webp_main_size();
-			if ( $webp_size ) {
-				$webp_size = size_format( $webp_size, 2 );
-			} else {
-				$webp_size = '-';
-			}
-
-			$formated_data['webp_size'] = $webp_size;
+			$webp_size                  = \WRIO\V2\Format_Rows::final_size( home_url( wp_normalize_path( $extra_data->get_file_path() ) ) );
+			$formated_data['webp_size'] = $webp_size ? size_format( $webp_size, 2 ) : '-';
 
 			$error = $extra_data->get_error();
 
@@ -343,5 +379,25 @@ class WRIO_Image_Statistic_Folders extends WRIO_Image_Statistic {
 		}
 
 		return $formated_data;
+	}
+
+	/**
+	 * What the failures list shows of a custom-folder file.
+	 *
+	 * @param int $id ID of the file's queue row.
+	 *
+	 * @return array{id: int, file_name: string, url: string, thumbnail_url: string, original_url: string}
+	 */
+	protected function failure_item( int $id ): array {
+		$image = new WRIO_Folder_Image( $id );
+		$url   = (string) $image->get( 'url' );
+
+		return [
+			'id'            => $id,
+			'file_name'     => wp_basename( (string) $image->get( 'path' ) ),
+			'url'           => $url,
+			'thumbnail_url' => $url,
+			'original_url'  => $url,
+		];
 	}
 }

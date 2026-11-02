@@ -124,6 +124,26 @@ class WRIO_Image_Nextgen {
 	}
 
 	/**
+	 * Whether the image has a backup to restore, as WRIO_Media_Library::has_backup(). An image whose main file failed
+	 * is not optimized, and its optimized thumbnail can still be restored.
+	 *
+	 * @return bool
+	 */
+	public function has_backup() {
+		if ( $this->getOptimizationData()->get_is_backed_up() ) {
+			return true;
+		}
+
+		foreach ( \WRIO\Storage\Store::rows( 'nextgen', (int) $this->id ) as $row ) {
+			if ( 1 === (int) $row['backed_up'] && 'optimized' === $row['format'] && \WRIO\Storage\Store::OK === $row['status'] ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
 	 * Возвращает данные по оптимизации
 	 *
 	 * @return RIO_Process_Queue
@@ -152,352 +172,143 @@ class WRIO_Image_Nextgen {
 	}
 
 	/**
-	 * Оптимизирует изображения
+	 * Optimize the image under its lock.
 	 *
-	 * @param string $optimization_level качество
+	 * The lock covers the backup too: a process that dies during the backup counts a crash, as in the optimizer.
 	 *
-	 * @return array
+	 * @param string $optimization_level Level of optimization.
+	 *
+	 * @return array{errors_count: int, original_size: int, optimized_size: int, optimized_count: int}
 	 */
 	public function optimize( $optimization_level = '' ) {
-		$is_image_backuped = $this->backup();
-
-		if ( is_wp_error( $is_image_backuped ) ) {
-			$error_msg = $is_image_backuped->get_error_message() . PHP_EOL;
-
-			return [
-				'errors_count'    => 1,
-				'original_size'   => 0,
-				'optimized_size'  => 0,
-				'optimized_count' => 0,
-			];
-		}
-
-		// делаем рисайз
-		$image_processor = WIO_OptimizationTools::getImageProcessor();
-
-		if ( ! $optimization_level ) {
-			$optimization_level = WRIO_Plugin::app()->getPopulateOption( 'image_optimization_level', 'normal' );
-		}
-
-		if ( $optimization_level == 'custom' ) {
-			$custom_quality     = WRIO_Plugin::app()->getPopulateOption( 'image_optimization_level_custom', 100 );
-			$optimization_level = intval( $custom_quality );
-		}
-
-		$optimization_data             = $this->createOptimizationData();
-		$results                       = [];
-		$results['processing_level']   = $optimization_level;
-		$results['original_mime_type'] = '';
-		$results['final_mime_type']    = '';
-
-		// $gallery_path   = trailingslashit( $this->gallery_meta->path );
-		// $main_file_path = wp_normalize_path( ABSPATH . $gallery_path . $this->meta->filename );
-		// $main_file_url  = home_url( $gallery_path . $this->meta->filename );
-
-		$main_file_path = $this->path;
-		$main_file_url  = $this->url;
-
-		clearstatcache(); // на всякий случай очистим кеш файловой статистики
-		if ( ! file_exists( $main_file_path ) ) {
-			$results['result_status'] = 'error';
-			$results['original_size'] = 0;
-			$results['final_size']    = 0;
-			$extra_data               = [
-				'error'     => 'file',
-				'error_msg' => __( 'File not found', 'robin-image-optimizer' ),
-			];
-			$results['extra_data']    = new WRIO_Nextgen_Extra_Data( $extra_data );
-			$optimization_data->configure( $results );
-			$optimization_data->save();
-
-			return [
-				'errors_count'    => 1,
-				'original_size'   => 0,
-				'optimized_size'  => 0,
-				'optimized_count' => 0,
-			];
-		}
-		$original_main_size = filesize( $main_file_path ); // оптимизированный размер только главной картинки
-
-		$optimized_img_data = $image_processor->process(
-			[
-				'image_url'  => $main_file_url,
-				'image_path' => $main_file_path,
-				'quality'    => $image_processor->quality( $optimization_level ),
-				'save_exif'  => WRIO_Plugin::app()->getPopulateOption( 'save_exif_data', false ),
-			]
-		);
-
-		if ( is_wp_error( $optimized_img_data ) ) {
-			$results['result_status'] = 'error';
-			$results['original_size'] = 0;
-			$results['final_size']    = 0;
-			$extra_data               = [
-				'error'     => 'optimization',
-				'error_msg' => $optimized_img_data->get_error_message(),
-			];
-			$results['extra_data']    = new WRIO_Nextgen_Extra_Data( $extra_data );
-			$optimization_data->configure( $results );
-			$optimization_data->save();
-
-			return [
-				'errors_count'    => 1,
-				'original_size'   => 0,
-				'optimized_size'  => 0,
-				'optimized_count' => 0,
-			];
-		}
-
-		// оптимизируем thumbnail
-		$optimized_thumbnail_data = $image_processor->process(
-			[
-				'image_url'  => $this->thumbnail_url,
-				'image_path' => $this->thumbnail_path,
-				'quality'    => $image_processor->quality( $optimization_level ),
-				'save_exif'  => WRIO_Plugin::app()->getPopulateOption( 'save_exif_data', false ),
-			]
-		);
-
-		// отложенная оптимизация
-		if ( isset( $optimized_img_data['status'] ) && $optimized_img_data['status'] == 'processing' ) {
-			$results['result_status'] = 'processing';
-			$results['is_backed_up']  = $is_image_backuped;
-			$results['original_size'] = 0;
-			$results['final_size']    = 0;
-			$extra_data               = [
-				'main_optimized_data'       => $optimized_img_data,
-				'thumbnails_optimized_data' => $optimized_thumbnail_data,
-				'image_relative_path'       => str_replace( untrailingslashit( ABSPATH ), '', $this->path ),
-			];
-			$results['extra_data']    = new WRIO_Nextgen_Extra_Data( $extra_data );
-			$optimization_data->configure( $results );
-			$optimization_data->save();
-
-			return [
-				'processing'     => 1,
-				'original_size'  => 0,
-				'optimized_size' => 0,
-			];
-		}
-
-		$this->replaceOriginalFile( $optimized_img_data );
-
-		// некоторые провайдеры не отдают оптимизированный размер, поэтому после замены файла получаем его сами
-		if ( ! $optimized_img_data['optimized_size'] ) {
-			clearstatcache();
-			$optimized_img_data['optimized_size'] = filesize( $main_file_path );
-		}
-
-		// при отрицательной оптимизации ставим значение оригинала
-		if ( $optimized_img_data['optimized_size'] > $original_main_size ) {
-			$optimized_img_data['optimized_size'] = $original_main_size;
-		}
-
-		$original_size       = $original_main_size;
-		$optimized_size      = $optimized_img_data['optimized_size'];
-		$optimized_main_size = $optimized_img_data['optimized_size'];
-
-		if ( ! is_wp_error( $optimized_thumbnail_data ) ) {
-			$original_size += filesize( $this->thumbnail_path );
-			$this->replaceOriginalFile( $optimized_thumbnail_data, 'thumbnail' );
-			// некоторые провайдеры не отдают оптимизированный размер, поэтому после замены файла получаем его сами
-			if ( ! $optimized_thumbnail_data['optimized_size'] ) {
-				clearstatcache();
-				$optimized_thumbnail_data['optimized_size'] = filesize( $this->thumbnail_path );
-			}
-			$optimized_size += $optimized_thumbnail_data['optimized_size'];
-		}
-		$results['result_status'] = 'success';
-		$results['final_size']    = $optimized_size;
-		$results['original_size'] = $original_size;
-		$results['is_backed_up']  = $is_image_backuped;
-		$extra_data               = [
-			'original_main_size'  => $original_main_size,
-			'optimized_main_size' => $optimized_main_size,
-			'image_relative_path' => str_replace( wp_normalize_path( untrailingslashit( ABSPATH ) ), '', $this->path ),
-		];
-		$results['extra_data']    = new WRIO_Nextgen_Extra_Data( $extra_data );
-		$mime_type                = '';
-		if ( function_exists( 'wp_get_image_mime' ) ) {
-			$mime_type = wp_get_image_mime( $main_file_path );
-		}
-		$results['original_mime_type'] = $mime_type;
-		$results['final_mime_type']    = $mime_type;
-		$optimization_data->configure( $results );
-		$optimization_data->save();
-
-		return [
+		// Null: another process optimizes the image now, and writes its row.
+		return \WRIO\Storage\Store::with_lock( 'nextgen', (int) $this->id, fn() => $this->optimize_locked( $optimization_level ) ) ?? [
 			'errors_count'    => 0,
-			'original_size'   => $original_size,
-			'optimized_size'  => $optimized_size,
-			'optimized_count' => 1,
-		];
-	}
-
-	/**
-	 * Отложенная оптимизация аттачмента
-	 *
-	 * @return bool|array
-	 */
-	public function deferredOptimization() {
-		$results           = [
 			'original_size'   => 0,
 			'optimized_size'  => 0,
 			'optimized_count' => 0,
-			'processing'      => 1,
 		];
-		$image_processor   = WIO_OptimizationTools::getImageProcessor();
-		$optimization_data = $this->getOptimizationData();
-		if ( $optimization_data->get_result_status() != 'processing' ) {
-			return false;
-		}
-		// проверяем главную картинку
-		/**
-		 * @var WRIO_Nextgen_Extra_Data $extra_data
-		 */
-		$extra_data          = $optimization_data->get_extra_data();
-		$main_optimized_data = $extra_data->get_main_optimized_data();
-		$main_image_url      = '';
-		if ( ! $main_optimized_data['optimized_img_url'] ) {
-			$main_image_url = $image_processor->checkDeferredOptimization( $main_optimized_data );
-			if ( $main_image_url ) {
-				$main_optimized_data['optimized_img_url'] = $main_image_url;
-				$extra_data->set_main_optimized_data( $main_optimized_data );
-			}
-		}
+	}
 
-		$thumbnails_processed     = true;
-		$thumbnail_optimized_data = $extra_data->get_thumbnails_optimized_data();
-		if ( ! $thumbnail_optimized_data['optimized_img_url'] ) {
-			$thumbnail_image_url = $image_processor->checkDeferredOptimization( $thumbnail_optimized_data );
-			if ( $thumbnail_image_url ) {
-				$thumbnail_optimized_data['optimized_img_url'] = $thumbnail_image_url;
-			} else {
-				$thumbnails_processed = false;
-			}
-		}
-		$extra_data->set_thumbnails_optimized_data( $thumbnail_optimized_data );
+	/**
+	 * The work of optimize().
+	 *
+	 * @param string $optimization_level Level of optimization.
+	 *
+	 * @return array{errors_count: int, original_size: int, optimized_size: int, optimized_count: int}
+	 */
+	private function optimize_locked( $optimization_level ) {
+		// After MAX_CRASHES the optimizer saves the "crashed" failure: skip the backup, which can be what stops PHP.
+		$is_image_backuped = \WRIO\Storage\Store::crashes( 'nextgen', (int) $this->id ) >= \WRIO\Storage\Store::MAX_CRASHES ? false : $this->backup();
 
-		// когда все файлы получены - сохраняем и возвращаем результат
-		if ( $main_image_url && $thumbnails_processed ) {
-			$original_size      = 0;
-			$optimized_size     = 0;
-			$thumbnails_count   = 0;
-			$original_main_size = filesize( $this->get( 'path' ) );
-			$original_size      = $original_size + $original_main_size;
-			$this->replaceOriginalFile(
+		if ( is_wp_error( $is_image_backuped ) ) {
+			WRIO_Plugin::app()->logger->error( sprintf( 'Failed to backup NextGEN image #%d: %s', $this->id, $is_image_backuped->get_error_message() ) );
+			\WRIO\Storage\Store::fail(
 				[
-					'optimized_img_url' => $main_image_url,
-				]
-			);
-			clearstatcache();
-			$optimized_main_size = filesize( $this->get( 'path' ) );
-			// при отрицательной оптимизации ставим значение оригинала
-			if ( $optimized_main_size > $original_main_size ) {
-				$optimized_main_size = $original_main_size;
-			}
-			$optimized_size = $optimized_size + $optimized_main_size;
-			$thumbnail_file = $this->get( 'thumbnail_path' );
-			$original_size  = $original_size + filesize( $thumbnail_file );
-			$this->replaceOriginalFile(
-				[
-					'optimized_img_url' => $thumbnail_optimized_data['optimized_img_url'],
+					'source'    => 'nextgen',
+					'object_id' => (int) $this->id,
 				],
-				'thumbnail'
+				$this->path,
+				'backup_failed'
 			);
-			clearstatcache();
-			$optimized_size = $optimized_size + filesize( $thumbnail_file );
-			++$thumbnails_count;
-			$mime_type = '';
-			if ( function_exists( 'wp_get_image_mime' ) ) {
-				$mime_type = wp_get_image_mime( $this->get( 'path' ) );
-			}
-			$optimization_data->configure(
-				[
-					'final_size'         => $optimized_size,
-					'original_size'      => $original_size,
-					'result_status'      => 'success',
-					'original_mime_type' => $mime_type,
-					'final_mime_type'    => $mime_type,
-				]
-			);
-			$extra_data->set_original_main_size( $original_main_size );
-			// удаляем промежуточные данные
-			$extra_data->set_main_optimized_data( null );
-			$extra_data->set_thumbnails_optimized_data( null );
 
-			$results['optimized_count'] = 1;
-			$results['original_size']   = $original_size;
-			$results['optimized_size']  = $optimized_size;
-			unset( $results['processing'] );
+			return [
+				'errors_count'    => 1,
+				'original_size'   => 0,
+				'optimized_size'  => 0,
+				'optimized_count' => 0,
+			];
 		}
-		$optimization_data->set_extra_data( $extra_data );
+
+		$optimization_level = \WRIO\V2\Optimizer::stored_level( $optimization_level );
+		$optimization_data  = $this->createOptimizationData();
+		$extra_data         = new WRIO_Nextgen_Extra_Data();
+
+		if ( ! file_exists( $this->path ) ) {
+			$summary = [
+				'error'          => \WRIO\V2\Client::error( 'missing_file', __( 'File not found', 'robin-image-optimizer' ), [ 'permanent' => true ] ),
+				'original_size'  => 0,
+				'optimized_size' => 0,
+			];
+			$extra_data->set_failure( 'file', $summary['error'] );
+			\WRIO\Storage\Store::fail(
+				[
+					'source'    => 'nextgen',
+					'object_id' => (int) $this->id,
+				],
+				$this->path,
+				'missing_file'
+			);
+		} else {
+			$original_main_size = wrio_get_file_size( $this->path );
+			$summary            = ( new \WRIO\V2\Optimizer() )->optimize_item( 'nextgen', (int) $this->id, $this->get_files(), $optimization_level, [], true === $is_image_backuped );
+
+			// Another process optimizes the image now, and writes its row.
+			if ( \WRIO\V2\Optimizer::is_locked( $summary['error'] ) ) {
+				return [
+					'errors_count'    => 0,
+					'original_size'   => 0,
+					'optimized_size'  => 0,
+					'optimized_count' => 0,
+				];
+			}
+
+			if ( $summary['error'] ) {
+				$extra_data->set_failure( 'optimization', $summary['error'] );
+			} else {
+				$extra_data->set_original_main_size( $summary['original_main_size'] ?? $original_main_size );
+				$extra_data->set_optimized_main_size( wrio_get_file_size( $this->path ) );
+				$extra_data->set_image_relative_path( str_replace( wp_normalize_path( untrailingslashit( ABSPATH ) ), '', $this->path ) );
+			}
+		}
+
+		$mime_type = $summary['error'] ? '' : (string) wp_get_image_mime( $this->path );
+
+		$optimization_data->configure(
+			[
+				'result_status'      => $summary['error'] ? RIO_Process_Queue::STATUS_ERROR : RIO_Process_Queue::STATUS_SUCCESS,
+				'processing_level'   => $optimization_level,
+				'is_backed_up'       => $is_image_backuped,
+				'original_size'      => $summary['error'] ? 0 : $summary['original_size'],
+				'final_size'         => $summary['error'] ? 0 : $summary['optimized_size'],
+				'original_mime_type' => $mime_type,
+				'final_mime_type'    => $mime_type,
+				'extra_data'         => $extra_data,
+			]
+		);
 		$optimization_data->save();
 
-		return $results;
+		return [
+			'errors_count'    => $summary['error'] ? 1 : 0,
+			'original_size'   => $summary['error'] ? 0 : $summary['original_size'],
+			'optimized_size'  => $summary['error'] ? 0 : $summary['optimized_size'],
+			'optimized_count' => $summary['error'] ? 0 : 1,
+		];
 	}
 
 	/**
-	 * Заменяет оригинальный файл на оптимизированный
+	 * The main file and the thumbnail, in the format of WRIO\V2\Optimizer::run().
 	 *
-	 * @param array  $optimized_img_data результат оптимизации ввиде массива данных
-	 * @param string $image_size Размер(thumbnail, medium ... )
+	 * @return array<string, array{path: string, url: string, optimize: bool}>
 	 */
-	public function replaceOriginalFile( $optimized_img_data, $image_size = '' ) {
-		$optimized_img_url = $optimized_img_data['optimized_img_url'];
-		if ( isset( $optimized_img_data['not_need_download'] ) and $optimized_img_data['not_need_download'] ) {
-			$optimized_file = $optimized_img_url;
-		} else {
-			$optimized_file = $this->remoteDownloadImage( $optimized_img_url );
-		}
-		if ( isset( $optimized_img_data['not_need_replace'] ) and $optimized_img_data['not_need_replace'] ) {
-			// если картинка уже оптимизирована и провайдер её не может уменьшить - он может вернуть положительный ответ, но без самой картинки. В таком случае ничего заменять не надо
-			return true;
-		}
-		if ( ! $optimized_file ) {
-			return false;
-		}
-		$path = $this->path;
-		if ( $image_size == 'thumbnail' ) {
-			$path = $this->thumbnail_path;
+	public function get_files() {
+		$files = [
+			'original' => [
+				'path'     => $this->path,
+				'url'      => $this->url,
+				'optimize' => true,
+			],
+		];
+
+		if ( is_file( $this->thumbnail_path ) ) {
+			$files['thumbnail'] = [
+				'path'     => $this->thumbnail_path,
+				'url'      => $this->thumbnail_url,
+				'optimize' => true,
+			];
 		}
 
-		if ( ! is_file( $path ) ) {
-			return false;
-		}
-
-		file_put_contents( $path, $optimized_file );
-
-		return true;
-	}
-
-	/**
-	 * Загрузка картинки с удалённого сервера
-	 *
-	 * todo: RIO-18 можем ли мы создать универсальный метод для всех внешних запросов, чтобы не дублировать код?
-	 *
-	 * @param string $url
-	 *
-	 * @return string
-	 */
-	protected function remoteDownloadImage( $url ) {
-		if ( ! function_exists( 'curl_version' ) ) {
-			return file_get_contents( $url );
-		}
-
-		$ch = curl_init();
-		curl_setopt( $ch, CURLOPT_HEADER, 0 );
-		curl_setopt( $ch, CURLOPT_RETURNTRANSFER, 1 );
-		curl_setopt( $ch, CURLOPT_URL, $url );
-
-		$image_body = curl_exec( $ch );
-		$http_code  = curl_getinfo( $ch, CURLINFO_HTTP_CODE );
-		if ( $http_code != '200' ) {
-			$image_body = false;
-		}
-		curl_close( $ch );
-
-		return $image_body;
+		return $files;
 	}
 
 	/**
@@ -510,9 +321,21 @@ class WRIO_Image_Nextgen {
 	}
 
 	/**
+	 * Deletes the WebP and AVIF files and rows of the image and marks its files as restored.
+	 *
+	 * @return void
+	 */
+	public function forget_conversions() {
+		$files = $this->get_files();
+
+		\WRIO\V2\Format_Rows::delete( $files );
+		\WRIO\Storage\Store::restored( 'nextgen', (int) $this->id, $files );
+	}
+
+	/**
 	 * Восстанавливает из резервной копии.
 	 *
-	 * @return bool|WP_Error
+	 * @return true|WP_Error
 	 */
 	public function restore() {
 
@@ -522,6 +345,9 @@ class WRIO_Image_Nextgen {
 		if ( is_wp_error( $restored ) ) {
 			return $restored;
 		}
+
+		$this->forget_conversions();
+		$this->update_nextgen_dimensions();
 
 		global $wpdb;
 
@@ -545,5 +371,46 @@ class WRIO_Image_Nextgen {
 		do_action( 'wbcr/rio/nextgen_image_restored', $this->optimization_data );
 
 		return true;
+	}
+
+	/**
+	 * Writes the dimensions of the files into the NextGEN metadata: a restored file can have other dimensions than
+	 * the metadata says, for example after a resize in NextGEN.
+	 *
+	 * @return void
+	 */
+	private function update_nextgen_dimensions() {
+		// ponytail: NextGEN 3.50+ only, its mapper keeps the metadata format of NextGEN.
+		if ( ! class_exists( '\Imagely\NGG\DataMappers\Image' ) ) {
+			return;
+		}
+
+		$mapper = \Imagely\NGG\DataMappers\Image::get_instance();
+		$image  = $mapper->find( (int) $this->id );
+
+		if ( ! $image || ! is_array( $image->meta_data ) ) {
+			return;
+		}
+
+		foreach ( [
+			'full'      => $this->path,
+			'thumbnail' => $this->thumbnail_path,
+		] as $size => $path ) {
+			$dimensions = is_file( $path ) ? wp_getimagesize( $path ) : false;
+
+			if ( ! $dimensions ) {
+				continue;
+			}
+
+			$image->meta_data[ $size ]['width']  = $dimensions[0];
+			$image->meta_data[ $size ]['height'] = $dimensions[1];
+
+			if ( 'full' === $size ) {
+				$image->meta_data['width']  = $dimensions[0];
+				$image->meta_data['height'] = $dimensions[1];
+			}
+		}
+
+		$mapper->save( $image );
 	}
 }

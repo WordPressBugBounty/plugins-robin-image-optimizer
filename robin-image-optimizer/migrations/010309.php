@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Updates for altering the table used to store statistics data.
  * Adds new columns and renames existing ones in order to add support for the new social buttons.
  */
-class WIOUpdate010309 extends Wbcr_Factory600_Update {
+class WIOUpdate010309 {
 
 	/**
 	 * {inherit}
@@ -20,7 +20,7 @@ class WIOUpdate010309 extends Wbcr_Factory600_Update {
 
 		$db_version             = RIO_Process_Queue::get_db_version();
 		$plugin_version_in_db   = $this->get_plugin_version_in_db();
-		$current_plugin_version = $this->plugin->getPluginVersion();
+		$current_plugin_version = WRIO_Plugin::app()->getPluginVersion();
 
 		$init_log_message = "Start plugin migration < %s.\r\n";
 		$init_log_message .= "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t-DB Version: {$db_version}\r\n";
@@ -31,7 +31,7 @@ class WIOUpdate010309 extends Wbcr_Factory600_Update {
 
 		$this->add_indexes_in_db();
 
-		WBCR\Factory_Templates_759\Helpers::flushPageCache();
+		wrio_flush_page_cache();
 
 		WRIO_Plugin::app()->logger->info( 'Plugin migration was successfull!' );
 	}
@@ -57,19 +57,19 @@ class WIOUpdate010309 extends Wbcr_Factory600_Update {
 	 * @since  1.3.9
 	 */
 	public function update_plugin_activation_time() {
-		if ( $this->plugin->isNetworkActive() ) {
-			$activated = get_site_option( $this->plugin->getOptionName( 'plugin_activated' ), 0 );
+		if ( WRIO_Plugin::app()->isNetworkActive() ) {
+			$activated = get_site_option( WRIO_Plugin::app()->getOptionName( 'plugin_activated' ), 0 );
 		} else {
-			$activated = get_option( $this->plugin->getOptionName( 'plugin_activated' ), 0 );
+			$activated = get_option( WRIO_Plugin::app()->getOptionName( 'plugin_activated' ), 0 );
 		}
 
 		if ( ! $activated ) {
-			if ( $this->plugin->isNetworkActive() ) {
-				update_site_option( $this->plugin->getOptionName( 'plugin_activated' ), time() );
-				update_site_option( $this->plugin->getOptionName( 'plugin_version' ), $this->plugin->getPluginVersion() );
+			if ( WRIO_Plugin::app()->isNetworkActive() ) {
+				update_site_option( WRIO_Plugin::app()->getOptionName( 'plugin_activated' ), time() );
+				update_site_option( WRIO_Plugin::app()->getOptionName( 'plugin_version' ), WRIO_Plugin::app()->getPluginVersion() );
 			} else {
-				update_option( $this->plugin->getOptionName( 'plugin_activated' ), time() );
-				update_option( $this->plugin->getOptionName( 'plugin_version' ), $this->plugin->getPluginVersion() );
+				update_option( WRIO_Plugin::app()->getOptionName( 'plugin_activated' ), time() );
+				update_option( WRIO_Plugin::app()->getOptionName( 'plugin_version' ), WRIO_Plugin::app()->getPluginVersion() );
 			}
 		}
 	}

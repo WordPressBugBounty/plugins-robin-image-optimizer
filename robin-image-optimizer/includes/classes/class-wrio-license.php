@@ -69,11 +69,9 @@ class WRIO_License {
 	 * @return void
 	 */
 	private function detect_and_load_license() {
-		// Get SDK namespace using existing helper
 		$namespace  = WRIO_Plugin::get_sdk_namespace();
 		$sdk_option = $namespace . '_license_data';
 
-		// Check SDK option first
 		// SDK stores data as stdClass object, convert to array for consistent access
 		$sdk_data = get_option( $sdk_option, null );
 		if ( ! empty( $sdk_data ) ) {

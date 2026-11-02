@@ -1,6 +1,9 @@
 <?php
-
-use WBCR\Factory_Processing_759\WP_Background_Process;
+/**
+ * Background queue for Media Library AVIF conversion.
+ *
+ * @package robin-image-optimizer
+ */
 
 // Exit if accessed directly
 if ( ! defined( 'ABSPATH' ) ) {
@@ -69,7 +72,8 @@ class WRIO_Media_Processing_Avif extends WRIO_Processing {
 			$media_library = WRIO_Media_Library::get_instance();
 
 			try {
-				if ( 'media-library_avif' === $this->scope ) {
+				// An image excluded after it was queued is skipped.
+				if ( 'media-library_avif' === $this->scope && ! WRIO_Media_Library::skips_queued( (int) $image ) ) {
 					$media_library->webpConvertAttachment( $image, 'avif' );
 				}
 			} catch ( Throwable $throwable ) {

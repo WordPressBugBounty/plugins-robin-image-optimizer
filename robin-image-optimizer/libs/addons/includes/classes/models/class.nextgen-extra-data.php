@@ -14,16 +14,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 class WRIO_Nextgen_Extra_Data extends RIO_Base_Extra_Data {
 
 	/**
-	 * @var string тип ошибки
-	 */
-	protected $error = null;
-
-	/**
-	 * @var string текст сообщения об ошибке
-	 */
-	protected $error_msg = null;
-
-	/**
 	 * @var int оригинальный размер основного файла
 	 */
 	protected $original_main_size = null;
@@ -34,64 +24,9 @@ class WRIO_Nextgen_Extra_Data extends RIO_Base_Extra_Data {
 	protected $optimized_main_size = null;
 
 	/**
-	 * @var array ответ от сервера оптимизации по основному файлу
-	 */
-	protected $main_optimized_data = null;
-
-	/**
-	 * @var array ответ от сервера оптимизации по превьюшке
-	 */
-	protected $thumbnails_optimized_data = null;
-
-	/**
 	 * @var string относительный путь к изображению
 	 */
 	protected $image_relative_path = null;
-
-	/**
-	 * @var int размер основного изображения
-	 */
-	protected $webp_main_size = null;
-
-	/**
-	 * get_error
-	 *
-	 * @return string
-	 */
-	public function get_error() {
-		return $this->error;
-	}
-
-	/**
-	 * set_error
-	 *
-	 * @param string $error
-	 *
-	 * @return void
-	 */
-	public function set_error( $error ) {
-		$this->error = $error;
-	}
-
-	/**
-	 * get_error_msg
-	 *
-	 * @return string
-	 */
-	public function get_error_msg() {
-		return $this->error_msg;
-	}
-
-	/**
-	 * set_error_msg
-	 *
-	 * @param string $error_msg
-	 *
-	 * @return void
-	 */
-	public function set_error_msg( $error_msg ) {
-		$this->error_msg = $error_msg;
-	}
 
 	/**
 	 * get_original_main_size
@@ -131,46 +66,6 @@ class WRIO_Nextgen_Extra_Data extends RIO_Base_Extra_Data {
 	 */
 	public function set_optimized_main_size( $optimized_main_size ) {
 		$this->optimized_main_size = $optimized_main_size;
-	}
-
-	/**
-	 * get_main_optimized_data
-	 *
-	 * @return array
-	 */
-	public function get_main_optimized_data() {
-		return (array) $this->main_optimized_data;
-	}
-
-	/**
-	 * set_main_optimized_data
-	 *
-	 * @param array $main_optimized_data
-	 *
-	 * @return void
-	 */
-	public function set_main_optimized_data( $main_optimized_data ) {
-		$this->main_optimized_data = $main_optimized_data;
-	}
-
-	/**
-	 * get_thumbnails_optimized_data
-	 *
-	 * @return array
-	 */
-	public function get_thumbnails_optimized_data() {
-		return (array) $this->thumbnails_optimized_data;
-	}
-
-	/**
-	 * set_thumbnails_optimized_data
-	 *
-	 * @param array $thumbnails_optimized_data
-	 *
-	 * @return void
-	 */
-	public function set_thumbnails_optimized_data( $thumbnails_optimized_data ) {
-		$this->thumbnails_optimized_data = $thumbnails_optimized_data;
 	}
 
 	/**
@@ -247,25 +142,5 @@ class WRIO_Nextgen_Extra_Data extends RIO_Base_Extra_Data {
 		$relative_path = $this->get_image_thumbnail_relative_path();
 
 		return home_url( $relative_path );
-	}
-
-	/**
-	 * Возвращает WebP размер основного изображения
-	 *
-	 * @return int
-	 */
-	public function get_webp_main_size() {
-		return $this->webp_main_size;
-	}
-
-	/**
-	 * Устанавливает WebP размер основного изображения
-	 *
-	 * @param int $webp_main_size
-	 *
-	 * @return void
-	 */
-	public function set_webp_main_size( $webp_main_size ) {
-		$this->webp_main_size = $webp_main_size;
 	}
 }

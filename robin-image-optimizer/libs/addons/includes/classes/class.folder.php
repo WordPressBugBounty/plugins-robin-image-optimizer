@@ -38,6 +38,13 @@ class WRIO_Folder {
 	protected $errors_count = 0;
 
 	/**
+	 * Added by a super admin: the folder can be outside the uploads of the site.
+	 *
+	 * @var bool
+	 */
+	protected $network = false;
+
+	/**
 	 * WRIO_Folder constructor.
 	 *
 	 * @param array $params List of params set on the model.
@@ -91,6 +98,7 @@ class WRIO_Folder {
 			'uid'             => $this->uid,
 			'optimized_count' => $this->optimized_count,
 			'errors_count'    => $this->errors_count,
+			'network'         => $this->network,
 		];
 	}
 
@@ -123,8 +131,8 @@ class WRIO_Folder {
 			$file = wp_normalize_path( $file );
 			// $file_path = str_replace( $this->path, '', $file );
 			$file_uid = hash( 'sha256', str_replace( wp_normalize_path( ABSPATH ), '', $file ) );
-			$sql      = $wpdb->prepare( "SELECT * FROM {$db_table} WHERE item_hash_alternative = %s AND item_hash = %s;", $this->uid, $file_uid );
-			$row      = $wpdb->get_row( $sql );
+			$sql      = $wpdb->prepare( "SELECT * FROM {$db_table} WHERE item_hash_alternative = %s AND item_hash = %s;", $this->uid, $file_uid ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Plugin table name.
+			$row      = $wpdb->get_row( $sql ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Prepared above.
 
 			if ( empty( $row ) ) {
 				// если файла нет в индексе - добавляем
@@ -150,7 +158,15 @@ class WRIO_Folder {
 				);
 				$optimization_data->save();
 			} else {
-				// делаем апдейт и выставляем ласт индекс дату. Потом у кого в индексе ласт индекс дата меньше заданной, того уже нет на диске
+				// A file that changed after its result (a new size) is pending, so the next bulk run picks it.
+				$path    = wp_normalize_path( untrailingslashit( WRIO_Custom_Folders::get_storage_root() ) . $file );
+				$changed = [];
+				foreach ( \WRIO\Storage\Store::rows( 'cf_image', (int) $row->id ) as $state ) {
+					if ( in_array( $state['status'], [ \WRIO\Storage\Store::OK, \WRIO\Storage\Store::SKIPPED ], true ) && \WRIO\Storage\Store::source_changed( $state, $path ) ) {
+						$changed[] = (string) $state['size_name'];
+					}
+				}
+				\WRIO\Storage\Store::mark_pending( 'cf_image', (int) $row->id, 'replaced', array_values( array_unique( $changed ) ) );
 			}
 		}
 
@@ -158,57 +174,36 @@ class WRIO_Folder {
 	}
 
 	/**
-	 * Проверяет индекс на наличие несуществующих файлов.
+	 * Removes the queue rows of the files that are no longer in the folder, one batch of rows.
 	 *
-	 * Находит файлы, которые пользователь удалил из папки, но в индексе они ещё есть.
-	 * Удаляет из из индекса, вычитает из статистики
+	 * Batches go by row ID, not by offset: a deleted row would shift an offset past the next row.
 	 *
-	 * @param mixed $offset отсутп от начала
-	 * @param mixed $max_process_elements кол-во элементов за итерацию
+	 * @param int $after_id             Check the rows after this ID.
+	 * @param int $max_process_elements Rows per batch.
 	 *
-	 * @return int $processed Кол-во обработанных записей. Используется для расчёта отступа
+	 * @return int The last row ID of a full batch, to pass as $after_id; 0 when no row is left.
 	 */
-	public function syncIndex( $offset = 0, $max_process_elements = 100 ) {
+	public function sync_index( $after_id = 0, $max_process_elements = 100 ) {
 		global $wpdb;
-		$db_table         = RIO_Process_Queue::table_name();
-		$sql              = $wpdb->prepare( "SELECT * FROM {$db_table} WHERE item_hash_alternative = %s LIMIT %d OFFSET %d;", $this->uid, $max_process_elements, $offset );
-		$rows             = $wpdb->get_results( $sql );
-		$image_statistics = WRIO_Image_Statistic_Folders::get_instance();
-		$processed        = 0;
-		$deleted          = 0;
+		$db_table = RIO_Process_Queue::table_name();
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- table name from the model.
+		$rows    = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$db_table} WHERE item_hash_alternative = %s AND id > %d ORDER BY id LIMIT %d", $this->uid, (int) $after_id, (int) $max_process_elements ) );
+		$deleted = 0;
 
-		if ( ! empty( $rows ) ) {
-			foreach ( $rows as $row ) {
-				++$processed;
-				$cf_image = new WRIO_Folder_Image( $row->id, $row );
-				if ( ! $cf_image->isFileExists() ) {
-					if ( $cf_image->isOptimized() ) {
-						// если файл оптимизирован - вычитаем из статистики
-						$optimization_data   = $cf_image->getOptimizationData();
-						$optimized_size      = $optimization_data->get_final_size();
-						$original_size       = $optimization_data->get_original_size();
-						$webp_optimized_size = wrio_get_webp_main_size( $optimization_data );
-						$image_statistics->deductFromField( 'webp_optimized_size', $webp_optimized_size );
-						$image_statistics->deductFromField( 'optimized_size', $optimized_size );
-						$image_statistics->deductFromField( 'original_size', $original_size );
-					}
-					// если файла нет на диске - удаляем из индекса
-					$wpdb->delete(
-						$db_table,
-						[
-							'id' => $cf_image->get( 'id' ),
-						],
-						[ '%d' ]
-					);
-					++$deleted;
-				}
+		foreach ( $rows as $row ) {
+			$cf_image = new WRIO_Folder_Image( $row->id, $row );
+			if ( ! $cf_image->isFileExists() ) {
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- plugin table.
+				$wpdb->delete( $db_table, [ 'id' => (int) $row->id ], [ '%d' ] );
+				++$deleted;
 			}
-			$image_statistics->save();
+		}
+
+		if ( $deleted ) {
 			$this->reCountOptimizedFiles();
 		}
-		$processed = $processed - $deleted;
 
-		return $processed;
+		return count( $rows ) < $max_process_elements ? 0 : (int) end( $rows )->id;
 	}
 
 	/**
@@ -216,8 +211,8 @@ class WRIO_Folder {
 	 *
 	 * @return array
 	 */
-	public function getAllowedFilesExt() {
-		$allowed_formats = explode( ',', WRIO_Plugin::app()->getOption( 'allowed_formats', 'image/jpeg,image/png,image/gif' ) );
+	public function getAllowedFilesExt() { // phpcs:ignore WordPress.NamingConventions.ValidFunctionName.MethodNameInvalid -- public API.
+		$allowed_formats = explode( ',', WRIO_Plugin::app()->getPopulateOption( 'allowed_formats', 'image/jpeg,image/png,image/gif' ) );
 		$allowed         = [];
 		foreach ( $allowed_formats as $format ) {
 			if ( $format == 'image/jpeg' ) {
@@ -260,8 +255,8 @@ class WRIO_Folder {
 	public function countIndexedFiles() {
 		global $wpdb;
 		$db_table    = RIO_Process_Queue::table_name();
-		$sql_files   = $wpdb->prepare( "SELECT COUNT(*) FROM {$db_table} WHERE item_type = %s AND item_hash_alternative = %s;", 'cf_image', $this->uid );
-		$files_count = $wpdb->get_var( $sql_files );
+		$sql_files   = $wpdb->prepare( "SELECT COUNT(*) FROM {$db_table} WHERE item_type = %s AND item_hash_alternative = %s;", 'cf_image', $this->uid ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Plugin table name.
+		$files_count = $wpdb->get_var( $sql_files ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Prepared above.
 
 		return $files_count;
 	}
@@ -281,33 +276,30 @@ class WRIO_Folder {
 		global $wpdb;
 		$db_table              = RIO_Process_Queue::table_name();
 		$sql                   = "SELECT COUNT(*) FROM {$db_table} WHERE item_type = %s AND result_status = %s AND item_hash_alternative = %s;";
-		$sql_prepared          = $wpdb->prepare( $sql, 'cf_image', RIO_Process_Queue::STATUS_SUCCESS, $this->uid );
-		$optimized_count       = $wpdb->get_var( $sql_prepared );
+		$sql_prepared          = $wpdb->prepare( $sql, 'cf_image', RIO_Process_Queue::STATUS_SUCCESS, $this->uid ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Plugin table name, values are placeholders.
+		$optimized_count       = $wpdb->get_var( $sql_prepared ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Prepared above.
 		$this->optimized_count = $optimized_count;
 
 		return $this->optimized_count;
 	}
 
 	/**
-	 * Remove folder and deduct its size from optimized and original size.
+	 * Remove the folder and its rows. The statistics are computed from the rows.
 	 */
 	public function remove() {
-		// удаляем файлы из индекса и переситываем стату
 		global $wpdb;
-		$db_table     = RIO_Process_Queue::table_name();
-		$sql          = "SELECT SUM(original_size) AS original_size, SUM(final_size) AS optimized_size FROM {$db_table} WHERE item_type = %s AND result_status = %s AND item_hash_alternative = %s";
-		$prepared_sql = $wpdb->prepare( $sql, 'cf_image', RIO_Process_Queue::STATUS_SUCCESS, $this->uid );
-		$sum          = $wpdb->get_row( $prepared_sql );
+		$db_table = RIO_Process_Queue::table_name();
 
-		// Deduct from statistics
-		$image_statistics    = WRIO_Image_Statistic_Folders::get_instance();
-		$webp_optimized_size = WRIO_Plugin::app()->updateOption( 'webp_optimized_size', 0 );
-		$image_statistics->deductFromField( 'webp_optimized_size', $webp_optimized_size );
-		$image_statistics->deductFromField( 'optimized_size', $sum->optimized_size );
-		$image_statistics->deductFromField( 'original_size', $sum->original_size );
-		$image_statistics->save();
+		// The state and log rows of its images go too: the images get new IDs when the folder is added again. The
+		// backups stay: the files on disk stay optimized, and a folder added again finds its backups by their path.
+		$ids = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT id FROM %i WHERE item_type = 'cf_image' AND item_hash_alternative = %s", $db_table, $this->uid ) ) );
 
-		// Delete from db
+		foreach ( array_chunk( $ids, 1000 ) as $chunk ) {
+			foreach ( [ \WRIO\Storage\Schema::files_table(), \WRIO\Storage\Schema::log_table() ] as $table ) {
+				$wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE source = 'cf_image' AND object_id IN (" . implode( ',', array_fill( 0, count( $chunk ), '%d' ) ) . ')', array_merge( [ $table ], $chunk ) ) );
+			}
+		}
+
 		$wpdb->delete(
 			$db_table,
 			[
@@ -321,18 +313,27 @@ class WRIO_Folder {
 	/**
 	 * Get absolute path from relative.
 	 *
-	 * Same as 'wp_ajax_wriop_browse_dir'.
+	 * False when the folder is outside the root of get_root().
 	 *
-	 * @return bool|string
+	 * @return false|string
 	 */
 	public function real_path() {
-		if ( is_main_site() ) {
-			$base_path = get_home_path();
-		} else {
-			$upload_dir = wp_upload_dir();
-			$base_path  = $upload_dir['basedir'] . '/';
-		}
-		return realpath( $base_path . $this->path );
+		$path = WRIO_Custom_Folders::validate_path( trailingslashit( WRIO_Custom_Folders::get_storage_root() ) . ltrim( $this->path, '/' ), false, $this->get_root() );
+
+		return is_wp_error( $path ) ? false : $path;
+	}
+
+	/**
+	 * Root of the path checks of this folder and its files.
+	 *
+	 * A folder that a super admin added keeps the storage root. Cron and WP-CLI run without a user,
+	 * so get_root_path() would refuse its files when it is outside the uploads. The uploads of the other
+	 * sites stay out anyway unless a super admin acts: validate_path() checks the user of each action.
+	 *
+	 * @return string Root for WRIO_Custom_Folders::validate_path(). Empty for the default root.
+	 */
+	public function get_root(): string {
+		return $this->network ? WRIO_Custom_Folders::get_storage_root() : '';
 	}
 
 	/**
@@ -342,17 +343,12 @@ class WRIO_Folder {
 	 *
 	 * @param string $path Путь к директории. Может быть абсолютным.
 	 *
-	 * Same as 'wp_ajax_wriop_browse_dir'.
+	 * Same root as WRIO_Custom_Folders::get_storage_root().
 	 *
 	 * @return string $relative_path относительный путь
 	 */
 	public function real_path_to_relative( $path ) {
-		if ( is_main_site() ) {
-			$base_path = untrailingslashit( get_home_path() );
-		} else {
-			$upload_dir = wp_upload_dir();
-			$base_path  = untrailingslashit( $upload_dir['basedir'] );
-		}
+		$base_path     = untrailingslashit( WRIO_Custom_Folders::get_storage_root() );
 		$relative_path = str_replace( $base_path, '', $path );
 
 		return $relative_path;
@@ -361,10 +357,23 @@ class WRIO_Folder {
 	/**
 	 * Get iterator to go scan files in directory.
 	 *
+	 * Files and folders that resolve outside the root, through a symlink for example, are skipped.
+	 *
 	 * @return RecursiveIteratorIterator
 	 */
-	public function getRecursiveIterator() {
-		$iterator = new RecursiveDirectoryIterator( $this->real_path() );
+	public function getRecursiveIterator() { // phpcs:ignore WordPress.NamingConventions.ValidFunctionName.MethodNameInvalid -- public API.
+		$path = $this->real_path();
+		if ( false === $path ) {
+			return new RecursiveIteratorIterator( new RecursiveArrayIterator( [] ) );
+		}
+
+		$root     = $this->get_root();
+		$iterator = new RecursiveCallbackFilterIterator(
+			new RecursiveDirectoryIterator( $path, FilesystemIterator::SKIP_DOTS ),
+			static function ( $file ) use ( $root ) {
+				return $file instanceof SplFileInfo && ! is_wp_error( WRIO_Custom_Folders::validate_path( $file->getPathname(), false, $root ) );
+			}
+		);
 
 		return new RecursiveIteratorIterator( $iterator );
 	}

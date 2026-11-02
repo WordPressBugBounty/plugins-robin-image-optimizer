@@ -11,6 +11,7 @@
 
 namespace ThemeisleSDK\Common;
 
+use ThemeisleSDK\Loader;
 use ThemeisleSDK\Product;
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -133,6 +134,28 @@ abstract class Abstract_Module {
 	}
 
 	/**
+	 * Read a compiled script's `.asset.php` file.
+	 *
+	 * The build folder is not tracked in git, so the file can be missing
+	 * (tests, a checkout without `npm run build`). Fall back to no
+	 * dependencies and the SDK version instead of a fatal.
+	 *
+	 * @param string $relative_path Path relative to the SDK root, e.g. 'assets/js/build/about/about.asset.php'.
+	 *
+	 * @return array{dependencies: string[], version: string}
+	 */
+	public function get_asset_file( $relative_path ) {
+		global $themeisle_sdk_max_path;
+
+		$asset_path = $themeisle_sdk_max_path . '/' . ltrim( $relative_path, '/' );
+
+		return is_readable( $asset_path ) ? require $asset_path : array(
+			'dependencies' => array(),
+			'version'      => Loader::get_version(),
+		);
+	}
+
+	/**
 	 * Call plugin api
 	 *
 	 * @param string $slug plugin slug.
@@ -252,6 +275,12 @@ abstract class Abstract_Module {
 		$default_plugin_file = $slug . '/' . $slug . '.php';
 
 		if ( file_exists( WP_CONTENT_DIR . '/plugins/' . $default_plugin_file ) ) {
+			$this->resolved_plugin_paths[ $slug ] = $default_plugin_file;
+			return $this->resolved_plugin_paths[ $slug ];
+		}
+
+		// get_plugins() opens the folder with @opendir(), which still reaches custom error handlers when it is missing.
+		if ( ! is_dir( WP_PLUGIN_DIR . '/' . $slug ) ) {
 			$this->resolved_plugin_paths[ $slug ] = $default_plugin_file;
 			return $this->resolved_plugin_paths[ $slug ];
 		}

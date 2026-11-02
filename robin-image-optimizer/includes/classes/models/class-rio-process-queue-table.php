@@ -24,6 +24,10 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @property null|string              $final_mime_type        Final mime type. e.g. image/webp.
  * @property null|RIO_Base_Extra_Data $extra_data             Extra data to be saved. e.g. JSON response from API.
  * @property null|int                 $created_at             UNIX timestamp when item was saved.
+ *
+ * @phpstan-type QueueStatus 'success'|'error'|'skip'|'processing'|'unoptimized'
+ * @phpstan-type QueueItemType 'attachment'|'webp'|'avif'|'cf_image'|'nextgen'
+ * @phpstan-type QueueLevel 'normal'|'aggresive'|'ultra'|'custom'
  */
 class RIO_Process_Queue extends RIO_Base_Active_Record {
 
@@ -59,7 +63,9 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 	protected $server_id = null;
 
 	/**
-	 * @var null|int Object id. Usually, this would be foreign key to another table.
+	 * Object id. Usually, this would be foreign key to another table.
+	 *
+	 * @var int|numeric-string|null
 	 */
 	protected $object_id = null;
 
@@ -69,7 +75,9 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 	protected $object_name = null;
 
 	/**
-	 * @var null|string Type of item. E.g. attachment, webp, etc.
+	 * Type of item: attachment, webp, avif, cf_image or nextgen. A loaded row holds the column.
+	 *
+	 * @var string|null
 	 */
 	protected $item_type = null;
 
@@ -84,27 +92,37 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 	protected $item_hash_alternative = null;
 
 	/**
-	 * @var null|string Status result.
+	 * Status result: one of the STATUS_* values. A loaded row holds the column.
+	 *
+	 * @var string|null
 	 */
 	protected $result_status = null;
 
 	/**
-	 * @var null|string
+	 * A level, or a quality from 1 to 100 for the custom level.
+	 *
+	 * @var string|int|null
 	 */
 	protected $processing_level = null;
 
 	/**
-	 * @var null|bool Whether item is backed-up or not.
+	 * Whether item is backed-up or not. A loaded row holds the column: '0' or '1'.
+	 *
+	 * @var bool|'0'|'1'|null
 	 */
 	protected $is_backed_up = false;
 
 	/**
-	 * @var null|int Original file size in bytes.
+	 * Original file size in bytes.
+	 *
+	 * @var int|numeric-string|null
 	 */
 	protected $original_size = null;
 
 	/**
-	 * @var null|int Final file size in bytes after it was optimized or converted.
+	 * Final file size in bytes after it was optimized or converted.
+	 *
+	 * @var int|numeric-string|null
 	 */
 	protected $final_size = null;
 
@@ -124,7 +142,9 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 	protected $extra_data = null;
 
 	/**
-	 * @var null|int UNIX timestamp when item was saved.
+	 * UNIX timestamp when item was saved.
+	 *
+	 * @var int|numeric-string|null
 	 */
 	protected $created_at = null;
 
@@ -156,6 +176,8 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 
 	/**
 	 * {@inheritdoc}
+	 *
+	 * @return string
 	 */
 	public static function table_name() {
 		global $wpdb;
@@ -171,11 +193,18 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 	 * @since  1.3.8
 	 */
 	public static function get_db_version() {
-		if ( WRIO_Plugin::app()->isNetworkActive() ) {
-			return (int) get_site_option( WRIO_Plugin::app()->getOptionName( 'db_version' ), 0 );
+		$name    = WRIO_Plugin::app()->getOptionName( 'db_version' );
+		$version = get_option( $name, false );
+
+		if ( false === $version && is_multisite() && is_main_site() ) {
+			$version = (int) get_site_option( $name, 0 );
+
+			if ( $version ) {
+				update_option( $name, $version );
+			}
 		}
 
-		return (int) get_option( WRIO_Plugin::app()->getOptionName( 'db_version' ), 0 );
+		return (int) $version;
 	}
 
 	/**
@@ -186,12 +215,6 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 	 * @since  1.3.8
 	 */
 	public static function update_db_version( $version ) {
-		if ( WRIO_Plugin::app()->isNetworkActive() ) {
-			update_site_option( WRIO_Plugin::app()->getOptionName( 'db_version' ), (int) $version );
-
-			return;
-		}
-
 		update_option( WRIO_Plugin::app()->getOptionName( 'db_version' ), (int) $version );
 	}
 
@@ -212,7 +235,7 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 		$table_name = static::table_name();
 		$sql        = "SELECT * FROM {$table_name} WHERE `item_hash` = %s";
 
-		$row = $wpdb->get_row( $wpdb->prepare( $sql, $hash ), ARRAY_A );
+		$row = $wpdb->get_row( $wpdb->prepare( $sql, $hash ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Plugin table name, the hash is a placeholder.
 
 		if ( empty( $row ) ) {
 			return null;
@@ -236,69 +259,19 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 
 		$table = static::table_name();
 
-		$sql = "SELECT * FROM $table WHERE ";
+		$where  = [];
+		$values = [];
 
 		foreach ( $condition as $key => $value ) {
-			if ( is_numeric( $value ) ) {
-				$sql .= ' `' . esc_sql( $key ) . "` = $value AND";
-			} elseif ( is_string( $value ) ) {
-				$sql .= ' `' . esc_sql( $key ) . "` = '" . esc_sql( $value ) . "' AND";
+			if ( is_numeric( $value ) || is_string( $value ) ) {
+				$where[]  = '`' . esc_sql( $key ) . '` = %s';
+				$values[] = $value;
 			}
 		}
 
-		$sql = rtrim( $sql, 'AND' );
+		$sql = "SELECT * FROM $table WHERE " . implode( ' AND ', $where );
 
-		$rows = $wpdb->get_results( $sql, ARRAY_A );
-
-		if ( empty( $rows ) ) {
-			return null;
-		}
-
-		foreach ( $rows as $key => $row ) {
-			$rows[ $key ] = new RIO_Process_Queue( $row );
-		}
-
-		return $rows;
-	}
-
-	/**
-	 * Find items by list of hashes.
-	 *
-	 * @param string|array $hashes List of hashes in form of array or CSV.
-	 * @param string|null  $status
-	 *
-	 * @return null|RIO_Process_Queue[]
-	 */
-	public static function find_by_hashes( $hashes, $status = null ) {
-		if ( ! is_array( $hashes ) && ! is_string( $hashes ) ) {
-			return null;
-		}
-
-		if ( ! is_array( $hashes ) && false !== strpos( $hashes, ',' ) ) {
-			$hashes = explode( ',', $hashes );
-		}
-
-		$hashes = array_map( 'trim', $hashes );
-
-		$table_name = static::table_name();
-		$sql        = "SELECT * FROM {$table_name} WHERE `item_hash`";
-
-		$hashes = array_map(
-			function ( $hash ) {
-				return "'$hash'";
-			},
-			$hashes
-		);
-
-		$sql .= ' IN (' . implode( ', ', $hashes ) . ')';
-
-		global $wpdb;
-
-		if ( $status !== null ) {
-			$sql .= $wpdb->prepare( ' AND `result_status` = %s', $status );
-		}
-
-		$rows = $wpdb->get_results( $sql, ARRAY_A );
+		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $values ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Plugin table name and escaped column names, values are placeholders.
 
 		if ( empty( $rows ) ) {
 			return null;
@@ -309,94 +282,6 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 		}
 
 		return $rows;
-	}
-
-	/**
-	 * Find db item by alternative hash.
-	 *
-	 * @param string $hash Hash to search for.
-	 *
-	 * @return null|$this
-	 */
-	public static function find_by_alternative_hash( $hash ) {
-		global $wpdb;
-
-		$table_name = static::table_name();
-		$sql        = "SELECT * FROM {$table_name} WHERE `item_alternative_hash` = %s";
-
-		$row = $wpdb->get_row( $wpdb->prepare( $sql, $hash ), ARRAY_A );
-
-		if ( empty( $row ) ) {
-			return null;
-		}
-
-		return new RIO_Process_Queue( $row );
-	}
-
-	/**
-	 * Get next item to process sorted by ASC (first inserted).
-	 *
-	 * @param string   $type      Type to search for.
-	 * @param int|null $object_id Object id added to the query.
-	 * @param int|null $limit     Limit added to the query.
-	 *
-	 * @return null|RIO_Process_Queue[]
-	 */
-	public static function find_next_to_process( $type, $object_id = null, $limit = null ) {
-		global $wpdb;
-
-		$table_name = static::table_name();
-
-		$where = $wpdb->prepare( "WHERE `item_type`= %s AND `result_status` = 'processing'", $type );
-
-		if ( ! empty( $object_id ) ) {
-			$where .= sprintf( ' AND `object_id` = %d', $object_id );
-		}
-
-		$sql = "SELECT * FROM {$table_name} {$where} ORDER BY `id` ASC";
-
-		if ( is_int( $limit ) ) {
-			$sql .= ' LIMIT ' . $limit;
-		}
-
-		$rows = $wpdb->get_results( $sql, ARRAY_A );
-
-		if ( empty( $rows ) ) {
-			return null;
-		}
-
-		foreach ( $rows as $key => $row ) {
-			$rows[ $key ] = new RIO_Process_Queue( $row );
-		}
-
-		return $rows;
-	}
-
-	/**
-	 * Get count var by specified status.
-	 *
-	 * Notice: when type is undefined, it would return false.
-	 *
-	 * @param string $status Status conversion or optimization.
-	 *
-	 * @return bool
-	 */
-	public static function count_by_status( $status ) {
-		if ( empty( $status ) ) {
-			return false;
-		}
-
-		if ( ! in_array( $status, static::get_statuses() ) ) {
-			return false;
-		}
-
-		global $wpdb;
-
-		$table_name   = static::table_name();
-		$sql          = "SELECT COUNT(*) FROM {$table_name} WHERE `result_status` = %s";
-		$prepared_sql = $wpdb->prepare( $sql, [ $status ] );
-
-		return $wpdb->get_var( $prepared_sql );
 	}
 
 	/**
@@ -404,76 +289,140 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 	 *
 	 * Notice: when type is undefined, it would return false.
 	 *
-	 * @param string $type   Type of file. Normally defined by TYPE_* constant.
-	 * @param string $status Status conversion or optimization.
+	 * @param QueueItemType $type   Type of file.
+	 * @param string        $status Status conversion or optimization.
 	 *
-	 * @return false|int|string|null
+	 * @return false|numeric-string|null False for an unknown status. The number of WebP images, or else the
+	 *                                    number of rows.
 	 */
 	public static function count_by_type_status( $type, $status ) {
 
-		if ( empty( $type ) || empty( $status ) ) {
-			return false;
-		}
-
-		if ( ! in_array( $status, static::get_statuses() ) ) {
+		if ( ! in_array( $status, static::get_statuses(), true ) ) {
 			return false;
 		}
 
 		global $wpdb;
 
 		$table_name = static::table_name();
-		if ( $type == 'webp' ) {
-			$sql = "SELECT DISTINCT object_id FROM {$table_name} WHERE `item_type` = %s AND `result_status` = %s";
-		} else {
-			$sql = "SELECT COUNT(*) FROM {$table_name} WHERE `item_type` = %s AND `result_status` = %s";
-		}
+		// WebP has one row per file: count the images in SQL, not their IDs in PHP.
+		$count = 'webp' === $type ? 'COUNT(DISTINCT object_id)' : 'COUNT(*)';
+		$sql   = "SELECT {$count} FROM {$table_name} WHERE `item_type` = %s AND `result_status` = %s";
 
-		$prepared_sql = $wpdb->prepare( $sql, [ $type, $status ] );
-
-		if ( $type == 'webp' ) {
-			$result = $wpdb->get_results( $prepared_sql );
-
-			return is_countable( $result ) ? count( $result ) : 0;
-		} else {
-			return $wpdb->get_var( $prepared_sql );
-		}
+		return $wpdb->get_var( $wpdb->prepare( $sql, [ $type, $status ] ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- plugin table and a fixed COUNT, prepared here.
 	}
 
 	/**
-	 * Get count value for specified type, status and level.
+	 * SQL condition that leaves out the format rows of NextGEN images.
 	 *
-	 * @param string $type   Type of file. Normally defined by TYPE_* constant.
-	 * @param string $status Status conversion or optimization.
-	 * @param string $level  Level of optimization or conversion.
+	 * Earlier versions stored the NextGEN image ID as their object_id, so they match an attachment with that ID.
 	 *
-	 * @return bool|null|string
+	 * @param string $alias Table alias, or empty.
+	 *
+	 * @return non-empty-string
 	 */
-	public static function count_by_type_status_level( $type, $status, $level ) {
-		if ( empty( $type ) || empty( $status ) || empty( $level ) ) {
-			return false;
-		}
+	public static function not_nextgen_format_sql( string $alias = '' ): string {
+		$column = '' === $alias ? 'extra_data' : $alias . '.extra_data';
 
-		if ( ! in_array( $status, static::get_statuses() ) ) {
-			return false;
-		}
+		return "IFNULL( LOCATE( '\"convert_from\":\"nextgen\"', {$column} ), 0 ) = 0";
+	}
 
-		if ( ! in_array( $level, static::get_levels() ) ) {
-			return false;
-		}
-
+	/**
+	 * Total original and final sizes of the successful rows of an item type.
+	 *
+	 * The statistics read these sums, so they always match the rows.
+	 *
+	 * @param QueueItemType                        $item_type    attachment, cf_image, nextgen, webp or avif.
+	 * @param ''|'attachment'|'cf_image'|'nextgen' $convert_from For webp and avif: count only the rows of this item type. Empty counts all.
+	 *
+	 * @return array{original_size: int, final_size: int}
+	 */
+	public static function sum_sizes( $item_type, $convert_from = '' ) {
 		global $wpdb;
 
-		$table_name   = static::table_name();
-		$sql          = "SELECT COUNT(*) FROM {$table_name} WHERE `item_type` = %s AND `result_status` = %s AND `processing_level` = %s";
-		$prepared_sql = $wpdb->prepare( $sql, [ $type, $status, $level ] );
+		$table = static::table_name();
+		$sql   = $wpdb->prepare( "SELECT COALESCE( SUM( original_size ), 0 ) AS original_size, COALESCE( SUM( final_size ), 0 ) AS final_size FROM {$table} WHERE item_type = %s AND result_status = %s", $item_type, self::STATUS_SUCCESS ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
-		return $wpdb->get_var( $prepared_sql );
+		if ( '' !== $convert_from ) {
+			$sql .= $wpdb->prepare( ' AND extra_data LIKE %s', '%' . $wpdb->esc_like( '"convert_from":"' . $convert_from . '"' ) . '%' );
+		}
+
+		$row = $wpdb->get_row( $sql, ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- prepared above.
+
+		return [
+			'original_size' => (int) ( $row['original_size'] ?? 0 ),
+			'final_size'    => (int) ( $row['final_size'] ?? 0 ),
+		];
+	}
+
+	/**
+	 * Make the error rows of an item type ready for a new bulk run.
+	 *
+	 * Rows with a permanent error stay: the same file always fails again (corrupt, too large, unsupported).
+	 * A manual optimization of the image still sends it.
+	 *
+	 * @param QueueItemType    $item_type  attachment, cf_image, nextgen, webp or avif.
+	 * @param QueueStatus|null $new_status Status to set, or null to delete the rows.
+	 *
+	 * @return void
+	 */
+	public static function reset_errors( $item_type, $new_status = null ) {
+		global $wpdb;
+
+		$table = static::table_name();
+		$where = $wpdb->prepare(
+			'item_type = %s AND result_status = %s AND ( extra_data IS NULL OR extra_data NOT LIKE %s )',
+			$item_type,
+			self::STATUS_ERROR,
+			'%' . $wpdb->esc_like( '"permanent":true' ) . '%'
+		);
+
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $where is prepared above, $table is the plugin table.
+		if ( null === $new_status ) {
+			$wpdb->query( "DELETE FROM {$table} WHERE {$where}" );
+		} else {
+			$wpdb->query( $wpdb->prepare( "UPDATE {$table} SET result_status = %s WHERE {$where}", $new_status ) );
+		}
+		// phpcs:enable
+	}
+
+	/**
+	 * Make the attachments with a retryable error of a format ready to convert again.
+	 *
+	 * Each file has its own format row. The conversion query picks an attachment without any row of the format, so
+	 * the success rows of its other sizes go too: with only them left, the failed size would never convert again.
+	 * An attachment with a permanent format error keeps its rows.
+	 *
+	 * @param 'webp'|'avif' $item_type webp or avif.
+	 *
+	 * @return void
+	 */
+	public static function reset_format_errors( $item_type ) {
+		global $wpdb;
+
+		$table = static::table_name();
+
+		// Old NextGEN rows carry the NextGEN image ID: they are not the attachment with that ID.
+		$not_nextgen = static::not_nextgen_format_sql();
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- $table is the plugin table and a fixed condition.
+		$ids = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT object_id FROM {$table} WHERE item_type = %s AND result_status = %s AND object_id IS NOT NULL AND {$not_nextgen}", $item_type, self::STATUS_ERROR ) );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- $table is the plugin table and a fixed condition.
+		$kept = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT object_id FROM {$table} WHERE item_type = %s AND result_status = %s AND extra_data LIKE %s AND {$not_nextgen}", $item_type, self::STATUS_ERROR, '%' . $wpdb->esc_like( '"permanent":true' ) . '%' ) );
+		$ids  = array_map( 'intval', array_diff( $ids, $kept ) );
+
+		foreach ( array_chunk( $ids, 500 ) as $chunk ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- integer IDs and a fixed condition.
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$table} WHERE item_type = %s AND object_id IN (" . implode( ',', $chunk ) . ") AND {$not_nextgen}", $item_type ) );
+		}
+
+		// Rows without an item ID (custom folders, NextGEN) are one file each.
+		static::reset_errors( $item_type );
 	}
 
 	/**
 	 * Get available types.
 	 *
-	 * @return array
+	 * @return list<QueueStatus>
 	 */
 	public static function get_statuses() {
 		return [
@@ -488,7 +437,7 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 	/**
 	 * Get available levels.
 	 *
-	 * @return array
+	 * @return list<QueueLevel>
 	 */
 	public static function get_levels() {
 		return [ self::LEVEL_NORMAL, self::LEVEL_AGGRESIVE, self::LEVEL_CUSTOM, self::LEVEL_ULTRA ];
@@ -520,18 +469,39 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT * FROM {$wpdb->prefix}rio_process_queue WHERE object_id IN (" . implode( ',', array_fill( 0, count( $object_ids ), '%d' ) ) . ') AND item_type IN (' . implode( ',', array_fill( 0, count( $item_types ), '%s' ) ) . ');',
+				"SELECT * FROM {$wpdb->prefix}rio_process_queue WHERE object_id IN (" . implode( ',', array_fill( 0, count( $object_ids ), '%d' ) ) . ') AND item_type IN (' . implode( ',', array_fill( 0, count( $item_types ), '%s' ) ) . ') AND ' . static::not_nextgen_format_sql() . ';', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- fixed condition.
 				array_merge( $object_ids, $item_types )
 			)
 		);
 
-		foreach ( (array) $rows as $row ) {
+		$rows = (array) $rows;
+		usort( $rows, [ static::class, 'main_file_first' ] );
+
+		foreach ( $rows as $row ) {
 			$key = static::primed_row_key( $row->object_id, $row->item_type );
 
 			if ( empty( static::$primed_rows[ $key ] ) ) {
 				static::$primed_rows[ $key ] = $row;
 			}
 		}
+	}
+
+	/**
+	 * Order of the rows of prime(): the WebP or AVIF row of an item's main file first, then the oldest row. An item
+	 * has one row per file, and a read of "the" row of a format must not get a thumbnail's row.
+	 *
+	 * @param \stdClass $a A row.
+	 * @param \stdClass $b A row.
+	 *
+	 * @return int
+	 */
+	protected static function main_file_first( $a, $b ) {
+		$main  = '"converted_from_size":"original"';
+		$order = function ( $row ) use ( $main ) {
+			return [ false === strpos( (string) ( $row->extra_data ?? '' ), $main ), (int) $row->id ];
+		};
+
+		return $order( $a ) <=> $order( $b );
 	}
 
 	/**
@@ -590,8 +560,13 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 
 		$primed_key = static::primed_row_key( $this->object_id, $this->item_type );
 
-		if ( '' !== $primed_key && array_key_exists( $primed_key, static::$primed_rows ) ) {
-			$row = static::$primed_rows[ $primed_key ];
+		if ( '' !== $primed_key ) {
+			// prime() orders the rows of an item: the WebP or AVIF row of the main file, not of a thumbnail.
+			if ( ! array_key_exists( $primed_key, static::$primed_rows ) ) {
+				static::prime( [ (int) $this->object_id ], [ (string) $this->item_type ] );
+			}
+
+			$row = static::$primed_rows[ $primed_key ] ?? null;
 			unset( static::$primed_rows[ $primed_key ] );
 
 			if ( ! empty( $row ) ) {
@@ -603,14 +578,14 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 
 		$table_name = static::table_name();
 		$sql        = $wpdb->prepare(
-			"SELECT * FROM {$table_name} WHERE object_id = %d AND item_type = %s LIMIT 1;",
+			"SELECT * FROM {$table_name} WHERE object_id = %d AND item_type = %s AND " . static::not_nextgen_format_sql() . ' LIMIT 1;', // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- plugin table and a fixed condition.
 			[
 				$this->object_id,
 				$this->item_type,
 			]
 		);
 
-		$row = $wpdb->get_row( $sql );
+		$row = $wpdb->get_row( $sql ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Prepared above.
 
 		if ( ! empty( $row ) ) {
 			$this->configure( $row );
@@ -712,6 +687,11 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 			}
 		}
 
+		// The database error tells support why a converted file has no row.
+		if ( ! $is_success && '' !== $wpdb->last_error ) {
+			WRIO_Plugin::app()->logger->error( sprintf( 'Failed to save the %s row of item #%s in %s: %s', $this->item_type, $this->object_id, $table_name, $wpdb->last_error ) );
+		}
+
 		/**
 		 * Filter whether to execute hook or not.
 		 *
@@ -785,7 +765,7 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 	/**
 	 * Устанавливает значение для массива метаданных
 	 *
-	 * @param object|string $extra_data
+	 * @param object|string $extra_data The extra data.
 	 *
 	 * @return void
 	 */
@@ -828,6 +808,8 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 	 * Set item hash.
 	 *
 	 * @param string $text String to be hashed.
+	 *
+	 * @return void
 	 */
 	public function set_item_hash( $text ) {
 		if ( ! empty( $text ) ) {
@@ -836,7 +818,11 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 	}
 
 	/**
-	 * @param int|null $id
+	 * Set the id.
+	 *
+	 * @param int|null $id The id.
+	 *
+	 * @return void
 	 */
 	public function set_id( $id ) {
 		if ( is_numeric( $id ) ) {
@@ -845,6 +831,8 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 	}
 
 	/**
+	 * The id.
+	 *
 	 * @return int|null
 	 */
 	public function get_id() {
@@ -857,18 +845,31 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 	}
 
 	/**
-	 * @param null|string $server_id
+	 * Set the server id.
+	 *
+	 * @param null|string $server_id The server id.
+	 *
+	 * @return void
 	 */
 	public function set_server_id( $server_id ) {
 		$this->server_id = $server_id;
 	}
 
+	/**
+	 * The server id.
+	 *
+	 * @return string|null
+	 */
 	public function get_server_id() {
 		return $this->server_id;
 	}
 
 	/**
-	 * @param int|null $object_id
+	 * Set the object id.
+	 *
+	 * @param int|null $object_id The object id.
+	 *
+	 * @return void
 	 */
 	public function set_object_id( $object_id ) {
 		$this->object_id = $object_id;
@@ -879,29 +880,51 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 	}
 
 	/**
-	 * @param null|string $object_name
+	 * Set the object name.
+	 *
+	 * @param null|string $object_name The object name.
+	 *
+	 * @return void
 	 */
 	public function set_object_name( $object_name ) {
 		$this->object_name = $object_name;
 	}
 
+	/**
+	 * The object name.
+	 *
+	 * @return string|null
+	 */
 	public function get_object_name() {
 		return $this->object_name;
 	}
 
 	/**
-	 * @param null|string $item_type
+	 * Set the item type.
+	 *
+	 * @param QueueItemType|null $item_type The item type.
+	 *
+	 * @return void
 	 */
 	public function set_item_type( $item_type ) {
 		$this->item_type = $item_type;
 	}
 
+	/**
+	 * The item type.
+	 *
+	 * @return string|null The column of a loaded row: attachment, webp, avif, cf_image or nextgen.
+	 */
 	public function get_item_type() {
 		return $this->item_type;
 	}
 
 	/**
+	 * Set the item hash alternative.
+	 *
 	 * @param null|string $text Text to be hashed.
+	 *
+	 * @return void
 	 */
 	public function set_item_hash_alternative( $text ) {
 		if ( ! empty( $text ) ) {
@@ -914,6 +937,8 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 	}
 
 	/**
+	 * The item hash.
+	 *
 	 * @return null|string
 	 */
 	public function get_item_hash() {
@@ -921,40 +946,71 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 	}
 
 	/**
-	 * @param null|string $result_status
+	 * Set the result status.
+	 *
+	 * @param QueueStatus|null $result_status The result status.
+	 *
+	 * @return void
 	 */
 	public function set_result_status( $result_status ) {
 		$this->result_status = $result_status;
 	}
 
+	/**
+	 * The result status.
+	 *
+	 * @return string|null The column of a loaded row: one of the STATUS_* values.
+	 */
 	public function get_result_status() {
 		return $this->result_status;
 	}
 
 	/**
-	 * @param null|string $processing_level
+	 * Set the processing level.
+	 *
+	 * @param string|int|null $processing_level The processing level.
+	 *
+	 * @return void
 	 */
 	public function set_processing_level( $processing_level ) {
 		$this->processing_level = $processing_level;
 	}
 
+	/**
+	 * The processing level.
+	 *
+	 * @return string|int|null A level, or a quality from 1 to 100 for the custom level.
+	 */
 	public function get_processing_level() {
 		return $this->processing_level;
 	}
 
 	/**
-	 * @param bool|null $is_backed_up
+	 * Set the is backed up.
+	 *
+	 * @param bool|null $is_backed_up The is backed up.
+	 *
+	 * @return void
 	 */
 	public function set_is_backed_up( $is_backed_up ) {
 		$this->is_backed_up = $is_backed_up;
 	}
 
+	/**
+	 * The is backed up.
+	 *
+	 * @return bool|'0'|'1'|null A loaded row holds the column: '0' or '1'.
+	 */
 	public function get_is_backed_up() {
 		return $this->is_backed_up;
 	}
 
 	/**
-	 * @param int|null $original_size
+	 * Set the original size.
+	 *
+	 * @param int|null $original_size The original size.
+	 *
+	 * @return void
 	 */
 	public function set_original_size( $original_size ) {
 		$this->original_size = $original_size;
@@ -965,7 +1021,11 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 	}
 
 	/**
-	 * @param int|null $final_size
+	 * Set the final size.
+	 *
+	 * @param int|null $final_size The final size.
+	 *
+	 * @return void
 	 */
 	public function set_final_size( $final_size ) {
 		$this->final_size = $final_size;
@@ -976,29 +1036,51 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 	}
 
 	/**
-	 * @param null|string $original_mime_type
+	 * Set the original mime type.
+	 *
+	 * @param null|string $original_mime_type The original mime type.
+	 *
+	 * @return void
 	 */
 	public function set_original_mime_type( $original_mime_type ) {
 		$this->original_mime_type = $original_mime_type;
 	}
 
+	/**
+	 * The original mime type.
+	 *
+	 * @return string|null
+	 */
 	public function get_original_mime_type() {
 		return $this->original_mime_type;
 	}
 
 	/**
-	 * @param null|string $final_mime_type
+	 * Set the final mime type.
+	 *
+	 * @param null|string $final_mime_type The final mime type.
+	 *
+	 * @return void
 	 */
 	public function set_final_mime_type( $final_mime_type ) {
 		$this->final_mime_type = $final_mime_type;
 	}
 
+	/**
+	 * The final mime type.
+	 *
+	 * @return string|null
+	 */
 	public function get_final_mime_type() {
 		return $this->final_mime_type;
 	}
 
 	/**
-	 * @param int|null $created_at
+	 * Set the created at.
+	 *
+	 * @param int|null $created_at The created at.
+	 *
+	 * @return void
 	 */
 	public function set_created_at( $created_at ) {
 		$this->created_at = $created_at;
@@ -1007,7 +1089,7 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 	/**
 	 * get_created_at
 	 *
-	 * @return int
+	 * @return int|numeric-string|null Null before the row is saved.
 	 */
 	public function get_created_at() {
 		return $this->created_at;
@@ -1088,6 +1170,54 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 	}
 
 	/**
+	 * Whether a table of the current site exists.
+	 *
+	 * @param string $table Table name.
+	 *
+	 * @return bool
+	 * @phpstan-impure
+	 */
+	public static function table_exists( $table ) {
+		global $wpdb;
+
+		// SHOW TABLES does not list temporary tables.
+		$suppress = $wpdb->suppress_errors();
+		$result   = $wpdb->query( $wpdb->prepare( 'SELECT 1 FROM %i LIMIT 1', $table ) );
+		$wpdb->suppress_errors( $suppress );
+
+		return false !== $result;
+	}
+
+	/**
+	 * Create the tables of the current site that do not exist, also when their version option says they do.
+	 *
+	 * @return string The first table that still does not exist, or an empty string.
+	 */
+	public static function repair_tables() {
+		$tables = [
+			static::table_name()                => static function () {
+				static::update_db_version( 0 );
+				static::try_create_plugin_tables();
+			},
+			\WRIO\Storage\Schema::files_table() => [ '\WRIO\Storage\Schema', 'install' ],
+		];
+
+		foreach ( $tables as $table => $create ) {
+			if ( static::table_exists( $table ) ) {
+				continue;
+			}
+
+			$create();
+
+			if ( ! static::table_exists( $table ) ) {
+				return $table;
+			}
+		}
+
+		return '';
+	}
+
+	/**
 	 * Try to create a plugin table in database
 	 *
 	 * @throws \Exception
@@ -1102,14 +1232,21 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 			}
 
 			if ( ! static::get_db_version() ) {
+				// The table can outlive its version option: its indexes exist already.
+				if ( static::table_exists( static::table_name() ) ) {
+					static::update_db_version( 1 );
+
+					return;
+				}
+
 				$sql = static::get_table_schema();
-				$wpdb->query( $sql );
+				$wpdb->query( $sql ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Fixed table schema.
 
 				if ( static::has_table_indexes() ) {
 					$indexes = static::get_table_indexes();
 
 					foreach ( $indexes as $index ) {
-						$wpdb->query( $index );
+						$wpdb->query( $index ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Fixed index definitions.
 					}
 				}
 
@@ -1152,7 +1289,7 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 				[$process_queue_charset] = explode( '_', $process_queue_collation );
 
 				if ( ( $wp_post_meta_collation !== $process_queue_collation ) && $wp_post_meta_charset === $process_queue_charset ) {
-					$wpdb->query( "ALTER TABLE {$wrio_table} CONVERT TO CHARACTER SET {$wp_post_meta_charset} COLLATE {$wp_post_meta_collation}" );
+					$wpdb->query( "ALTER TABLE {$wrio_table} CONVERT TO CHARACTER SET {$wp_post_meta_charset} COLLATE {$wp_post_meta_collation}" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Plugin table name, charset and collation read from SHOW TABLE STATUS.
 
 					WRIO_Plugin::app()->logger->info( sprintf( "Successfully fix collation for plugin table.\r\nWP COLLATION: %s | PLUGIN COLLATION: %s", $wp_post_meta_collation, $process_queue_collation ) );
 				}

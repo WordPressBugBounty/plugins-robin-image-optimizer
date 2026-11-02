@@ -52,20 +52,27 @@ class WRIO_Folders_List_Table extends WP_List_Table {
 		$db_table = RIO_Process_Queue::table_name();
 
 		$sql_filter = '';
+		$filter     = [ 'cf_image' ];
 
 		if ( ! empty( $status ) ) {
-			$sql_filter .= " AND result_status = '" . esc_sql( $status ) . "' ";
+			$sql_filter .= ' AND result_status = %s ';
+			$filter[]    = $status;
 		}
 
 		if ( ! empty( $folder_uid ) ) {
-			$sql_filter .= " AND item_hash_alternative = '" . esc_sql( $folder_uid ) . "' ";
+			$sql_filter .= ' AND item_hash_alternative = %s ';
+			$filter[]    = $folder_uid;
 		}
 
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- plugin table, the filter has placeholders only.
 		$total_items = $wpdb->get_var(
-			"
+			$wpdb->prepare(
+				"
             SELECT COUNT(*)
             FROM {$db_table}
-            WHERE item_type = 'cf_image' {$sql_filter}"
+            WHERE item_type = %s {$sql_filter}",
+				$filter
+			)
 		);
 
 		$rows = $wpdb->get_results(
@@ -73,14 +80,14 @@ class WRIO_Folders_List_Table extends WP_List_Table {
 				"
             SELECT *
             FROM {$db_table}
-            WHERE item_type = 'cf_image' {$sql_filter}
+            WHERE item_type = %s {$sql_filter}
             ORDER BY id DESC
             LIMIT %d
             OFFSET %d",
-				$per_page,
-				$offset
+				array_merge( $filter, [ $per_page, $offset ] )
 			)
 		);
+		// phpcs:enable
 
 		if ( empty( $rows ) ) {
 			$this->items = [];
@@ -122,13 +129,13 @@ class WRIO_Folders_List_Table extends WP_List_Table {
 		?>
 		<div class="wrap wriop-files-list">
 			<h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
-			<form method="get" id="wriop-files-list-form" action="<?php echo admin_url( 'upload.php?page=rio-custom-media' ); ?>">
+			<form method="get" id="wriop-files-list-form" action="<?php echo esc_url( admin_url( 'upload.php?page=rio-custom-media' ) ); ?>">
 				<input type="hidden" name="page" value="rio-custom-media"/>
 				<div class="wp-filter">
 					<div class="filter-items">
-						<label for="folder-filter" class="screen-reader-text"><?php _e( 'Filter by folder', 'robin-image-optimizer' ); ?></label>
+						<label for="folder-filter" class="screen-reader-text"><?php esc_html_e( 'Filter by folder', 'robin-image-optimizer' ); ?></label>
 						<select class="folder-filters" name="folder-filter" id="folder-filter">
-							<option value="" selected="selected"><?php _e( 'All Folders', 'robin-image-optimizer' ); ?></option>
+							<option value="" selected="selected"><?php esc_html_e( 'All Folders', 'robin-image-optimizer' ); ?></option>
 							<?php if ( ! empty( $folders ) ) : ?>
 								<?php foreach ( (array) $folders as $folder ) : ?>
 									<option <?php selected( $folder_uid, $folder->get( 'uid' ) ); ?> value="<?php echo esc_attr( $folder->get( 'uid' ) ); ?>"><?php echo esc_attr( $folder->get( 'path' ) ); ?>
@@ -137,17 +144,17 @@ class WRIO_Folders_List_Table extends WP_List_Table {
 								<?php endforeach; ?>
 							<?php endif; ?>
 						</select>
-						<label for="status-filter" class="screen-reader-text"><?php _e( 'Filter by status', 'robin-image-optimizer' ); ?></label>
+						<label for="status-filter" class="screen-reader-text"><?php esc_html_e( 'Filter by status', 'robin-image-optimizer' ); ?></label>
 						<select class="folder-filters" name="status-filter" id="status-filter">
-							<option value="" selected="selected"><?php _e( 'All Media Files', 'robin-image-optimizer' ); ?></option>
-							<option <?php selected( $status, 'success' ); ?> value="success"><?php _e( 'Optimized', 'robin-image-optimizer' ); ?>
-								(<?php echo esc_attr( $optimized_count ); ?>)
+							<option value="" selected="selected"><?php esc_html_e( 'All Media Files', 'robin-image-optimizer' ); ?></option>
+							<option <?php selected( $status, 'success' ); ?> value="success"><?php esc_html_e( 'Optimized', 'robin-image-optimizer' ); ?>
+								(<?php echo (int) $optimized_count; ?>)
 							</option>
-							<option <?php selected( $status, 'unoptimized' ); ?> value="unoptimized"><?php _e( 'Unoptimized', 'robin-image-optimizer' ); ?>
-								(<?php echo esc_attr( $unoptimized_count ); ?>)
+							<option <?php selected( $status, 'unoptimized' ); ?> value="unoptimized"><?php esc_html_e( 'Unoptimized', 'robin-image-optimizer' ); ?>
+								(<?php echo (int) $unoptimized_count; ?>)
 							</option>
-							<option <?php selected( $status, 'error' ); ?> value="error"><?php _e( 'Errors', 'robin-image-optimizer' ); ?>
-								(<?php echo esc_attr( $error_count ); ?>)
+							<option <?php selected( $status, 'error' ); ?> value="error"><?php esc_html_e( 'Errors', 'robin-image-optimizer' ); ?>
+								(<?php echo (int) $error_count; ?>)
 							</option>
 						</select>
 						<input type="submit" id="folders-query-submit" class="button" value="Filter">
@@ -226,7 +233,7 @@ class WRIO_Folders_List_Table extends WP_List_Table {
                 <a href="%s">%s</a>
             </p>',
 				esc_url( $image_url ),
-				$file_name
+				esc_html( $file_name )
 			);
 		}
 	}
@@ -244,7 +251,7 @@ class WRIO_Folders_List_Table extends WP_List_Table {
 			$file_name          = wp_basename( $file_relative_path );
 			$folder             = str_replace( $file_name, '', $file_relative_path );
 
-			printf( '<code>%s</code > ', $folder );
+			printf( '<code>%s</code > ', esc_html( $folder ) );
 		}
 	}
 
@@ -252,16 +259,7 @@ class WRIO_Folders_List_Table extends WP_List_Table {
 	 * @param RIO_Process_Queue $item
 	 */
 	protected function column_status( $item ) {
-		$statuses = [
-			'success'     => __( 'Success', 'robin-image-optimizer' ),
-			'error'       => __( 'Error', 'robin-image-optimizer' ),
-			'processing'  => __( 'Processing', 'robin-image-optimizer' ),
-			'unoptimized' => __( 'Unoptimized', 'robin-image-optimizer' ),
-			'skip'        => __( 'Skipped', 'robin-image-optimizer' ),
-		];
-		if ( isset( $statuses[ $item->get_result_status() ] ) ) {
-			echo esc_attr( $statuses[ $item->get_result_status() ] );
-		}
+		echo esc_html( WRIO_Custom_Folders::status_label( $item->get_result_status() ) );
 	}
 
 	/**
@@ -269,7 +267,7 @@ class WRIO_Folders_List_Table extends WP_List_Table {
 	 */
 	protected function column_optimization( $item ) {
 		$cf = WRIO_Custom_Folders::get_instance();
-		echo $cf->getMediaColumnContent( $item->get_id() );
+		echo $cf->getMediaColumnContent( $item->get_id() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- The column template escapes its own output.
 	}
 
 	protected function process_bulk_action() {

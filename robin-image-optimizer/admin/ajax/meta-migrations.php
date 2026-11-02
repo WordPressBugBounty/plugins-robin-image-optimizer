@@ -137,10 +137,12 @@ function wbcr_rio_migrate_postmeta_to_process_queue() {
 			$rows_inserted = $wpdb->insert( RIO_Process_Queue::table_name(), $data, $format );
 
 			if ( $rows_inserted > 0 ) {
+				// The reads use the state rows once the copy of the old table ended: copy this one too.
+				\WRIO\Storage\Backfill::item( 'attachment', (int) $data['object_id'] );
 				++$processed_items;
 
 				$attachment_id = absint( $attachment->ID );
-				$wpdb->query( "DELETE FROM {$wpdb->postmeta} WHERE post_id='{$attachment_id}' AND meta_key LIKE 'wio_%'" );
+				$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->postmeta} WHERE post_id = %d AND meta_key LIKE %s", $attachment_id, 'wio_%' ) );
 			}
 		}
 

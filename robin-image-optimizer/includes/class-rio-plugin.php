@@ -5,57 +5,74 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Основной класс плагина
- *
- * @version       1.0
+ * Main plugin class. WRIO_Plugin::app() returns the instance.
  */
-class WRIO_Plugin extends Wbcr_Factory600_Plugin {
+class WRIO_Plugin {
+
+	/**
+	 * Prefix of the plugin's option names.
+	 */
+	const PREFIX = 'wbcr_io_';
+
+	/**
+	 * Plugin name, used in hook names and nonces.
+	 */
+	const NAME = 'wbcr_image_optimizer';
 
 	/**
 	 * @see self::app()
-	 * @var Wbcr_Factory600_Plugin
+	 * @var WRIO_Plugin
 	 */
 	private static $app;
 
 	/**
-	 * @since  3.1.0
-	 * @var array
+	 * Plugin logger.
+	 *
+	 * @var WRIO_Logger
 	 */
-	private $plugin_data;
+	public $logger;
+
+	/**
+	 * True while the activation hook of a network activation runs.
+	 *
+	 * @var bool
+	 */
+	private $network_activation = false;
+
+	/**
+	 * Reads request parameters.
+	 *
+	 * @var WRIO_Request
+	 */
+	public $request;
 
 	/**
 	 * Independent premium provider (replaces Freemius)
 	 *
-	 * @var WRIO_Premium_Provider|null
-	 * @phpstan-ignore-next-line property.phpDocType
+	 * @var WRIO_Premium_Provider
 	 */
 	public $premium;
 
 	/**
 	 * Independent support class
 	 *
-	 * @var WRIO_Support|null
+	 * @var WRIO_Support
 	 */
 	private $wrio_support;
 
 	/**
-	 * Конструктор
-	 *
-	 * Применяет конструктор родительского класса и записывает экземпляр текущего класса в свойство $app.
-	 * Подробнее о свойстве $app см. self::app()
-	 *
-	 * @param string $plugin_path
-	 * @param array  $data
-	 *
-	 * @throws \Exception
+	 * Sets up the plugin.
 	 */
-	public function __construct( $plugin_path, $data ) {
-		parent::__construct( $plugin_path, $data );
+	public function __construct() {
+		require_once WRIO_PLUGIN_DIR . '/includes/classes/class-rio-logger.php';
+		require_once WRIO_PLUGIN_DIR . '/includes/classes/class-rio-request.php';
+		require_once WRIO_PLUGIN_DIR . '/includes/classes/class-rio-migrations.php';
 
-		self::$app         = $this;
-		$this->plugin_data = $data;
+		self::$app     = $this;
+		$this->logger  = new WRIO_Logger();
+		$this->request = new WRIO_Request();
 
-		// Initialize independent premium provider (overrides Factory premium)
+		// Initialize independent premium provider
 		$this->init_independent_premium();
 
 		// Initialize independent support class
@@ -63,32 +80,34 @@ class WRIO_Plugin extends Wbcr_Factory600_Plugin {
 
 		$this->includes();
 
-		if ( is_admin() || ( defined( 'WP_CLI' ) && WP_CLI ) ) {
-			// Processing
-			if ( wrio_is_license_activate() ) {
-				require_once WRIO_PLUGIN_DIR . '/includes/classes/processing/class-rio-processing.php';
-				require_once WRIO_PLUGIN_DIR . '/includes/classes/processing/class-rio-media-processing.php';
-				require_once WRIO_PLUGIN_DIR . '/includes/classes/processing/class-rio-folder-processing.php';
-				require_once WRIO_PLUGIN_DIR . '/includes/classes/processing/class-rio-nextgen-processing.php';
+		// Every request: an upload in a REST or front-end request queues its image too (#243).
+		if ( wrio_is_license_activate() ) {
+			require_once WRIO_PLUGIN_DIR . '/includes/classes/processing/class-rio-processing.php';
+			require_once WRIO_PLUGIN_DIR . '/includes/classes/processing/class-rio-media-processing.php';
+			require_once WRIO_PLUGIN_DIR . '/includes/classes/processing/class-rio-folder-processing.php';
+			require_once WRIO_PLUGIN_DIR . '/includes/classes/processing/class-rio-nextgen-processing.php';
 
-				require_once WRIO_PLUGIN_DIR . '/includes/classes/processing/class-rio-media-processing-webp.php';
-				require_once WRIO_PLUGIN_DIR . '/includes/classes/processing/class-rio-media-processing-avif.php';
+			require_once WRIO_PLUGIN_DIR . '/includes/classes/processing/class-rio-media-processing-webp.php';
+			require_once WRIO_PLUGIN_DIR . '/includes/classes/processing/class-rio-media-processing-avif.php';
+
+			if ( wp_doing_ajax() || wp_doing_cron() ) {
+				wrio_register_processing();
 			}
 		}
 
-		if ( is_admin() ) {
-			$this->initActivation();
+		// Outside the admin too: "wp plugin activate" runs without is_admin().
+		register_activation_hook( WRIO_PLUGIN_FILE, [ $this, 'activate' ] );
+		register_deactivation_hook( WRIO_PLUGIN_FILE, [ $this, 'deactivate' ] );
 
-			// completely disable image size threshold
-			add_filter( 'big_image_size_threshold', '__return_false' );
+		WRIO_Migrations::init();
+
+		if ( is_admin() ) {
+			add_filter( 'big_image_size_threshold', [ $this, 'big_image_size_threshold' ] );
 
 			if ( defined( 'DOING_AJAX' ) && DOING_AJAX ) {
 				// Ajax files
-				require_once WRIO_PLUGIN_DIR . '/admin/ajax/backup.php';
 				require_once WRIO_PLUGIN_DIR . '/includes/classes/class-rio-bulk-optimization.php';
 				new WRIO_Bulk_Optimization();
-
-				// require_once( WRIO_PLUGIN_DIR . '/admin/ajax/logs.php' );
 
 				// Not under AJAX logical operator above on purpose to have helpers available to find out whether
 				// metas were migrated or not
@@ -98,7 +117,7 @@ class WRIO_Plugin extends Wbcr_Factory600_Plugin {
 			add_action(
 				'init',
 				function () {
-					$this->registerPages();
+					$this->register_license_page();
 					if ( WRIO_Plugin::app()->premium->is_active() ) {
 						update_option( 'robin_image_optimizer_logger_flag', 'yes' );
 					}
@@ -106,7 +125,7 @@ class WRIO_Plugin extends Wbcr_Factory600_Plugin {
 			);
 		}
 
-		add_action( 'plugins_loaded', [ $this, 'pluginsLoaded' ] );
+		add_action( 'plugins_loaded', [ $this, 'plugins_loaded' ] );
 
 		$sdk_namespace = self::get_sdk_namespace();
 		add_filter(
@@ -137,7 +156,6 @@ class WRIO_Plugin extends Wbcr_Factory600_Plugin {
 				return $promotions;
 			}
 		);
-		add_action( 'admin_print_styles', [ $this, 'truncate_menu_items' ], 100 );
 	}
 
 	/**
@@ -169,7 +187,7 @@ class WRIO_Plugin extends Wbcr_Factory600_Plugin {
 		/**
 		 * The premium provider.
 		 *
-		 * @var \WBCR\Factory_600\Premium\Provider|null
+		 * @var WRIO_Premium_Provider|null
 		 */
 		$license_manager = self::app()->premium;
 		if ( $license_manager ) {
@@ -178,7 +196,7 @@ class WRIO_Plugin extends Wbcr_Factory600_Plugin {
 			/**
 			 * The license data.
 			 *
-			 * @var WBCR\Factory_Freemius_Rio_600\Entities\License|null
+			 * @var WRIO_License|null
 			 */
 			$license_data = $license_manager->get_license();
 
@@ -288,13 +306,7 @@ class WRIO_Plugin extends Wbcr_Factory600_Plugin {
 			return;
 		}
 
-		wp_enqueue_script(
-			'wrio-notices',
-			WRIO_PLUGIN_URL . '/admin/assets/js/notices.js',
-			[ 'jquery' ],
-			self::app()->getPluginVersion(),
-			true
-		);
+		WRIO_App::enqueue_script( 'wrio-notices', 'notices', true );
 
 		do_action( 'themeisle_internal_page', WRIO_PRODUCT_SLUG, $page_slug );
 	}
@@ -318,7 +330,7 @@ class WRIO_Plugin extends Wbcr_Factory600_Plugin {
 		$status        = apply_filters( 'product_' . $sdk_namespace . '_license_status', false );
 
 		$is_pro     = 'valid' === $status;
-		$is_expired = 'expired' === $status || 'active-expired' === $status;
+		$is_expired = in_array( $status, [ 'expired', 'active_expired', 'active-expired' ], true );
 
 		if ( $is_pro ) {
 			// translators: %s is the discount percentage.
@@ -328,6 +340,8 @@ class WRIO_Plugin extends Wbcr_Factory600_Plugin {
 			$cta_label = __( 'See your options', 'robin-image-optimizer' );
 		} elseif ( $is_expired ) {
 			// translators: %s is the discount percentage.
+			$config['upgrade_menu_text'] = sprintf( __( 'BF Sale - %s off', 'robin-image-optimizer' ), '50%' );
+			// translators: %s is the discount percentage.
 			$config['plugin_meta_message'] = sprintf( __( 'Black Friday Sale - %s off', 'robin-image-optimizer' ), '50%' );
 			$message                       = __( 'Your Robin Pro features are still here, just locked. Renew at a reduced rate this week.', 'robin-image-optimizer' );
 			$cta_label                     = __( 'Reactivate now', 'robin-image-optimizer' );
@@ -336,6 +350,8 @@ class WRIO_Plugin extends Wbcr_Factory600_Plugin {
 			$config['plugin_meta_message'] = sprintf( __( 'Black Friday Sale - %s off', 'robin-image-optimizer' ), '60%' );
 			// translators: %s - discount.
 			$config['title'] = sprintf( __( 'Robin Pro: %s off this week', 'robin-image-optimizer' ), '60%' );
+			// translators: %s is the discount percentage.
+			$config['upgrade_menu_text'] = sprintf( __( 'BF Sale - %s off', 'robin-image-optimizer' ), '60%' );
 		}
 
 		$url_params = [
@@ -361,7 +377,7 @@ class WRIO_Plugin extends Wbcr_Factory600_Plugin {
 	 *
 	 * @access public
 	 */
-	public static function sdk_hide_promo_notice( $should_show ) {
+	public static function sdk_hide_promo_notice() {
 		return self::app()->premium->is_active();
 	}
 	/**
@@ -380,27 +396,28 @@ class WRIO_Plugin extends Wbcr_Factory600_Plugin {
 	/**
 	 * Register About Us page metadata for ThemeIsle SDK.
 	 *
-	 * @param array<string, mixed> $data About page data.
-	 *
 	 * @return array<string, mixed> About page configuration.
 	 */
-	public static function register_about_page( $data ) {
+	public static function register_about_page() {
+		$status      = apply_filters( 'product_' . self::get_sdk_namespace() . '_license_status', false );
+		$upgrade_url = rtrim( self::app()->get_support()->get_site_url(), '/' ) . '/upgrade';
+
 		return [
 			'location'         => 'rio_general-robin-image-optimizer',
 			'logo'             => WRIO_PLUGIN_URL . '/admin/assets/img/icon-256x256.gif',
 			'review_link'      => false,
-			'has_upgrade_menu' => false,
+			'has_upgrade_menu' => 'valid' !== $status,
+			'upgrade_text'     => __( 'Upgrade to Pro', 'robin-image-optimizer' ),
+			'upgrade_link'     => tsdk_translate_link( tsdk_utmify( $upgrade_url, 'sidebarMenuUpgrade', 'robin' ) ),
 		];
 	}
 
 	/**
 	 * Register the AI Connect data.
 	 *
-	 * @param array<string, mixed> $data The AI Connect data.
-	 *
 	 * @return array<string, mixed> The AI Connect data.
 	 */
-	public static function register_ai_connect( $data ) {
+	public static function register_ai_connect() {
 		return [
 			'name'           => 'Robin Image Optimizer',
 			'notice_cases'   => [
@@ -418,43 +435,269 @@ class WRIO_Plugin extends Wbcr_Factory600_Plugin {
 	}
 
 	/**
-	 * Статический метод для быстрого доступа к интерфейсу плагина.
+	 * The plugin instance.
 	 *
-	 * Позволяет разработчику глобально получить доступ к экземпляру класса плагина в любом месте
-	 * плагина, но при этом разработчик не может вносить изменения в основной класс плагина.
-	 *
-	 * Используется для получения настроек плагина, информации о плагине, для доступа к вспомогательным
-	 * классам.
-	 *
-	 * @return \Wbcr_Factory600_Plugin|\WRIO_Plugin
+	 * @return WRIO_Plugin
 	 */
 	public static function app() {
 		return self::$app;
 	}
 
 	/**
-	 * Подключаем функции бекенда
+	 * Option prefix.
+	 *
+	 * @return string wbcr_io_
+	 */
+	public function getPrefix() { // phpcs:ignore WordPress.NamingConventions.ValidFunctionName.MethodNameInvalid
+		return self::PREFIX;
+	}
+
+	/**
+	 * Internal plugin name.
+	 *
+	 * @return string wbcr_image_optimizer
+	 */
+	public function getPluginName() { // phpcs:ignore WordPress.NamingConventions.ValidFunctionName.MethodNameInvalid
+		return self::NAME;
+	}
+
+	/**
+	 * Plugin title.
+	 *
+	 * @return string
+	 */
+	public function getPluginTitle() { // phpcs:ignore WordPress.NamingConventions.ValidFunctionName.MethodNameInvalid
+		return 'Robin image optimizer';
+	}
+
+	/**
+	 * Plugin version.
+	 *
+	 * @return string
+	 */
+	public function getPluginVersion() { // phpcs:ignore WordPress.NamingConventions.ValidFunctionName.MethodNameInvalid
+		return WRIO_PLUGIN_VERSION;
+	}
+
+	/**
+	 * Whether the plugin is network active, or is being network activated now.
+	 *
+	 * @return bool
+	 */
+	public function isNetworkActive() { // phpcs:ignore WordPress.NamingConventions.ValidFunctionName.MethodNameInvalid
+		if ( ! function_exists( 'is_plugin_active_for_network' ) ) {
+			require_once ABSPATH . '/wp-admin/includes/plugin.php';
+		}
+
+		if ( $this->network_activation || is_plugin_active_for_network( plugin_basename( WRIO_PLUGIN_FILE ) ) ) {
+			return true;
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only check of the activation request.
+		return $this->isNetworkAdmin() && isset( $_GET['action'], $_GET['networkwide'] ) && 'activate' === $_GET['action'] && 1 === (int) $_GET['networkwide'];
+	}
+
+	/**
+	 * Whether the current request is in the network admin.
+	 *
+	 * @return bool
+	 */
+	public function isNetworkAdmin() { // phpcs:ignore WordPress.NamingConventions.ValidFunctionName.MethodNameInvalid
+		return is_multisite() && is_network_admin();
+	}
+
+	// phpcs:disable WordPress.NamingConventions.ValidFunctionName.MethodNameInvalid -- the Factory option API names, kept for their ~250 callers.
+
+	/**
+	 * Full option name: wbcr_io_{name}.
+	 *
+	 * @param string $option_name Name without the prefix.
+	 *
+	 * @return string
+	 */
+	public function getOptionName( $option_name ) {
+		return self::PREFIX . trim( $option_name );
+	}
+
+	/**
+	 * Site option, or network option when the plugin is network active.
+	 *
+	 * @param string $option_name   Name without the prefix.
+	 * @param mixed  $default_value Returned when the option is missing.
+	 *
+	 * @return mixed
+	 */
+	public function getPopulateOption( $option_name, $default_value = false ) {
+		$value = $this->isNetworkActive() ? $this->getNetworkOption( $option_name, $default_value ) : $this->getOption( $option_name, $default_value );
+
+		// phpcs:ignore WordPress.NamingConventions.ValidHookName.UseUnderscores -- Factory hook name, kept for compatibility.
+		return apply_filters( "wbcr/factory/populate_option_{$option_name}", $value, $option_name, $default_value );
+	}
+
+	/**
+	 * Updates a site option, or the network option when the plugin is network active.
+	 *
+	 * @param string $option_name Name without the prefix.
+	 * @param mixed  $value       Value.
+	 *
+	 * @return void
+	 */
+	public function updatePopulateOption( $option_name, $value ) {
+		if ( $this->isNetworkActive() ) {
+			$this->updateNetworkOption( $option_name, $value );
+		} else {
+			$this->updateOption( $option_name, $value );
+		}
+	}
+
+	/**
+	 * Deletes a site option, or the network option when the plugin is network active.
+	 *
+	 * @param string $option_name Name without the prefix.
+	 *
+	 * @return void
+	 */
+	public function deletePopulateOption( $option_name ) {
+		if ( $this->isNetworkActive() ) {
+			delete_site_option( $this->getOptionName( $option_name ) );
+		} else {
+			$this->deleteOption( $option_name );
+		}
+	}
+
+	/**
+	 * Network option on multisite, otherwise the site option.
+	 *
+	 * @param string $option_name   Name without the prefix.
+	 * @param mixed  $default_value Returned when the option is missing.
+	 *
+	 * @return mixed
+	 */
+	public function getNetworkOption( $option_name, $default_value = false ) {
+		if ( ! is_multisite() ) {
+			return $this->getOption( $option_name, $default_value );
+		}
+
+		$value = get_site_option( $this->getOptionName( $option_name ), null );
+		$value = null === $value ? $default_value : self::normalize( $value );
+
+		// phpcs:ignore WordPress.NamingConventions.ValidHookName.UseUnderscores -- Factory hook name, kept for compatibility.
+		return apply_filters( "wbcr/factory/network_option_{$option_name}", $value, $option_name, $default_value, get_current_network_id() );
+	}
+
+	/**
+	 * Updates the network option on multisite, otherwise the site option.
+	 *
+	 * @param string $option_name Name without the prefix.
+	 * @param mixed  $value       Value.
+	 *
+	 * @return void
+	 */
+	public function updateNetworkOption( $option_name, $value ) {
+		update_site_option( $this->getOptionName( $option_name ), $value );
+
+		// phpcs:ignore WordPress.NamingConventions.ValidHookName.UseUnderscores -- Factory hook name, kept for compatibility.
+		do_action( 'wbcr/factory/update_network_option', $option_name, $value );
+	}
+
+	/**
+	 * Site option.
+	 *
+	 * @param string $option_name   Name without the prefix.
+	 * @param mixed  $default_value Returned when the option is missing.
+	 *
+	 * @return mixed
+	 */
+	public function getOption( $option_name, $default_value = false ) {
+		$value = get_option( $this->getOptionName( $option_name ), null );
+		$value = null === $value ? $default_value : self::normalize( $value );
+
+		// phpcs:ignore WordPress.NamingConventions.ValidHookName.UseUnderscores -- Factory hook name, kept for compatibility.
+		return apply_filters( "wbcr/factory/option_{$option_name}", $value, $option_name, $default_value );
+	}
+
+	/**
+	 * Updates a site option.
+	 *
+	 * @param string $option_name Name without the prefix.
+	 * @param mixed  $value       Value.
+	 *
+	 * @return bool
+	 */
+	public function updateOption( $option_name, $value ) {
+		$result = update_option( $this->getOptionName( $option_name ), $value );
+
+		// phpcs:ignore WordPress.NamingConventions.ValidHookName.UseUnderscores -- Factory hook name, kept for compatibility.
+		do_action( 'wbcr/factory/update_option', $option_name, $value );
+
+		return $result;
+	}
+
+	/**
+	 * Deletes a site option.
+	 *
+	 * @param string $option_name Name without the prefix.
+	 *
+	 * @return bool
+	 */
+	public function deleteOption( $option_name ) {
+		return delete_option( $this->getOptionName( $option_name ) );
+	}
+
+	// phpcs:enable
+
+	/**
+	 * Stored strings "1"/"0" become ints and "true"/"false" become bools, as the Factory options did.
+	 *
+	 * @param mixed $value Stored value.
+	 *
+	 * @return mixed
+	 */
+	private static function normalize( $value ) {
+		if ( ! is_string( $value ) ) {
+			return $value;
+		}
+
+		$trimmed = trim( $value );
+
+		if ( '1' === $trimmed || '0' === $trimmed ) {
+			return (int) $trimmed;
+		}
+
+		if ( 'true' === $trimmed || 'false' === $trimmed ) {
+			return 'true' === $trimmed;
+		}
+
+		return $value;
+	}
+
+	/**
+	 * Loads the back-end features.
 	 *
 	 * @throws Exception
 	 */
-	public function pluginsLoaded() {
-		if ( is_admin() || wrio_doing_cron() || wrio_doing_rest_api() ) {
+	public function plugins_loaded(): void {
+		// The upload hooks: wp-admin, cron, REST uploads, and WP-CLI (wp media import).
+		if ( is_admin() || wrio_doing_cron() || wrio_doing_rest_api() || ( defined( 'WP_CLI' ) && WP_CLI ) ) {
 			$media_library = WRIO_Media_Library::get_instance();
 			$media_library->initHooks();
 		}
+
+		// React admin app, its settings schema and REST API. The routes only
+		// answer REST requests; loading them everywhere keeps the save path
+		// identical in admin, REST and test contexts.
+		require_once WRIO_PLUGIN_DIR . '/admin/class-rio-app.php';
+		require_once WRIO_PLUGIN_DIR . '/admin/class-rio-settings.php';
+		require_once WRIO_PLUGIN_DIR . '/admin/class-rio-actions.php';
+		require_once WRIO_PLUGIN_DIR . '/includes/classes/class-rio-bulk-optimization.php';
+		require_once WRIO_PLUGIN_DIR . '/admin/class-rio-rest-controller.php';
+		WRIO_Rest_Controller::init();
 
 		if ( is_admin() ) {
 			require_once WRIO_PLUGIN_DIR . '/admin/boot.php';
-			// require_once( WRIO_PLUGIN_DIR . '/admin/includes/classes/class-rio-nextgen-landing.php' );
 
-			// Parent page class
-			require_once WRIO_PLUGIN_DIR . '/admin/pages/class-rio-page.php';
-			// $this->registerPages();
-		}
-
-		if ( wrio_doing_cron() || wrio_doing_rest_api() ) {
-			$media_library = WRIO_Media_Library::get_instance();
-			$media_library->initHooks();
+			require_once WRIO_PLUGIN_DIR . '/admin/class-rio-admin-pages.php';
+			WRIO_Admin_Pages::init();
 		}
 
 		// Load premium addon for all users (WebP conversion is available for free users)
@@ -470,15 +713,30 @@ class WRIO_Plugin extends Wbcr_Factory600_Plugin {
 	protected function includes() {
 
 		require_once WRIO_PLUGIN_DIR . '/includes/functions.php';
+		require_once WRIO_PLUGIN_DIR . '/includes/error-help.php';
 		require_once WRIO_PLUGIN_DIR . '/includes/classes/class-rio-views.php';
 		require_once WRIO_PLUGIN_DIR . '/includes/classes/class-rio-attachment.php';
 		require_once WRIO_PLUGIN_DIR . '/includes/classes/class-rio-media-library.php';
-		require_once WRIO_PLUGIN_DIR . '/includes/classes/processors/class-rio-server-abstract.php';
+		require_once WRIO_PLUGIN_DIR . '/includes/classes/class-rio-formats.php';
+		require_once WRIO_PLUGIN_DIR . '/includes/classes/v2/class-client.php';
+		require_once WRIO_PLUGIN_DIR . '/includes/classes/v2/class-optimizer.php';
+		require_once WRIO_PLUGIN_DIR . '/includes/classes/v2/class-format-rows.php';
+		require_once WRIO_PLUGIN_DIR . '/includes/classes/storage/class-schema.php';
+		require_once WRIO_PLUGIN_DIR . '/includes/classes/storage/class-store.php';
+		require_once WRIO_PLUGIN_DIR . '/includes/classes/storage/class-backfill.php';
+		require_once WRIO_PLUGIN_DIR . '/includes/classes/storage/class-queries.php';
+		require_once WRIO_PLUGIN_DIR . '/includes/classes/storage/class-events.php';
+		add_filter( 'wpmu_drop_tables', [ '\\WRIO\\Storage\\Schema', 'drop_site_tables' ] );
+		\WRIO\Storage\Schema::maybe_install();
+		\WRIO\Storage\Backfill::init();
+		\WRIO\Storage\Events::init();
 		require_once WRIO_PLUGIN_DIR . '/includes/classes/class-rio-image-statistic.php';
 		require_once WRIO_PLUGIN_DIR . '/includes/classes/class-rio-image-query.php';
 		require_once WRIO_PLUGIN_DIR . '/includes/classes/class-rio-optimization-orchestrator.php';
+		require_once WRIO_PLUGIN_DIR . '/includes/classes/class-rio-bulk-summary.php';
+		require_once WRIO_PLUGIN_DIR . '/includes/classes/class-rio-media-bulk-action.php';
+		WRIO_Media_Bulk_Action::init();
 		require_once WRIO_PLUGIN_DIR . '/includes/classes/class-rio-backup.php';
-		require_once WRIO_PLUGIN_DIR . '/includes/classes/class-rio-optimization-tools.php';
 
 		require_once WRIO_PLUGIN_DIR . '/includes/classes/models/class-rio-base-helper.php';
 		require_once WRIO_PLUGIN_DIR . '/includes/classes/models/class-rio-base-object.php'; // Base object
@@ -489,14 +747,37 @@ class WRIO_Plugin extends Wbcr_Factory600_Plugin {
 		require_once WRIO_PLUGIN_DIR . '/includes/classes/models/class-rio-base-extra-data.php';
 		require_once WRIO_PLUGIN_DIR . '/includes/classes/models/class-rio-attachment-extra-data.php';
 		require_once WRIO_PLUGIN_DIR . '/includes/classes/models/class.webp-extra-data.php';
-		require_once WRIO_PLUGIN_DIR . '/includes/classes/models/class-rio-server-smushit-extra-data.php';
 
 		require_once WRIO_PLUGIN_DIR . '/includes/classes/models/class-rio-process-queue-table.php'; // Processing queue model
+		RIO_Process_Queue::try_create_plugin_tables();
+		add_action( 'wp_initialize_site', [ $this, 'install_site_tables' ], 100 );
+		add_filter( 'wpmu_drop_tables', [ $this, 'drop_queue_table' ] );
 
 		// Cron
 		// ----------------
 		require_once WRIO_PLUGIN_DIR . '/includes/classes/class-rio-cron.php';
+		require_once WRIO_PLUGIN_DIR . '/includes/classes/class-rio-avif-estimate.php';
+		WRIO_Avif_Estimate::init();
 		new WRIO_Cron();
+		// For a system cron job that runs the queue without a loopback request.
+		add_action(
+			'wrio/queue/run',
+			static function () {
+				wrio_run_queue();
+			}
+		);
+		add_action( 'wp_ajax_wrio_loopback_test', 'wrio_loopback_test_handler' );
+		if ( $this->getPopulateOption( 'fetchpriority_first_image', false ) ) {
+			// Before wptexturize() (10), after do_blocks() (9): a ">" in a quoted value does not break the tag.
+			add_filter( 'the_content', 'wrio_escape_img_attribute_gt', 9 );
+			// Before wp_filter_content_tags() (12): WordPress then reads the existing attributes.
+			add_filter( 'the_content', 'wrio_normalize_priority_attributes', 11 );
+			// After wp_filter_content_tags() (12): an attribute that WordPress added stays.
+			add_filter( 'the_content', 'wrio_add_fetchpriority', 20 );
+			// The whole page decides: a priority that later content renders wins over the one Robin added.
+			add_action( 'template_redirect', 'wrio_start_priority_buffer' );
+		}
+		add_action( 'wp_ajax_nopriv_wrio_loopback_test', 'wrio_loopback_test_handler' );
 
 		// Register cache invalidation hooks for WRIO_Image_Query
 		WRIO_Image_Query::register_hooks();
@@ -507,33 +788,83 @@ class WRIO_Plugin extends Wbcr_Factory600_Plugin {
 	}
 
 	/**
-	 * Инициализируем активацию плагина
+	 * Turns off the WordPress big image scaling only while Robin resizes large images itself.
+	 *
+	 * @param int|false $threshold Threshold in pixels, or false when scaling is off.
+	 *
+	 * @return int|false
 	 */
-	protected function initActivation() {
-		include_once WRIO_PLUGIN_DIR . '/admin/activation.php';
-		self::app()->registerActivation( 'WIO_Activation' );
+	public function big_image_size_threshold( $threshold ) {
+		return $this->getPopulateOption( 'resize_larger', false ) ? false : $threshold;
 	}
 
 	/**
-	 * Регистрируем страницы плагина
+	 * Creates the tables of a new site of a network where the plugin is network active.
 	 *
-	 * @throws Exception
+	 * @param WP_Site $site The new site.
+	 *
+	 * @return void
 	 */
-	private function registerPages() {
-		$admin_path = WRIO_PLUGIN_DIR . '/admin/pages/';
+	public function install_site_tables( $site ) {
+		if ( ! $this->isNetworkActive() ) {
+			return;
+		}
 
-		// Register main menu page first, then submenus
-		self::app()->registerPage( 'WRIO_StatisticPage', $admin_path . '/class-rio-statistic.php' );
-		self::app()->registerPage( 'WRIO_SettingsPage', $admin_path . '/class-rio-settings.php' );
+		switch_to_blog( (int) $site->blog_id );
+		RIO_Process_Queue::try_create_plugin_tables();
+		\WRIO\Storage\Schema::maybe_install();
+		restore_current_blog();
+	}
 
+	/**
+	 * Adds the queue table of a deleted site to the tables that WordPress drops.
+	 *
+	 * @param string[] $tables Tables of the site.
+	 *
+	 * @return string[]
+	 */
+	public function drop_queue_table( $tables ) {
+		$tables[] = RIO_Process_Queue::table_name();
+
+		return $tables;
+	}
+
+	/**
+	 * Activation hook.
+	 *
+	 * @param bool $network_wide Whether the plugin is network activated. WP-CLI has no ?networkwide=1 to read.
+	 *
+	 * @return void
+	 */
+	public function activate( $network_wide = false ) {
+		$this->network_activation = (bool) $network_wide;
+		require_once WRIO_PLUGIN_DIR . '/admin/activation.php';
+		( new WIO_Activation() )->activate();
+		WRIO_Migrations::record_activation();
+		$this->network_activation = false;
+	}
+
+	/**
+	 * Deactivation hook.
+	 *
+	 * @return void
+	 */
+	public function deactivate() {
+		require_once WRIO_PLUGIN_DIR . '/admin/activation.php';
+		( new WIO_Activation() )->deactivate();
+	}
+
+	/**
+	 * Registers the License page, unless Clearfy holds the licence.
+	 * WRIO_Admin_Pages registers the other pages.
+	 *
+	 * @return void
+	 */
+	private function register_license_page() {
 		if ( ! wrio_is_clearfy_license_activate() ) {
 			require_once WRIO_PLUGIN_DIR . '/admin/includes/class-wrio-subscribe-widget.php';
 			require_once WRIO_PLUGIN_DIR . '/admin/pages/class-rio-license.php';
 			new WRIO_License_Page_View();
-		}
-
-		if ( self::app()->getPopulateOption( 'error_log', false ) ) {
-			self::app()->registerPage( 'WRIO_LogPage', $admin_path . '/class-rio-log.php' );
 		}
 	}
 
@@ -555,9 +886,6 @@ class WRIO_Plugin extends Wbcr_Factory600_Plugin {
 	/**
 	 * Initialize independent premium provider
 	 *
-	 * This overrides the Factory framework's premium property with our
-	 * lightweight independent implementation.
-	 *
 	 * @return void
 	 */
 	private function init_independent_premium() {
@@ -577,17 +905,18 @@ class WRIO_Plugin extends Wbcr_Factory600_Plugin {
 	private function init_independent_support() {
 		require_once WRIO_PLUGIN_DIR . '/includes/classes/class-wrio-support.php';
 
-		$support_config = [
-			'url'         => isset( $this->plugin_data['support_details']['url'] ) ? $this->plugin_data['support_details']['url'] : 'https://developer.flavflavor.dev',
-			'plugin_name' => $this->getPluginName(),
-		];
-
-		// Allow pages_map override if provided in plugin data
-		if ( isset( $this->plugin_data['support_details']['pages_map'] ) ) {
-			$support_config['pages_map'] = $this->plugin_data['support_details']['pages_map'];
-		}
-
-		$this->wrio_support = new WRIO_Support( $support_config );
+		$this->wrio_support = new WRIO_Support(
+			[
+				'url'         => 'https://robinoptimizer.com',
+				'plugin_name' => $this->getPluginName(),
+				'pages_map'   => [
+					'features' => 'premium-features',
+					'pricing'  => 'pricing',
+					'support'  => 'support',
+					'docs'     => 'docs',
+				],
+			]
+		);
 	}
 
 	/**
@@ -596,32 +925,9 @@ class WRIO_Plugin extends Wbcr_Factory600_Plugin {
 	 * This method provides backward compatibility with existing code
 	 * that calls $plugin->get_support().
 	 *
-	 * @return WRIO_Support|null
-	 * @phpstan-ignore-next-line return.type
+	 * @return WRIO_Support
 	 */
 	public function get_support() {
-		if ( ! isset( $this->wrio_support ) ) {
-			$this->init_independent_support();
-		}
-
 		return $this->wrio_support;
-	}
-
-	/**
-	 * Truncate the menu item name so it doesn't break the layout of the WP Admin sidebar.
-	 *
-	 * @return void
-	 */
-	public function truncate_menu_items() {
-		echo '<style>
-			#toplevel_page_rio_general-robin-image-optimizer div.wp-menu-name {
-				color: #fff;
-				overflow: hidden;
-				text-overflow: ellipsis;
-				max-width: 130px;
-				padding-left: 0 !important;
-				white-space: nowrap;
-			}
-		</style>';
 	}
 }

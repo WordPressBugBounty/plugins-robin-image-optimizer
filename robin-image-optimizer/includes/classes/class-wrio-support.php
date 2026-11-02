@@ -138,7 +138,10 @@ class WRIO_Support {
 	 */
 	public function get_pricing_url( $track = false, $utm_campaign = '' ) {
 		$url = rtrim( $this->site_url, '/' ) . '/upgrade';
-		$url = tsdk_translate_link( tsdk_utmify( $url, $utm_campaign ) );
+		// The Themeisle SDK helpers exist once the SDK has loaded (wp-admin); REST and CLI may run without them.
+		if ( function_exists( 'tsdk_utmify' ) && function_exists( 'tsdk_translate_link' ) ) {
+			$url = tsdk_translate_link( tsdk_utmify( $url, $utm_campaign ) );
+		}
 
 		/**
 		 * Filter the pricing page URL

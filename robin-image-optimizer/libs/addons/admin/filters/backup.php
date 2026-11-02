@@ -37,13 +37,8 @@ add_filter(
 				$remane_count += $nextgen_restored['remane'];
 			}
 
-			$nextgen_count = RIO_Process_Queue::count_by_type_status( 'nextgen', 'success' );
-
-			if ( is_numeric( $nextgen_count ) && (int) $nextgen_count > 0 ) {
-				$total += $nextgen_count;
-			}
-
-			unset( $nextgen_count );
+			// The rows that remane counts, so the progress stays between 0 and 100 %.
+			$total += $nextgen_restored['total'];
 		}
 
 		/* Custom folders */
@@ -53,14 +48,7 @@ add_filter(
 			$remane_count += $cf_restored['remane'];
 		}
 
-		$cf_count = RIO_Process_Queue::count_by_type_status( 'cf_image', 'success' );
-
-		if ( is_numeric( $cf_count ) && (int) $cf_count > 0 ) {
-
-			$total += $cf_count;
-		}
-
-		unset( $cf_count );
+		$total += $cf_restored['total'];
 
 		return [
 			'remane' => $remane_count,

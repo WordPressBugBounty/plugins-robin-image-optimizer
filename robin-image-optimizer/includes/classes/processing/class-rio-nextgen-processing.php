@@ -1,6 +1,9 @@
 <?php
-
-use WBCR\Factory_Processing_759\WP_Background_Process;
+/**
+ * Background queue for NextGEN gallery optimization.
+ *
+ * @package robin-image-optimizer
+ */
 
 // Exit if accessed directly
 if ( ! defined( 'ABSPATH' ) ) {
@@ -36,9 +39,15 @@ class WRIO_Nextgen_Processing extends WRIO_Processing {
 	 *
 	 * @param int $image
 	 *
-	 * @return bool
+	 * @return int|false The item when it must stay in the queue.
 	 */
 	protected function task( $image ) {
+		// The lock of a process that died on this item stays until it expires: keep the item for a later run,
+		// which takes the lock over and counts the crash.
+		if ( $image && \WRIO\Storage\Store::locked_by_other( 'nextgen', (int) $image ) ) {
+			return $image;
+		}
+
 		if ( $image ) {
 			WRIO_Plugin::app()->logger->info( sprintf( 'Start optimize attachment: %s', $image ) );
 

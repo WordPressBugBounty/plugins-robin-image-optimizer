@@ -112,3 +112,59 @@ function wrio_get_shortpixel_path() {
 
 	return $wp_upload_dir_path . 'ShortpixelBackups';
 }
+
+/**
+ * Whether an optimized custom-folder or NextGEN image only waits for a conversion: its files are done and
+ * unchanged. A bulk run converts it to the formats that were turned on later, and does not optimize it again.
+ *
+ * @param 'cf_image'|'nextgen'               $source    cf_image or nextgen.
+ * @param int                                $object_id Item ID.
+ * @param array<string, array{path: string}> $files     Files by size name, as get_files() of the image.
+ *
+ * @return bool
+ */
+function wrio_converts_only( $source, $object_id, array $files ) {
+	if ( \WRIO\Storage\Store::has_work( $source, (int) $object_id ) ) {
+		return false;
+	}
+
+	$rows = \WRIO\Storage\Store::rows( $source, (int) $object_id );
+
+	foreach ( $files as $size => $file ) {
+		$row = $rows[ $size . '|optimized' ] ?? null;
+
+		if ( ! $row || \WRIO\Storage\Store::STALE === \WRIO\Storage\Store::state( $row, $file['path'] ) ) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+/**
+ * The error of a convert-only step that must stop a bulk run, or null. A request that the API refused for the
+ * whole site writes no row for a format, so the image stays selected: the run would send it again on every step.
+ * An API wait (429 or 5xx) does not stop it: the next step answers the wait (WRIO_Bulk_Optimization::run_process()).
+ * Another process on the image does not either, nor a failure of the file itself, which has its row.
+ *
+ * @param 'cf_image'|'nextgen' $source    cf_image or nextgen.
+ * @param int                  $object_id Item ID.
+ * @param WP_Error|null        $error     Error of WRIO\V2\Optimizer::convert_item().
+ *
+ * @return WP_Error|null
+ */
+function wrio_convert_stop_error( $source, $object_id, $error ) {
+	if ( ! $error instanceof WP_Error || \WRIO\V2\Optimizer::is_locked( $error ) || \WRIO\V2\Client::backoff_seconds() > 0 ) {
+		return null;
+	}
+
+	$rows = \WRIO\Storage\Store::rows( $source, (int) $object_id );
+
+	foreach ( WRIO_Formats::get_enabled_formats() as $format ) {
+		if ( ! isset( $rows[ 'original|' . $format ] ) ) {
+			return $error;
+		}
+	}
+
+	return null;
+}

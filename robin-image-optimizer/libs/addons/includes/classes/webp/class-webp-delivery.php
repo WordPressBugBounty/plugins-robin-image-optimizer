@@ -45,7 +45,7 @@ class Delivery {
 	 */
 	public function init() {
 
-		if ( ! static::should_use_converted_images() ) {
+		if ( ! static::should_use_converted_images() || static::skip_for_optimole() ) {
 			return;
 		}
 
@@ -83,7 +83,24 @@ class Delivery {
 	 * @return bool
 	 */
 	public static function should_use_converted_images() {
-		return \WRIO_Format_Converter_Factory::is_format_conversion_enabled();
+		return \WRIO_Formats::is_format_conversion_enabled();
+	}
+
+	/**
+	 * Check whether Robin leaves the page markup to Optimole.
+	 *
+	 * Optimole moves the image URLs to its CDN and serves WebP/AVIF from there,
+	 * so a second rewrite by Robin can conflict with it.
+	 *
+	 * @return bool
+	 */
+	public static function skip_for_optimole(): bool {
+		/**
+		 * Filters whether Robin turns off its markup delivery because Optimole is active.
+		 *
+		 * @param bool $skip True when Optimole is active.
+		 */
+		return (bool) apply_filters( 'wrio_skip_delivery_for_optimole', defined( 'OPTML_VERSION' ) || class_exists( 'Optml_Main', false ) );
 	}
 
 	/**
@@ -144,6 +161,9 @@ class Delivery {
 	}
 
 	/**
+	 * Prints the layout rules of the picture tags in the head. Picturefill is gone: every browser since 2016 reads
+	 * <picture>, and an older one still shows the original image of the <img>.
+	 *
 	 * @since  1.0.4
 	 */
 	public function add_picture_fill_js() {
@@ -153,7 +173,24 @@ class Delivery {
 			return;
 		}
 
-		echo '<script>' . 'document.createElement( "picture" );' . 'if(!window.HTMLPictureElement && document.addEventListener) {' . 'window.addEventListener("DOMContentLoaded", function() {' . 'var s = document.createElement("script");' . 's.src = "' . WRIOP_PLUGIN_URL . '/assets/js/picturefill.min.js' . '";' . 'document.body.appendChild(s);' . '});' . '}' . '</script>';
+		// Astra and constrained block layouts size direct children. Keep their picture boxes out of the flow.
+		// The wrapper rule has zero specificity, so theme rules win. Max-width and width inherit through picture>img
+		// (0,0,2): a bare img rule (0,0,1) loses also when it loads later, a class rule (0,1,1) wins. Margins have
+		// zero specificity to preserve theme image margins.
+		// Only inherit a theme width: inheriting auto would replace the image's HTML width with its natural size.
+		// Plain .entry-content stays untouched for Twenty Twenty and Twenty Twenty-One. Guard every rule for :has().
+		echo '<style id="wrio-picture-layout">@supports selector(:has(a)){'
+			. ':where(.entry-content[data-ast-blocks-layout],.is-layout-constrained)>:where(picture:has(>img.webpexpress-processed)){display:contents;max-width:100%}'
+			. ':where(.entry-content[data-ast-blocks-layout],.is-layout-constrained)>picture>img:where(.webpexpress-processed){max-width:inherit}'
+			. ':where(.entry-content[data-ast-blocks-layout],.is-layout-constrained)>:where(picture)>:where(img.webpexpress-processed){margin:inherit}'
+			. ':where(.is-layout-constrained)>picture:where([data-wrio-width])>img:where(.webpexpress-processed){width:inherit}'
+			. '}</style>';
+
+		// Theme widths can change at a breakpoint. A display:contents picture keeps its computed width value.
+		echo '<script>if(window.CSS && CSS.supports("selector(:has(a))")){'
+			. 'var wrioPictureWidth=function(){document.querySelectorAll(".is-layout-constrained > picture:has(> img.webpexpress-processed)").forEach(function(p){p.toggleAttribute("data-wrio-width",getComputedStyle(p).width!=="auto");});};'
+			. 'document.addEventListener("DOMContentLoaded",wrioPictureWidth);window.addEventListener("resize",wrioPictureWidth);'
+			. '}</script>';
 	}
 
 	/**
@@ -181,7 +218,7 @@ class Delivery {
 				require_once WRIOP_PLUGIN_DIR . '/includes/classes/webp/class-webp-html-picture-tags.php';
 			}
 
-			return class_exists( __NAMESPACE__ . '\Picture_Tags' ) && static::load_html_parser();
+			return class_exists( __NAMESPACE__ . '\Picture_Tags' );
 		}
 
 		if ( static::is_url_delivery_mode() ) {
@@ -189,32 +226,10 @@ class Delivery {
 				require_once WRIOP_PLUGIN_DIR . '/includes/classes/webp/class-webp-html-image-urls-replacer.php';
 			}
 
-			return class_exists( __NAMESPACE__ . '\Urls_Replacer' ) && static::load_html_parser();
+			return class_exists( __NAMESPACE__ . '\Urls_Replacer' );
 		}
 
 		return false;
-	}
-
-	/**
-	 * Load the bundled HTML parser that the markup processors rely on.
-	 *
-	 * The parser library loads itself on first use, which would otherwise happen
-	 * inside the output buffer handler.
-	 *
-	 * @return bool Whether the parser is available.
-	 */
-	protected static function load_html_parser() {
-		if ( function_exists( 'str_get_html' ) ) {
-			return true;
-		}
-
-		$parser = WRIOP_PLUGIN_DIR . '/includes/classes/webp/vendor/rosell-dk/dom-util-for-webp/src-vendor/simple_html_dom/simple_html_dom.inc';
-
-		if ( file_exists( $parser ) ) {
-			require_once $parser;
-		}
-
-		return function_exists( 'str_get_html' );
 	}
 
 	/**
@@ -239,14 +254,14 @@ class Delivery {
 			}
 
 			// Loaded by process_buffer(); bail out rather than include from inside the buffer handler.
-			if ( ! class_exists( __NAMESPACE__ . '\Picture_Tags', false ) || ! function_exists( 'str_get_html' ) ) {
+			if ( ! class_exists( __NAMESPACE__ . '\Picture_Tags', false ) ) {
 				return $content;
 			}
 
 			$content = Picture_Tags::replace( $content );
 		} elseif ( static::is_url_delivery_mode() ) {
 			if ( ! is_admin() ) {
-				if ( ! class_exists( __NAMESPACE__ . '\Urls_Replacer', false ) || ! function_exists( 'str_get_html' ) ) {
+				if ( ! class_exists( __NAMESPACE__ . '\Urls_Replacer', false ) ) {
 					return $content;
 				}
 
@@ -288,14 +303,63 @@ class Delivery {
 	 * @since 1.9.0
 	 */
 	public static function get_converted_url( $source_url, $return_value_on_fail ) {
-		$enabled_formats = \WRIO_Format_Converter_Factory::get_enabled_formats();
+		$enabled_formats = \WRIO_Formats::get_enabled_formats();
 
-		if ( empty( $enabled_formats ) || ! static::is_support_format( $source_url ) ) {
+		foreach ( $enabled_formats as $format ) {
+			$url = static::get_format_url( $source_url, $format );
+
+			if ( null !== $url ) {
+				return $url;
+			}
+		}
+
+		if ( ! empty( $enabled_formats ) && null !== static::source_path( $source_url ) && \WRIO_Plugin::app()->is_keep_error_log_on_frontend() && ! static::has_failed_conversion( $source_url, $enabled_formats ) ) {
+			\WRIO_Plugin::app()->logger->warning( sprintf( "Skipped converted image delivery. No converted file was found for the original image.\r\nSource url: %s\r\nChecked formats: %s", $source_url, implode( ', ', $enabled_formats ) ) );
+		}
+
+		return $return_value_on_fail;
+	}
+
+	/**
+	 * The URL of one converted format of an image, when that format is enabled and its file exists.
+	 *
+	 * The answers are kept for the request: a page can show the same image many times, in each srcset.
+	 *
+	 * @param string $source_url Original image URL.
+	 * @param string $format     webp or avif.
+	 *
+	 * @return string|null The URL, with the format extension after the path (before a query string).
+	 */
+	public static function get_format_url( $source_url, $format ): ?string {
+		static $urls = [];
+
+		$key = $format . '|' . $source_url;
+
+		if ( ! array_key_exists( $key, $urls ) ) {
+			$path         = in_array( $format, \WRIO_Formats::get_enabled_formats(), true ) ? static::source_path( $source_url ) : null;
+			$absolute     = preg_match( '#^https?://#', $source_url ) ? $source_url : wrio_rel_to_abs_url( $source_url );
+			$urls[ $key ] = null !== $path && static::is_file( $path . '.' . $format ) ? (string) preg_replace( '/(?=[?#]|$)/', '.' . $format, $absolute, 1 ) : null;
+		}
+
+		return $urls[ $key ];
+	}
+
+	/**
+	 * The file of a local image URL.
+	 *
+	 * @param string $source_url Image URL.
+	 *
+	 * @return string|null The path, or null for an unsupported, remote or missing image.
+	 */
+	protected static function source_path( $source_url ): ?string {
+		$source_url = (string) preg_replace( '/[?#].*/', '', $source_url );
+
+		if ( ! static::is_support_format( $source_url ) ) {
 			if ( \WRIO_Plugin::app()->is_keep_error_log_on_frontend() ) {
-				\WRIO_Plugin::app()->logger->warning( sprintf( "Skipped converted image lookup. Original image format is not supported for conversion, or converted image delivery is disabled.\r\nSource url: %s", $source_url ) );
+				\WRIO_Plugin::app()->logger->warning( sprintf( "Skipped converted image lookup. Original image format is not supported for conversion.\r\nSource url: %s", $source_url ) );
 			}
 
-			return $return_value_on_fail;
+			return null;
 		}
 
 		if ( ! preg_match( '#^https?://#', $source_url ) ) {
@@ -310,7 +374,7 @@ class Delivery {
 				\WRIO_Plugin::app()->logger->warning( sprintf( "Skipped converted image lookup. Image is hosted on a remote server.\r\nSource url: %s", $source_url ) );
 			}
 
-			return $return_value_on_fail;
+			return null;
 		}
 
 		if ( $is_wpmedia_url ) {
@@ -319,9 +383,8 @@ class Delivery {
 			$source_parts = wp_parse_url( $source_url );
 			$base_parts   = wp_parse_url( $upload_dir['baseurl'] );
 
-			// If URL parsing fails, bail
 			if ( empty( $source_parts['path'] ) || empty( $base_parts['path'] ) ) {
-				return $return_value_on_fail;
+				return null;
 			}
 
 			// Must be same host to treat it as local upload (ignore scheme)
@@ -329,7 +392,7 @@ class Delivery {
 			$base_host   = $base_parts['host'] ?? '';
 
 			if ( $source_host && $base_host && strtolower( $source_host ) !== strtolower( $base_host ) ) {
-				return $return_value_on_fail;
+				return null;
 			}
 
 			// Path must start with uploads base path
@@ -337,7 +400,7 @@ class Delivery {
 			$source_path = $source_parts['path'];                      // eg /app/uploads/2025/12/demo.png
 
 			if ( strpos( $source_path, $base_path . '/' ) !== 0 ) {
-				return $return_value_on_fail;
+				return null;
 			}
 
 			// Convert URL path to filesystem path
@@ -347,32 +410,40 @@ class Delivery {
 			$file_path = wrio_url_to_abs_path( $source_url );
 		}
 
+		// Decode the URL path once, only for the disk lookup.
+		if ( ! empty( $file_path ) ) {
+			$file_path = rawurldecode( $file_path );
+		}
+
 		// If you could not find original image, skip it. Perhaps an error
 		// in absolute path formation to the directory where the
 		// image is stored.
-		if ( empty( $file_path ) || ! file_exists( $file_path ) ) {
+		if ( empty( $file_path ) || ! static::is_file( $file_path ) ) {
 			if ( \WRIO_Plugin::app()->is_keep_error_log_on_frontend() ) {
 				\WRIO_Plugin::app()->logger->warning( sprintf( "Skipped converted image lookup. Unable to find the original image on disk.\r\nRelative path: (%s)\r\nSource url: (%s)", $file_path, $source_url ) );
 			}
 
-			return $return_value_on_fail;
+			return null;
 		}
 
-		// Check AVIF first if enabled, then WebP.
-		foreach ( $enabled_formats as $format ) {
-			$extension           = '.' . strtolower( $format );
-			$converted_file_path = $file_path . $extension;
+		return $file_path;
+	}
 
-			if ( file_exists( $converted_file_path ) ) {
-				return $source_url . $extension;
-			}
+	/**
+	 * Whether a file exists, checked once for each path in a request: one image can have many URLs on a page.
+	 *
+	 * @param string $path File path.
+	 *
+	 * @return bool
+	 */
+	public static function is_file( string $path ): bool {
+		static $files = [];
+
+		if ( ! isset( $files[ $path ] ) ) {
+			$files[ $path ] = is_file( $path );
 		}
 
-		if ( \WRIO_Plugin::app()->is_keep_error_log_on_frontend() && ! static::has_failed_conversion( $source_url, $enabled_formats ) ) {
-			\WRIO_Plugin::app()->logger->warning( sprintf( "Skipped converted image delivery. No converted file was found for the original image.\r\nSource url: %s\r\nChecked formats: %s", $source_url, implode( ', ', $enabled_formats ) ) );
-		}
-
-		return $return_value_on_fail;
+		return $files[ $path ];
 	}
 
 	/**
@@ -462,7 +533,7 @@ class Delivery {
 	protected static function is_wpmedia_url( $source_url ) {
 		$upload_dir = wp_get_upload_dir();
 
-		if ( isset( $upload_dir['error'] ) && $upload_dir['error'] !== false ) {
+		if ( false !== $upload_dir['error'] ) {
 			return false;
 		}
 
@@ -480,8 +551,8 @@ class Delivery {
 	 * @since  1.4.0
 	 */
 	protected static function is_support_format( $source_url ) {
-		// Match .jpg, .jpeg, or .png at end of URL (before optional query string)
-		if ( ! preg_match( '#\.(jpe?g|png)($|\?)#i', $source_url ) ) {
+		// Match the image extension before a query string or fragment.
+		if ( ! preg_match( '~\.(jpe?g|png)($|[?#])~i', $source_url ) ) {
 			return false;
 		}
 
@@ -496,19 +567,6 @@ class Delivery {
 	 */
 	protected static function is_external_url( $source_url ) {
 		if ( strpos( $source_url, get_site_url() ) === false ) {
-			return true;
-		}
-
-		return false;
-	}
-
-	/**
-	 * Check whether browser supports WebP or not.
-	 *
-	 * @return bool
-	 */
-	protected static function is_supported_browser() {
-		if ( isset( $_SERVER['HTTP_ACCEPT'] ) && strpos( $_SERVER['HTTP_ACCEPT'], 'image/webp' ) !== false || isset( $_SERVER['HTTP_USER_AGENT'] ) && strpos( $_SERVER['HTTP_USER_AGENT'], ' Chrome/' ) !== false ) {
 			return true;
 		}
 

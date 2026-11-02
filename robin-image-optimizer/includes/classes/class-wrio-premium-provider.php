@@ -171,13 +171,11 @@ class WRIO_Premium_Provider {
 		// Generate unique site identifier (32 chars)
 		$uid = $this->get_or_create_site_uid();
 
-		// Build API endpoint
 		$api_url = sprintf(
 			'https://api.freemius.com/v1/plugins/%s/activate.json',
 			$plugin_id
 		);
 
-		// Prepare request body
 		$body = [
 			'license_key' => $key,
 			'uid'         => $uid,
@@ -186,7 +184,6 @@ class WRIO_Premium_Provider {
 			'version'     => WRIO_Plugin::app()->getPluginVersion(),
 		];
 
-		// Add user info for new license activations
 		$current_user = wp_get_current_user();
 		if ( $current_user->ID ) {
 			$body['user_email'] = $current_user->user_email;
@@ -209,7 +206,6 @@ class WRIO_Premium_Provider {
 			throw new Exception( esc_html__( 'Failed to encode request body.', 'robin-image-optimizer' ) );
 		}
 
-		// Make API request
 		$response = wp_remote_post(
 			$api_url,
 			[
@@ -238,7 +234,6 @@ class WRIO_Premium_Provider {
 		$response_body = wp_remote_retrieve_body( $response );
 		$data          = json_decode( $response_body, true );
 
-		// Check for API errors
 		if ( 200 !== $response_code || isset( $data['error'] ) ) {
 			$error_message = isset( $data['error']['message'] )
 				? $data['error']['message']
@@ -247,12 +242,10 @@ class WRIO_Premium_Provider {
 			throw new Exception( esc_html( $error_message ) );
 		}
 
-		// Validate response has required fields
 		if ( empty( $data['install_id'] ) ) {
 			throw new Exception( esc_html__( 'Invalid API response: missing install_id.', 'robin-image-optimizer' ) );
 		}
 
-		// Build license data from API response
 		$license_data = $this->build_license_data_from_response( $data, $key, $uid );
 
 		/**
@@ -266,7 +259,6 @@ class WRIO_Premium_Provider {
 
 		update_option( 'wbcr_io_license', $license_data );
 
-		// Reinitialize license
 		$this->license      = new WRIO_License();
 		$this->is_activated = true;
 
@@ -291,7 +283,6 @@ class WRIO_Premium_Provider {
 		$uid = get_option( 'wrio_freemius_uid' );
 
 		if ( empty( $uid ) ) {
-			// Generate a 32-char unique identifier
 			$uid = wp_generate_uuid4();
 			$uid = str_replace( '-', '', $uid );
 			update_option( 'wrio_freemius_uid', $uid );
@@ -411,7 +402,6 @@ class WRIO_Premium_Provider {
 		 */
 		do_action( 'wrio_license_before_deactivate', $old_key );
 
-		// Clear the appropriate option based on source
 		if ( WRIO_License::SOURCE_SDK === $source ) {
 			$namespace = WRIO_Plugin::get_sdk_namespace();
 
@@ -429,7 +419,6 @@ class WRIO_Premium_Provider {
 			delete_option( 'wbcr_io_license' );
 		}
 
-		// Reinitialize license
 		$this->license      = new WRIO_License();
 		$this->is_activated = false;
 
@@ -463,7 +452,6 @@ class WRIO_Premium_Provider {
 			update_option( 'wbcr_io_license', $license_data );
 		}
 
-		// Refresh license
 		$this->license = new WRIO_License();
 
 		/**
@@ -476,13 +464,6 @@ class WRIO_Premium_Provider {
 		return true;
 	}
 
-	/**
-	 * Get a setting value (for compatibility with Freemius provider)
-	 *
-	 * @param string $key     Setting key.
-	 * @param mixed  $default Default value.
-	 * @return mixed
-	 */
 	/**
 	 * Get plugin setting
 	 *
@@ -497,62 +478,6 @@ class WRIO_Premium_Provider {
 			'slug'       => 'robin-image-optimizer',
 		];
 
-		return isset( $settings[ $key ] ) ? $settings[ $key ] : $default_value;
-	}
-
-	/**
-	 * Get upgrade price (stub for Factory framework compatibility)
-	 *
-	 * @return int
-	 */
-	public function get_price() {
-		return 0;
-	}
-
-	/**
-	 * Check if premium package is installed (stub for Factory framework compatibility)
-	 *
-	 * @return bool
-	 */
-	public function is_install_package() {
-		return false;
-	}
-
-	/**
-	 * Get package data (stub for Factory framework compatibility)
-	 *
-	 * @return array<string, mixed>|null
-	 */
-	public function get_package_data() {
-		return null;
-	}
-
-	/**
-	 * Get package download URL (stub for Factory framework compatibility)
-	 *
-	 * @return string
-	 */
-	public function get_package_download_url() {
-		return '';
-	}
-
-	/**
-	 * Get downloadable package info (stub for Factory framework compatibility)
-	 *
-	 * @return array<string, mixed>|null
-	 */
-	public function get_downloadable_package_info() {
-		return null;
-	}
-
-	/**
-	 * Sync license (stub for Factory framework compatibility)
-	 *
-	 * No-op since sync functionality was removed.
-	 *
-	 * @return bool
-	 */
-	public function sync() {
-		return true;
+		return null !== $key && isset( $settings[ $key ] ) ? $settings[ $key ] : $default_value;
 	}
 }

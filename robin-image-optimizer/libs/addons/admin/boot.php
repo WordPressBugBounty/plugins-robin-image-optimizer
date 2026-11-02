@@ -14,36 +14,3 @@ use WRIO\WEBP\HTML\Delivery;
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
-/**
- * Flush configuration after saving the settings
- *
- * @param WHM_Plugin                               $plugin
- * @param Wbcr_FactoryPages480_ImpressiveThemplate $page
- *
- * @return bool
- */
-add_action(
-	'wbcr/factory/pages/impressive/after_form_save',
-	function ( $plugin, $page ) {
-		$is_rio_plugin    = WRIO_Plugin::app()->getPluginName() == $plugin->getPluginName();
-		$is_settings_page = 'rio_settings' == $page->id;
-		$is_apache        = WRIO\WEBP\Server::is_apache();
-		$is_use_htaccess  = WRIO\WEBP\Server::server_use_htaccess();
-
-		if ( $is_rio_plugin && $is_settings_page ) {
-			if ( WRIO\WEBP\HTML\Delivery::should_use_converted_images() && WRIO\WEBP\HTML\Delivery::is_redirect_delivery_mode() ) {
-				if ( $is_apache && $is_use_htaccess ) {
-					WRIO\WEBP\Server::htaccess_update_webp_rules();
-				}
-
-				return;
-			}
-
-			if ( $is_apache && $is_use_htaccess ) {
-				WRIO\WEBP\Server::htaccess_clear_webp_rules();
-			}
-		}
-	},
-	10,
-	2
-);
