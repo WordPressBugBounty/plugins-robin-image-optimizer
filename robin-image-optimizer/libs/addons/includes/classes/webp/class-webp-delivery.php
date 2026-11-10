@@ -1,4 +1,9 @@
 <?php
+/**
+ * WebP and AVIF delivery in the HTML output.
+ *
+ * @package Robin_Image_Optimizer
+ */
 
 namespace WRIO\WEBP\HTML;
 
@@ -42,6 +47,8 @@ class Delivery {
 
 	/**
 	 * Initiate the class.
+	 *
+	 * @return void
 	 */
 	public function init() {
 
@@ -104,6 +111,8 @@ class Delivery {
 	}
 
 	/**
+	 * Check whether the redirect delivery mode is on.
+	 *
 	 * @return bool
 	 * @since  1.0.4
 	 */
@@ -112,6 +121,8 @@ class Delivery {
 	}
 
 	/**
+	 * Check whether the picture delivery mode is on.
+	 *
 	 * @return bool
 	 * @since  1.0.4
 	 */
@@ -120,6 +131,8 @@ class Delivery {
 	}
 
 	/**
+	 * Check whether the URL delivery mode is on.
+	 *
 	 * @return bool
 	 * @since  1.0.4
 	 */
@@ -147,6 +160,8 @@ class Delivery {
 	}
 
 	/**
+	 * Get the delivery mode.
+	 *
 	 * @return string
 	 * @since  1.0.4
 	 */
@@ -164,6 +179,7 @@ class Delivery {
 	 * Prints the layout rules of the picture tags in the head. Picturefill is gone: every browser since 2016 reads
 	 * <picture>, and an older one still shows the original image of the <img>.
 	 *
+	 * @return void
 	 * @since  1.0.4
 	 */
 	public function add_picture_fill_js() {
@@ -195,6 +211,8 @@ class Delivery {
 
 	/**
 	 * Process HTML template buffer.
+	 *
+	 * @return void
 	 */
 	public function process_buffer() {
 		// PHP forbids including files from inside an output buffer handler,
@@ -244,7 +262,6 @@ class Delivery {
 
 		// Don't do anything with the RSS feed.
 		if ( is_feed() || empty( $content ) || ! is_null( json_decode( $content ) ) ) {
-			// WRIO_Plugin::app()->logger->info( "Buffer content is empty, skipping processing" );
 			return $content;
 		}
 		if ( static::is_picture_delivery_mode() ) {
@@ -525,7 +542,9 @@ class Delivery {
 	}
 
 	/**
-	 * @param string $source_url
+	 * Check whether the URL points to the uploads folder.
+	 *
+	 * @param string $source_url Image URL.
 	 *
 	 * @return bool
 	 * @since  1.4.0
@@ -545,7 +564,9 @@ class Delivery {
 	}
 
 	/**
-	 * @param string $source_url
+	 * Check whether the URL has a JPEG or PNG extension.
+	 *
+	 * @param string $source_url Image URL.
 	 *
 	 * @return bool
 	 * @since  1.4.0
@@ -560,7 +581,9 @@ class Delivery {
 	}
 
 	/**
-	 * @param string $source_url
+	 * Check whether the URL points outside the site.
+	 *
+	 * @param string $source_url Image URL.
 	 *
 	 * @return bool
 	 * @since  1.4.0

@@ -1,4 +1,9 @@
 <?php
+/**
+ * Helper functions for the plugin.
+ *
+ * @package Robin_Image_Optimizer
+ */
 
 // Exit if accessed directly
 if ( ! defined( 'ABSPATH' ) ) {
@@ -31,31 +36,27 @@ function wrio_doing_rest_api() {
 	$rest_url    = wp_parse_url( site_url( $prefix ) );
 	$current_url = wp_parse_url( add_query_arg( [] ) );
 
-	return strpos( $current_url['path'] ?? '/', $rest_url['path'], 0 ) === 0;
+	return strpos( $current_url['path'] ?? '/', $rest_url['path'] ?? '', 0 ) === 0;
 }
 
 /**
+ * Checks whether the current request is an AJAX request.
+ *
  * @return bool
  * @since  1.3.6
  */
 function wrio_doing_ajax() {
-	if ( function_exists( 'wp_doing_ajax' ) ) {
-		return wp_doing_ajax();
-	}
-
-	return defined( 'DOING_AJAX' ) && DOING_AJAX;
+	return wp_doing_ajax();
 }
 
 /**
+ * Checks whether the current request is a cron request.
+ *
  * @return bool
  * @since  1.3.6
  */
 function wrio_doing_cron() {
-	if ( function_exists( 'wp_doing_cron' ) ) {
-		return wp_doing_cron();
-	}
-
-	return defined( 'DOING_CRON' ) && DOING_CRON;
+	return wp_doing_cron();
 }
 
 /**
@@ -173,7 +174,7 @@ function wrio_get_http_timeout( $timeout ) {
 /**
  * Convert full URL paths to absolute paths.
  *
- * @param string $url abs url https://site.com/wp-conent/uploads/10/05/image.jpeg
+ * @param string $url abs url https://site.com/wp-conent/uploads/10/05/image.jpeg.
  *
  * @return string|null abs path var/site.com/www/wp-conent/uploads/10/05/image.jpeg, if failure null
  * @since  1.4.0
@@ -186,7 +187,7 @@ function wrio_url_to_abs_path( $url ) {
 	if ( strpos( $url, '?' ) !== false ) {
 		$url_parts = explode( '?', $url );
 
-		if ( 2 == sizeof( $url_parts ) ) {
+		if ( 2 === count( $url_parts ) ) {
 			$url = $url_parts[0];
 		}
 	}
@@ -200,7 +201,7 @@ function wrio_url_to_abs_path( $url ) {
 /**
  * Convert relative urls to absolute
  *
- * @param string $url relative url /wp-conent/uploads/10/05/image.jpeg
+ * @param string $url relative url /wp-conent/uploads/10/05/image.jpeg.
  *
  * @return string abs url https://site.com/wp-conent/uploads/10/05/image.jpeg
  * @since  1.4.0
@@ -214,9 +215,9 @@ function wrio_rel_to_abs_url( $url ) {
 /**
  * Converts relative urls to absolute paths
  *
- * @param string $url relative url /wp-conent/uploads/10/05/image.jpeg
+ * @param string $url relative url /wp-conent/uploads/10/05/image.jpeg.
  *
- * @return string abs path var/site.com/www/wp-conent/uploads/10/05/image.jpeg
+ * @return string|null abs path var/site.com/www/wp-conent/uploads/10/05/image.jpeg
  * @since  1.4.0
  */
 function wrio_rel_url_to_abs_path( $url ) {
@@ -226,8 +227,10 @@ function wrio_rel_url_to_abs_path( $url ) {
 }
 
 /**
- * @param      $string
- * @param bool $capitalize_first_character
+ * Converts dashed words to camel case.
+ *
+ * @param string $string                     The string to convert.
+ * @param bool   $capitalize_first_character Whether to capitalize the first character.
  *
  * @return mixed|string
  * @since  1.1
@@ -244,19 +247,8 @@ function wrio_dashes_to_camel_case( $string, $capitalize_first_character = false
 }
 
 /**
- * Alternative php functions basename. Our function works with сyrillic file names.
+ * Checks whether the NextGEN Gallery plugin is active.
  *
- * @param string $str file path
- *
- * @return string|string[]|null
- * @since  1.3.0
- */
-/*
-function wrio_basename( $str ) {
-	return preg_replace( '/^.+[\\\\\\/]/', '', $str );
-}*/
-
-/**
  * @return bool
  * @since  1.3.0
  */
@@ -275,6 +267,7 @@ function wrio_is_active_nextgen_gallery() {
  * Writes each file when it is missing. Replaces an `.htaccess` only when the plugin wrote it:
  * it starts with the marker, or it is the old `deny from all` file of the logger.
  * nginx does not read `.htaccess`; it needs a server rule.
+ * Does nothing for a link: its target is not a folder of the plugin.
  *
  * @param string $dir Folder path.
  *
@@ -283,7 +276,7 @@ function wrio_is_active_nextgen_gallery() {
 function wrio_protect_dir( string $dir ): void {
 	$dir = trailingslashit( $dir );
 
-	if ( ! is_dir( $dir ) ) {
+	if ( is_link( untrailingslashit( $dir ) ) || ! is_dir( $dir ) ) {
 		return;
 	}
 
@@ -304,20 +297,31 @@ function wrio_protect_dir( string $dir ): void {
 }
 
 /**
- * @param string $dir
+ * Removes a directory and its contents.
+ *
+ * @param string $dir The directory to remove.
  *
  * @return bool
  * @since  1.1
  */
 function wrio_rmdir( $dir ) {
+	$dir = untrailingslashit( $dir );
+
+	if ( is_link( $dir ) ) {
+		// Remove only the directory entry; do not enter its target.
+		wp_delete_file( $dir );
+		clearstatcache( true, $dir );
+		return ! is_link( $dir );
+	}
+
 	if ( is_dir( $dir ) ) {
 		$scn = scandir( $dir );
 
 		foreach ( $scn as $files ) {
-			if ( $files !== '.' ) {
-				if ( $files !== '..' ) {
-					if ( ! is_dir( $dir . '/' . $files ) ) {
-						@unlink( $dir . '/' . $files );
+			if ( '.' !== $files ) {
+				if ( '..' !== $files ) {
+					if ( is_link( $dir . '/' . $files ) || ! is_dir( $dir . '/' . $files ) ) {
+						wp_delete_file( $dir . '/' . $files );
 					} else {
 						wrio_rmdir( $dir . '/' . $files );
 						if ( is_dir( $dir . '/' . $files ) ) {
@@ -329,7 +333,7 @@ function wrio_rmdir( $dir ) {
 		}
 		@rmdir( $dir );
 
-		return ! is_dir( $dir );
+		return ! file_exists( $dir );
 	}
 
 	return false;
@@ -341,9 +345,9 @@ function wrio_rmdir( $dir ) {
  * Пример: вводим 67894 байт, получаем 67.8 KB
  * Пример: вводим 6789477 байт, получаем 6.7 MB
  *
- * @param int $size размер файла в байтах
+ * @param int<0, max> $size размер файла в байтах.
  *
- * @return string
+ * @return 0|non-empty-string Zero for an empty size.
  */
 function wrio_convert_bytes( $size ) {
 	if ( ! $size ) {
@@ -359,23 +363,23 @@ function wrio_convert_bytes( $size ) {
 /**
  * Генерирует хеш строку
  *
- * @param int $length
+ * @param int<0, max> $length Length of the string.
  *
  * @return string
  */
 function wrio_generate_random_string( $length = 10 ) {
-	$characters       = '0123456789abcdefghiklmnopqrstuvwxyz';
-	$charactersLength = strlen( $characters );
-	$randomString     = '';
+	$characters        = '0123456789abcdefghiklmnopqrstuvwxyz';
+	$characters_length = strlen( $characters );
+	$random_string     = '';
 	for ( $i = 0; $i < $length; $i++ ) {
-		$randomString .= $characters[ rand( 0, $charactersLength - 1 ) ];
+		$random_string .= $characters[ wp_rand( 0, $characters_length - 1 ) ];
 	}
 
-	return $randomString;
+	return $random_string;
 }
 
 /**
- * in priorities checks its license.
+ * Checks its license in priorities.
  *
  * @return bool
  * @since  1.3.0
@@ -385,6 +389,7 @@ function wrio_is_license_activate() {
 }
 
 /**
+ * Whether the Clearfy license is active.
  *
  * @return bool
  * @since  1.3.0
@@ -410,7 +415,7 @@ function wrio_is_clearfy_license_activate() {
 }
 
 /**
- * checks its license in priorities.
+ * Checks its license in priorities.
  *
  * @return bool
  * @since  1.3.0
@@ -428,7 +433,7 @@ function wrio_is_license_active() {
 }
 
 /**
- * return it key.
+ * Returns the license key.
  *
  * @return string|null
  * @since  1.3.0
@@ -442,7 +447,9 @@ function wrio_get_license_key() {
 		if ( version_compare( WCL_PLUGIN_VERSION, '1.6.3', '>=' ) ) {
 			return WCL_Plugin::app()->premium->get_license()->get_key();
 		} else {
-			return WCL_Licensing::instance()->getStorage()->getLicense()->secret_key;
+			$license = WCL_Licensing::instance()->getStorage()->getLicense();
+
+			return $license ? $license->secret_key : null;
 		}
 	}
 
@@ -479,6 +486,8 @@ function wrio_get_license_source() {
 }
 
 /**
+ * Returns the Freemius plugin ID.
+ *
  * @return number|null
  * @since  1.3.0
  */
@@ -517,7 +526,7 @@ function wrio_load_media_functions() {
 /**
  * Get size information for all currently-registered image sizes.
  *
- * @return array $sizes Data for all currently-registered image sizes.
+ * @return array<string, array<string, mixed>> $sizes Data for all currently-registered image sizes.
  * @uses   get_intermediate_image_sizes()
  * @global $_wp_additional_image_sizes
  */
@@ -527,7 +536,7 @@ function wrio_get_image_sizes() {
 	$sizes = [];
 
 	foreach ( get_intermediate_image_sizes() as $_size ) {
-		if ( in_array( $_size, [ 'thumbnail', 'medium', 'medium_large', 'large' ] ) ) {
+		if ( in_array( $_size, [ 'thumbnail', 'medium', 'medium_large', 'large' ], true ) ) {
 			$sizes[ $_size ]['width']  = get_option( "{$_size}_size_w" );
 			$sizes[ $_size ]['height'] = get_option( "{$_size}_size_h" );
 			$sizes[ $_size ]['crop']   = (bool) get_option( "{$_size}_crop" );
@@ -547,7 +556,6 @@ function wrio_get_image_sizes() {
  * Check whether there are some migrations left to be processed.
  *
  * @return bool
- * @throws Exception
  * @since  1.3.0
  */
 function wbcr_rio_has_meta_to_migrate() {
@@ -602,6 +610,8 @@ function wbcr_rio_get_meta_to_migrate( $limit = 0 ) {
 }
 
 /**
+ * Returns the notice that asks to upgrade the database schema.
+ *
  * @return string
  * @since  1.3.0
  */
@@ -627,7 +637,9 @@ function wrio_processing_scope( string $scope ): string {
 }
 
 /**
- * @param string $scope
+ * Returns the processing class for a scope.
+ *
+ * @param string $scope Scope name.
  *
  * @return WRIO_Folder_Processing|WRIO_Media_Processing|WRIO_Media_Processing_Webp|WRIO_Media_Processing_Avif|WRIO_Nextgen_Processing|null
  */
@@ -949,7 +961,7 @@ function wrio_normalize_priority_attributes( $content ) {
 			// values are keywords (lazy, eager, high, low, auto), like HTML reads them.
 			if ( is_string( $value ) ) {
 				$tags->set_attribute( $name, strtolower( trim( $value ) ) );
-				$priority = $priority || 'fetchpriority' === $name;
+				$priority = $priority || ( 'fetchpriority' === $name && wrio_has_own_priority( $tags ) );
 			}
 		}
 	}
@@ -964,6 +976,94 @@ function wrio_normalize_priority_attributes( $content ) {
 }
 
 /**
+ * Hooks of the fetchpriority_first_image setting.
+ *
+ * @return void
+ */
+function wrio_register_fetchpriority_hooks() {
+	// Before wptexturize() (10), after do_blocks() (9): a ">" in a quoted value does not break the tag.
+	add_filter( 'the_content', 'wrio_escape_img_attribute_gt', 9 );
+	// Before wp_filter_content_tags() (12): WordPress then reads the existing attributes.
+	add_filter( 'the_content', 'wrio_normalize_priority_attributes', 11 );
+	// After core gave the hidden images fetchpriority="low": the Details filter runs at 10, the other blocks set
+	// it while they render.
+	foreach ( [ 'details', 'accordion-item', 'navigation' ] as $block ) {
+		add_filter( 'render_block_core/' . $block, 'wrio_mark_hidden_images', 11, 2 );
+	}
+	// After the block visibility support (10) gave the images of a block hidden on a screen size "auto".
+	add_filter( 'render_block', 'wrio_mark_hidden_images', 11, 2 );
+	// After wp_filter_content_tags() (12): an attribute that WordPress added stays.
+	add_filter( 'the_content', 'wrio_add_fetchpriority', 20 );
+	// The whole page decides: a priority that later content renders wins over the one Robin added.
+	add_action( 'template_redirect', 'wrio_start_priority_buffer' );
+}
+
+/**
+ * Attribute that marks an image whose fetchpriority value comes from WordPress for a hidden image, until the page
+ * buffer removes it.
+ */
+const WRIO_HIDDEN_MARKER = 'data-wrio-hidden';
+
+/**
+ * Marks each image whose fetchpriority value WordPress 7.0+ set because the image is hidden: "low" in a collapsed
+ * Details block or Accordion item, or in a navigation overlay, and "auto" in a block hidden on a screen size. That
+ * value does not come from the author. Only while the page buffer runs, as wrio_resolve_priority() removes the marker.
+ *
+ * @param string               $block_content Block HTML.
+ * @param array<string, mixed> $block         The block.
+ *
+ * @return string
+ */
+function wrio_mark_hidden_images( $block_content, $block ) {
+	if ( empty( $GLOBALS['wrio_priority_buffer'] ) ) {
+		return $block_content;
+	}
+
+	$attrs      = (array) $block['attrs'];
+	$navigation = 'core/navigation' === $block['blockName'];
+	$collapsed  = [
+		'core/details'        => empty( $attrs['showContent'] ),
+		'core/accordion-item' => empty( $attrs['openByDefault'] ),
+		'core/navigation'     => ! empty( $attrs['overlay'] ),
+	];
+	$hidden     = in_array( false, (array) ( $attrs['metadata']['blockVisibility']['viewport'] ?? [] ), true );
+	$low        = ! empty( $collapsed[ $block['blockName'] ] );
+
+	if ( ! $low && ! $hidden ) {
+		return $block_content;
+	}
+
+	// WordPress gives "low" only to the images of the overlay template part, which comes last in the Navigation
+	// block: a "low" value before it, such as on a logo in the menu, is the author's.
+	$in_overlay = ! $navigation;
+	$tags       = new WP_HTML_Tag_Processor( $block_content );
+	while ( $tags->next_tag() ) {
+		if ( $navigation && 'DIV' === $tags->get_tag() && $tags->has_class( 'wp-block-navigation__overlay-container' ) ) {
+			$in_overlay = true;
+		}
+
+		$value = $tags->get_attribute( 'fetchpriority' );
+		if ( 'IMG' === $tags->get_tag() && ( ( 'auto' === $value && $hidden ) || ( 'low' === $value && $low && $in_overlay ) ) ) {
+			$tags->set_attribute( WRIO_HIDDEN_MARKER, '1' );
+		}
+	}
+
+	return $tags->get_updated_html();
+}
+
+/**
+ * Whether the image at the tag sets a priority itself: it has a fetchpriority value that does not come from
+ * WordPress for a hidden image (see wrio_mark_hidden_images()).
+ *
+ * @param WP_HTML_Tag_Processor $tag Processor at an <img>, <source> or <picture> tag.
+ *
+ * @return bool
+ */
+function wrio_has_own_priority( WP_HTML_Tag_Processor $tag ) {
+	return null !== $tag->get_attribute( 'fetchpriority' ) && null === $tag->get_attribute( WRIO_HIDDEN_MARKER );
+}
+
+/**
  * Attribute that marks the fetchpriority="high" Robin added, until the page buffer reads the whole page.
  */
 const WRIO_PRIORITY_MARKER = 'data-wrio-priority';
@@ -971,8 +1071,9 @@ const WRIO_PRIORITY_MARKER = 'data-wrio-priority';
 /**
  * Adds fetchpriority="high" to the first eligible image of the page, when the setting fetchpriority_first_image is
  * on. The page is the main query: its posts in the order the loop shows them. The first eligible image is the first
- * <img> that is not lazy. The page gets no value when one of its images already has one, or when WordPress already
- * gave one, such as to the featured image. Picture delivery keeps the attribute on the <img> it wraps.
+ * <img> that is not lazy. The page gets no value when one of its images already has one; a value that WordPress gave
+ * outside the content, such as to the featured image, removes Robin's in wrio_resolve_priority(). Picture delivery
+ * keeps the attribute on the <img> it wraps.
  *
  * Each post of the loop runs this filter. A post without an eligible image (text only, or lazy images only) leaves
  * the choice to the next post; the filter goes away once the page has its value.
@@ -988,12 +1089,15 @@ function wrio_add_fetchpriority( $content ) {
 	}
 
 	// Only the posts of the main query: a related-posts loop inside it shares in_the_loop() and is_main_query().
-	if ( (int) get_the_ID() !== (int) ( $GLOBALS['wp_query']->post->ID ?? 0 ) ) {
+	$main_query = $GLOBALS['wp_query'] ?? null;
+	if ( (int) get_the_ID() !== ( $main_query instanceof WP_Query ? (int) ( $main_query->post->ID ?? 0 ) : 0 ) ) {
 		return $content;
 	}
 
-	// WordPress keeps one high value per page with this flag: false when it gave one, such as to a featured image.
-	if ( ! wp_high_priority_element_flag() || wrio_page_has_fetchpriority( $content ) ) {
+	// The flag of WordPress is not read: it is also false after a large image hidden on a screen size, which keeps its
+	// auto value. A high value outside the content, such as on a featured image, removes Robin's in
+	// wrio_resolve_priority().
+	if ( wrio_page_has_fetchpriority( $content ) ) {
 		remove_filter( 'the_content', 'wrio_add_fetchpriority', 20 );
 
 		return $content;
@@ -1003,7 +1107,8 @@ function wrio_add_fetchpriority( $content ) {
 	// spaces or capitals in loading = "Lazy" do not hide the value.
 	$images = new WP_HTML_Tag_Processor( $content );
 	while ( $images->next_tag( [ 'tag_name' => 'IMG' ] ) ) {
-		if ( 'lazy' !== strtolower( trim( (string) $images->get_attribute( 'loading' ) ) ) ) {
+		// An image with a value here is a hidden one (see wrio_has_own_priority()): it keeps the low or auto value WordPress gave it.
+		if ( 'lazy' !== strtolower( trim( (string) $images->get_attribute( 'loading' ) ) ) && null === $images->get_attribute( 'fetchpriority' ) ) {
 			$images->set_attribute( 'fetchpriority', 'high' );
 			// wrio_resolve_priority() reads the whole page: it removes this value when another image has one.
 			$images->set_attribute( WRIO_PRIORITY_MARKER, '1' );
@@ -1061,6 +1166,8 @@ function wrio_start_priority_buffer() {
 			return wrio_is_html_response( headers_list() ) ? wrio_resolve_priority( (string) $html ) : $html;
 		}
 	);
+	// wrio_mark_hidden_images() marks images only now: this buffer removes the markers.
+	$GLOBALS['wrio_priority_buffer'] = true;
 }
 
 /**
@@ -1081,40 +1188,38 @@ function wrio_is_html_response( array $headers ) {
 }
 
 /**
- * Keeps Robin's fetchpriority="high" only when no other image of the page has a value, and removes the marker that
- * wrio_add_fetchpriority() wrote. Other markup stays as it is.
+ * Keeps Robin's fetchpriority="high" only when no other image of the page has a value of its own: the hidden images
+ * that wrio_mark_hidden_images() marked do not count. Removes the markers of wrio_add_fetchpriority() and
+ * wrio_mark_hidden_images(). Other markup stays as it is.
  *
  * @param string $html The page.
  *
  * @return string
  */
 function wrio_resolve_priority( $html ) {
-	if ( false === strpos( $html, WRIO_PRIORITY_MARKER ) ) {
-		return $html;
-	}
+	if ( false !== strpos( $html, WRIO_PRIORITY_MARKER ) ) {
+		$other = false;
+		$page  = new WP_HTML_Tag_Processor( $html );
+		while ( ! $other && $page->next_tag() ) {
+			$other = in_array( $page->get_tag(), [ 'IMG', 'SOURCE', 'PICTURE' ], true )
+				&& null === $page->get_attribute( WRIO_PRIORITY_MARKER )
+				&& wrio_has_own_priority( $page );
+		}
 
-	$other = false;
-	$page  = new WP_HTML_Tag_Processor( $html );
-	while ( ! $other && $page->next_tag() ) {
-		$other = in_array( $page->get_tag(), [ 'IMG', 'SOURCE', 'PICTURE' ], true )
-			&& null !== $page->get_attribute( 'fetchpriority' )
-			&& null === $page->get_attribute( WRIO_PRIORITY_MARKER );
-	}
-
-	// The marker as wrio_add_fetchpriority() wrote it: the page keeps its bytes.
-	if ( ! $other ) {
-		return str_replace( ' ' . WRIO_PRIORITY_MARKER . '="1"', '', $html );
-	}
-
-	$tags = new WP_HTML_Tag_Processor( $html );
-	while ( $tags->next_tag( [ 'tag_name' => 'IMG' ] ) ) {
-		if ( null !== $tags->get_attribute( WRIO_PRIORITY_MARKER ) ) {
-			$tags->remove_attribute( WRIO_PRIORITY_MARKER );
-			$tags->remove_attribute( 'fetchpriority' );
+		if ( $other ) {
+			$tags = new WP_HTML_Tag_Processor( $html );
+			while ( $tags->next_tag( [ 'tag_name' => 'IMG' ] ) ) {
+				if ( null !== $tags->get_attribute( WRIO_PRIORITY_MARKER ) ) {
+					$tags->remove_attribute( WRIO_PRIORITY_MARKER );
+					$tags->remove_attribute( 'fetchpriority' );
+				}
+			}
+			$html = $tags->get_updated_html();
 		}
 	}
 
-	return $tags->get_updated_html();
+	// The markers as Robin wrote them: the page keeps its other bytes.
+	return str_replace( [ ' ' . WRIO_PRIORITY_MARKER . '="1"', ' ' . WRIO_HIDDEN_MARKER . '="1"' ], '', $html );
 }
 
 /**
@@ -1128,14 +1233,15 @@ function wrio_resolve_priority( $html ) {
  */
 function wrio_page_has_fetchpriority( $content ) {
 	// ponytail: reads every post of the loop again for each post without an eligible image; a page has few posts.
-	$html = $content;
-	foreach ( isset( $GLOBALS['wp_query']->posts ) ? (array) $GLOBALS['wp_query']->posts : [] as $post ) {
+	$html       = $content;
+	$main_query = $GLOBALS['wp_query'] ?? null;
+	foreach ( $main_query instanceof WP_Query ? (array) $main_query->posts : [] as $post ) {
 		$html .= wrio_with_synced_patterns( get_the_content( null, false, $post ) );
 	}
 
 	$page = new WP_HTML_Tag_Processor( $html );
 	while ( $page->next_tag( [ 'tag_name' => 'IMG' ] ) ) {
-		if ( null !== $page->get_attribute( 'fetchpriority' ) ) {
+		if ( wrio_has_own_priority( $page ) ) {
 			return true;
 		}
 	}
@@ -1168,7 +1274,9 @@ function wrio_cron_runs() {
 }
 
 /**
- * @param bool $for_sql
+ * Returns the allowed image formats, as a list or as an SQL string.
+ *
+ * @param bool $for_sql Whether to return the SQL string.
  *
  * @return string|array<string>
  */
@@ -1235,6 +1343,22 @@ function wrio_is_avif_available() {
 }
 
 /**
+ * A file path read from the database, or '' when PHP file functions refuse it (#491).
+ *
+ * A path with a null byte makes clearstatcache(), realpath(), unlink() and fopen() throw a ValueError on every
+ * PHP 8 version, and every file check (file_exists(), is_file(), filesize() ...) on PHP 8.0.0 and PHP 8.6. Pass a
+ * stored path through this function where it enters the plugin. Code that already treats '' as "no file" then
+ * handles it.
+ *
+ * @param mixed $path File path or file name, from metadata, a queue row or an option.
+ *
+ * @return string
+ */
+function wrio_file_path( $path ): string {
+	return is_string( $path ) && false === strpos( $path, "\0" ) ? $path : '';
+}
+
+/**
  * Read file size reliably within the current request.
  * PHP caches stat() results; we clear cache for this path.
  *
@@ -1243,7 +1367,9 @@ function wrio_is_avif_available() {
  * @return int
  */
 function wrio_get_file_size( $file_path ) {
-	if ( empty( $file_path ) || ! is_string( $file_path ) ) {
+	$file_path = wrio_file_path( $file_path );
+
+	if ( '' === $file_path ) {
 		return 0;
 	}
 
@@ -1391,12 +1517,15 @@ function wrio_error_message( $status, $code, array $context = [] ) {
 		'not_in_plan'            => sprintf( __( 'Your plan does not include %s.', 'robin-image-optimizer' ), $format ),
 		'invalid_license'        => __( 'The optimization server does not know your license key. Check the license on the License page.', 'robin-image-optimizer' ),
 		'file_too_large'         => isset( $context['limit'] )
-			// translators: %s is a file size such as 10 MB.
+			// translators: %s is the largest file size of the plan, for example "10 MB".
 			? sprintf( __( 'The file is larger than %s, the limit of your plan.', 'robin-image-optimizer' ), (string) size_format( (int) $context['limit'] ) )
 			: __( 'The file is larger than the limit of your plan.', 'robin-image-optimizer' ),
 		'image_too_large'        => isset( $context['megapixels'] )
-			// translators: %s is a number of megapixels.
-			? sprintf( __( 'The image has more than %s megapixels, the limit of your plan.', 'robin-image-optimizer' ), number_format_i18n( (float) $context['megapixels'] ) )
+			? sprintf(
+				// translators: %s is the largest number of megapixels of the plan, for example "40".
+				__( 'The image is larger than your plan allows (megapixel limit: %s).', 'robin-image-optimizer' ),
+				number_format_i18n( (float) $context['megapixels'] )
+			)
 			: __( 'The image has more pixels than the limit of your plan.', 'robin-image-optimizer' ),
 		'unsupported_media_type' => __( 'The optimization server does not support this file type.', 'robin-image-optimizer' ),
 		'corrupt_image'          => __( 'The image file is damaged and cannot be read.', 'robin-image-optimizer' ),

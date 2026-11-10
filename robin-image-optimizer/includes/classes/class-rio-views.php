@@ -1,10 +1,15 @@
 <?php
 /**
+ * Template loader of the plugin views.
+ *
+ * @package Robin_Image_Optimizer
+ */
+
+/**
  * Class that handles templates.
  *
  * @version       1.0
  */
-
 class WRIO_Views {
 
 	/**
@@ -12,11 +17,13 @@ class WRIO_Views {
 	 *
 	 * @since  1.3.0
 	 * @access protected
-	 * @var    array
+	 * @var    array<string, self>
 	 */
 	protected static $_instance = [];
 
 	/**
+	 * Plugin directory path.
+	 *
 	 * @since  1.3.0
 	 * @var string
 	 */
@@ -25,17 +32,19 @@ class WRIO_Views {
 	/**
 	 * WRIO_Views constructor.
 	 *
-	 * @param string $plugin_dir
+	 * @param string $plugin_dir Plugin directory path.
 	 */
 	public function __construct( $plugin_dir ) {
 		$this->plugin_dir = $plugin_dir;
 	}
 
 	/**
+	 * Get the instance for a plugin directory.
+	 *
 	 * @since  1.3.6 - add instace id
 	 * @since  1.3.0
 	 *
-	 * @param string $plugin_dir
+	 * @param string $plugin_dir Plugin directory path.
 	 *
 	 * @return object|\WRIO_Views object Main instance.
 	 */
@@ -85,6 +94,8 @@ class WRIO_Views {
 	 * @param string      $template   The template name.
 	 * @param mixed       $data       Some data to pass to the template.
 	 * @param object|null $page The page.
+	 *
+	 * @return void
 	 */
 	public function print_template( $template, $data = [], $page = null ) {
 		echo $this->get_template( $template, $data, $page ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- The template escapes its own output.

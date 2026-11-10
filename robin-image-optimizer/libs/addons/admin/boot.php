@@ -6,6 +6,7 @@
  * В этом файле должен быть размещен код, которые относится только к области администрирования.
  *
  * @version   1.0
+ * @package Robin_Image_Optimizer
  */
 
 // Exit if accessed directly

@@ -1,4 +1,9 @@
 <?php
+/**
+ * Attachment optimization logic.
+ *
+ * @package Robin_Image_Optimizer
+ */
 
 // Exit if accessed directly
 if ( ! defined( 'ABSPATH' ) ) {
@@ -13,32 +18,44 @@ if ( ! defined( 'ABSPATH' ) ) {
 class WIO_Attachment {
 
 	/**
+	 * Attachment ID.
+	 *
 	 * @var int
 	 */
 	private $id;
 
 
 	/**
-	 * @var array meta-данные
+	 * Attachment metadata.
+	 *
+	 * @var array<string, mixed>
 	 */
 	private $attachment_meta;
 
 	/**
-	 * @var array массив с данными о папке uploads
+	 * Upload directory data.
+	 *
+	 * @var array{path: string, url: string, subdir: string, basedir: string, baseurl: string, error: string|false} массив с данными о папке uploads
 	 */
 	private $wp_upload_dir;
 
 	/**
+	 * URL of the attachment file.
+	 *
 	 * @var string
 	 */
 	private $url;
 
 	/**
+	 * Server path of the attachment file.
+	 *
 	 * @var string
 	 */
 	private $path;
 
 	/**
+	 * Optimization data of the attachment.
+	 *
 	 * @var RIO_Process_Queue
 	 */
 	private $optimization_data;
@@ -46,15 +63,16 @@ class WIO_Attachment {
 	/**
 	 * Инициализация аттачмента
 	 *
-	 * @param int         $attachment_id   Номер аттачмента из медиабиблиотеки
-	 * @param array|false $attachment_meta метаданные аттачмента. Ключи массива аналогичны функции wp_get_attachment_metadata
+	 * @param int                        $attachment_id   Номер аттачмента из медиабиблиотеки.
+	 * @param array<string, mixed>|false $attachment_meta Метаданные аттачмента. Ключи массива аналогичны функции wp_get_attachment_metadata.
 	 */
 	public function __construct( $attachment_id, $attachment_meta = false ) {
-		$this->id              = $attachment_id;
-		$this->wp_upload_dir   = wp_upload_dir();
-		$this->attachment_meta = $attachment_meta;
+		$this->id            = $attachment_id;
+		$this->wp_upload_dir = wp_upload_dir();
 
-		if ( ! $attachment_meta ) {
+		if ( $attachment_meta ) {
+			$this->attachment_meta = $attachment_meta;
+		} else {
 			// some meta can be missing due to: https://wordpress.stackexchange.com/q/330174/149161
 			// False when the attachment has no metadata: keep the empty array of the property type.
 			$meta                  = wp_get_attachment_metadata( $this->id );
@@ -65,6 +83,8 @@ class WIO_Attachment {
 	}
 
 	/**
+	 * Whether the attachment metadata has a file.
+	 *
 	 * @return bool
 	 * @since  1.3.9
 	 */
@@ -73,10 +93,14 @@ class WIO_Attachment {
 	}
 
 	/**
+	 * Set the URL and the server path of the attachment file.
+	 *
+	 * @return void
 	 * @since  1.3.9
 	 */
 	public function set_paths() {
-		if ( ! $this->isset_attachment_meta() ) {
+		// A file that PHP refuses (a null byte) gets no path: the image fails as a missing file.
+		if ( ! $this->isset_attachment_meta() || '' === wrio_file_path( $this->attachment_meta['file'] ) ) {
 			return;
 		}
 
@@ -86,10 +110,15 @@ class WIO_Attachment {
 
 	/**
 	 * Актуализирует мета данные аттачмента и загружает актуальные мета данные и данные по оптимизации из базы.
+	 *
+	 * @param array<string, mixed> $attachment_meta Attachment metadata, empty to load it from the database.
+	 *
+	 * @return void
 	 */
 	public function reload( $attachment_meta = [] ) {
 		if ( empty( $attachment_meta ) ) {
-			$attachment_meta = wp_get_attachment_metadata( $this->id );
+			$meta            = wp_get_attachment_metadata( $this->id );
+			$attachment_meta = is_array( $meta ) ? $meta : [];
 		}
 		$this->attachment_meta   = $attachment_meta;
 		$this->optimization_data = new RIO_Process_Queue(
@@ -126,7 +155,7 @@ class WIO_Attachment {
 		// Need to remove this filter, as it would start recursion
 		remove_filter( 'wp_generate_attachment_metadata', 'WRIO_Media_Library::optimize_after_upload' );
 
-		$file_path = get_attached_file( $this->id );
+		$file_path = wrio_file_path( get_attached_file( $this->id ) );
 
 		if ( empty( $file_path ) ) {
 			$attachment = get_post( $this->id );
@@ -169,6 +198,8 @@ class WIO_Attachment {
 	 * Добавляем сообщение в лог файл.
 	 *
 	 * @param string $message Текст сообщения об ошибке.
+	 *
+	 * @return void
 	 */
 	public function writeLog( $message ) {
 
@@ -213,7 +244,7 @@ class WIO_Attachment {
 	/**
 	 * Возвращает объект с информацией о конвертации в указанный формат
 	 *
-	 * @param string $format Format to get conversion data for ('webp' or 'avif')
+	 * @param string $format Format to get conversion data for ('webp' or 'avif').
 	 *
 	 * @return RIO_Process_Queue
 	 */
@@ -308,7 +339,7 @@ class WIO_Attachment {
 			}
 
 			if ( empty( $this->path ) || ! file_exists( $this->path ) ) {
-				$error_message = __( 'Attachment cannot be optimized.', 'robin-image-optimizer' ) . ' ' . ( empty( $this->path )
+				$error_message = __( 'Attachment cannot be optimized.', 'robin-image-optimizer' ) . ' ' . ( ! $this->isset_attachment_meta()
 					// translators: %d is the attachment ID
 					? sprintf( __( 'Attachment #%d doesn\'t have metadata, the image may be damaged.', 'robin-image-optimizer' ), $this->id )
 					// translators: %s is the file path
@@ -449,7 +480,7 @@ class WIO_Attachment {
 		if ( 'optimization' === $kind ) {
 			$code = $error instanceof WP_Error ? \WRIO\Storage\Store::error_outcome( $error )['code'] : '';
 		} else {
-			$code = 'path' === $kind ? ( empty( $this->path ) ? 'no_metadata' : 'missing_file' ) : $kind . '_failed';
+			$code = 'path' === $kind ? ( $this->isset_attachment_meta() ? 'missing_file' : 'no_metadata' ) : $kind . '_failed';
 			// The optimizer saved the state rows of an optimization failure. Other failures happen before it.
 			\WRIO\Storage\Store::fail( $this->state_item(), (string) $this->path, $code );
 		}
@@ -612,7 +643,7 @@ class WIO_Attachment {
 	/**
 	 * Возвращает все размеры аттачмента, которые нужно оптимизировать
 	 *
-	 * @return array|false
+	 * @return non-empty-list<string>|false
 	 */
 	public function getAllowedSizes() {
 		$allowed_sizes = WRIO_Plugin::app()->getPopulateOption( 'allowed_sizes_thumbnail', 'thumbnail,medium' );
@@ -629,7 +660,7 @@ class WIO_Attachment {
 	/**
 	 * Возвращает свойство аттачмента
 	 *
-	 * @param string $property имя свойства
+	 * @param string $property имя свойства.
 	 *
 	 * @return mixed
 	 */
@@ -644,7 +675,7 @@ class WIO_Attachment {
 	/**
 	 * Возвращает URL изображения по указанному размеру
 	 *
-	 * @param string $size - размер изображения(thumbnail,medium,large...)
+	 * @param string $size - размер изображения(thumbnail,medium,large...).
 	 *
 	 * @return string|null
 	 */
@@ -662,16 +693,21 @@ class WIO_Attachment {
 	/**
 	 * Возвращает путь к изображению по указанному размеру.
 	 *
-	 * @param string $size Размер изображения (thumbnail, medium, large ...)
+	 * @param string $size Размер изображения (thumbnail, medium, large ...).
 	 *
-	 * @return string Путь до изображения.
+	 * @return string|null Путь до изображения, null если размера нет.
 	 */
 	public function getImageSizePath( $size = 'thumbnail' ) {
 		if ( ! isset( $this->attachment_meta['sizes'][ $size ] ) ) {
 			return null;
 		}
 
-		$file = $this->attachment_meta['sizes'][ $size ]['file'];
+		$file = wrio_file_path( $this->attachment_meta['sizes'][ $size ]['file'] ?? '' );
+
+		if ( '' === $file || empty( $this->path ) ) {
+			return null;
+		}
+
 		$path = str_replace( wp_basename( $this->path ), $file, $this->path );
 
 		return $path;
@@ -725,7 +761,7 @@ class WIO_Attachment {
 	/**
 	 * Возвращает метаданные аттачмента
 	 *
-	 * @return array
+	 * @return array<string, mixed>
 	 */
 	public function getMetaData() {
 		return $this->attachment_meta;
@@ -784,7 +820,7 @@ class WIO_Attachment {
 		$resize_result = $image->resize( $new_width, $new_height, false );
 
 		if ( is_wp_error( $resize_result ) ) {
-			$this->writeLog( sprintf( 'Resize error: %s. Details: %s', $resize_result->get_error_messages(), $log_message ) );
+			$this->writeLog( sprintf( 'Resize error: %s. Details: %s', implode( '; ', $resize_result->get_error_messages() ), $log_message ) );
 
 			return false;
 		}
@@ -792,7 +828,7 @@ class WIO_Attachment {
 		$save_result = $image->save( $this->path );
 
 		if ( is_wp_error( $save_result ) ) {
-			$this->writeLog( sprintf( 'Failed to save resized error in db: %s, Details: %s', $save_result->get_error_messages(), $log_message ) );
+			$this->writeLog( sprintf( 'Failed to save resized error in db: %s, Details: %s', implode( '; ', $save_result->get_error_messages() ), $log_message ) );
 
 			return false;
 		}

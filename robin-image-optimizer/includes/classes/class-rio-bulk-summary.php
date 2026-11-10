@@ -66,7 +66,7 @@ class WRIO_Bulk_Summary {
 
 		foreach ( $ids as $id ) {
 			$files = ( new WIO_Attachment( $id ) )->get_files();
-			$file  = (string) get_attached_file( $id );
+			$file  = wrio_file_path( get_attached_file( $id ) );
 
 			// Without metadata the run makes it first, then optimizes the main file and the new sizes.
 			if ( empty( $files ) && '' !== $file ) {
@@ -97,7 +97,8 @@ class WRIO_Bulk_Summary {
 			}
 
 			foreach ( $files as $size => $file ) {
-				foreach ( array_merge( $file['optimize'] ? [ 'optimized' ] : [], $targets ) as $output ) {
+				// Spread, not array_merge(): PHPStan's bleeding edge loses 'optimized' in the type of the merge.
+				foreach ( [ ...( $file['optimize'] ? [ 'optimized' ] : [] ), ...$targets ] as $output ) {
 					if ( ( $picked[ $output ] ?? false ) && self::requested( $item[ $size . '|' . $output ] ?? null, $file['path'] ) ) {
 						$work[ $size ][] = $output;
 					}

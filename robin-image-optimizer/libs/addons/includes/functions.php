@@ -3,6 +3,7 @@
  * Supporting functions for premium plugin
  *
  * @version       1.0
+ * @package Robin_Image_Optimizer
  */
 
 /**
@@ -12,13 +13,13 @@
  * @return string|bool An absolute path. False if it can't be retrieved.
  */
 function wrio_get_ngg_galleries_path() {
-	$galleries_path = get_site_option( 'ngg_options' );
+	$ngg_options = get_site_option( 'ngg_options' );
 
-	if ( empty( $galleries_path['gallerypath'] ) ) {
+	if ( ! is_array( $ngg_options ) || '' === wrio_file_path( $ngg_options['gallerypath'] ?? null ) ) {
 		return false;
 	}
 
-	$galleries_path = wp_normalize_path( $galleries_path['gallerypath'] );
+	$galleries_path = wp_normalize_path( $ngg_options['gallerypath'] );
 	$galleries_path = trim( $galleries_path, '/' ); // Something like `wp-content/gallery`.
 
 	$ngg_root = defined( 'NGG_GALLERY_ROOT_TYPE' ) ? NGG_GALLERY_ROOT_TYPE : 'site';
@@ -56,7 +57,7 @@ function wrio_get_ngg_galleries_path() {
  *
  * @since  1.0.4
  * @access public
- * @return string An absolute path.
+ * @return string|null An absolute path, null when the upload directory has an error.
  */
 function wrio_get_wc_logs_path() {
 	if ( defined( 'WC_LOG_DIR' ) ) {
@@ -65,7 +66,7 @@ function wrio_get_wc_logs_path() {
 
 	$wp_upload_dir = wp_upload_dir();
 
-	if ( isset( $wp_upload_dir['error'] ) && $wp_upload_dir['error'] !== false ) {
+	if ( isset( $wp_upload_dir['error'] ) && false !== $wp_upload_dir['error'] ) {
 		return null;
 	}
 
@@ -95,7 +96,7 @@ function wrio_get_ewww_tools_path() {
  *
  * @since  1.0.4
  * @access public
- * @return string An absolute path.
+ * @return string|null An absolute path, null when the upload directory has an error.
  */
 function wrio_get_shortpixel_path() {
 	if ( defined( 'SHORTPIXEL_BACKUP_FOLDER' ) ) {
@@ -104,7 +105,7 @@ function wrio_get_shortpixel_path() {
 
 	$wp_upload_dir = wp_upload_dir();
 
-	if ( isset( $wp_upload_dir['error'] ) && $wp_upload_dir['error'] !== false ) {
+	if ( isset( $wp_upload_dir['error'] ) && false !== $wp_upload_dir['error'] ) {
 		return null;
 	}
 
@@ -117,9 +118,9 @@ function wrio_get_shortpixel_path() {
  * Whether an optimized custom-folder or NextGEN image only waits for a conversion: its files are done and
  * unchanged. A bulk run converts it to the formats that were turned on later, and does not optimize it again.
  *
- * @param 'cf_image'|'nextgen'               $source    cf_image or nextgen.
- * @param int                                $object_id Item ID.
- * @param array<string, array{path: string}> $files     Files by size name, as get_files() of the image.
+ * @param 'cf_image'|'nextgen'                                                                    $source    cf_image or nextgen.
+ * @param int                                                                                     $object_id Item ID.
+ * @param array<string, array{path: string, url?: string, optimize?: bool, object_id?: int|null}> $files     Files by size name, as get_files() of the image.
  *
  * @return bool
  */

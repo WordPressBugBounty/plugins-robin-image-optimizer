@@ -1,4 +1,9 @@
 <?php
+/**
+ * Aggregated optimization and conversion statistics.
+ *
+ * @package Robin_Image_Optimizer
+ */
 
 // Exit if accessed directly
 if ( ! defined( 'ABSPATH' ) ) {
@@ -9,6 +14,10 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Класс для работы со статистическими данными по оптимизации изображений
  *
  * @version       1.0
+ *
+ * @phpstan-type LogRow array{run_id: string, object_id: numeric-string, size_name: string, status: string, code: string, detail: string|null, outputs: string|null, details?: array<string, string>}
+ *
+ * @phpstan-consistent-constructor
  */
 class WRIO_Image_Statistic {
 
@@ -22,7 +31,7 @@ class WRIO_Image_Statistic {
 	 *
 	 * @since  1.3.0
 	 * @access protected
-	 * @var    static
+	 * @var    static|null
 	 */
 	protected static $_instance;
 
@@ -112,6 +121,11 @@ class WRIO_Image_Statistic {
 	 *     save_size_percent: float,
 	 *     error: int,
 	 *     webp_error: int,
+	 *     avif_converted: int,
+	 *     avif_unconverted: int,
+	 *     avif_percent_line: float,
+	 *     avif_error: int,
+	 *     avif_optimized_size: int|string,
 	 * }
 	 */
 	public function get() {
@@ -384,11 +398,11 @@ class WRIO_Image_Statistic {
 	}
 
 	/**
-	 * non-converted images
+	 * Non-converted images.
 	 *
 	 * @param string $format Target format: 'webp' or 'avif'. Default 'webp'.
 	 *
-	 * @return array
+	 * @return int[]
 	 *
 	 * @since  1.5.3
 	 */
@@ -440,9 +454,9 @@ class WRIO_Image_Statistic {
 	/**
 	 * Возвращает результат последних оптимизаций изображений
 	 *
-	 * @param int $limit By default - 100. If limit=0, then no limit
+	 * @param int $limit By default - 100. If limit=0, then no limit.
 	 *
-	 * @return array {
+	 * @return list<array<string, mixed>> {
 	 *     Параметры
 	 * @type string $id id
 	 * @type string $file_name Имя файла
@@ -510,8 +524,8 @@ class WRIO_Image_Statistic {
 	 * Get the last optimized image record for a specific attachment.
 	 * Uses the same data source as get_last_optimized_images() for consistency.
 	 *
-	 * @param int                       $attachment_id Attachment ID.
-	 * @param array<string, mixed>|null $logged        Its latest history row from last_logged(). Null: read it.
+	 * @param int         $attachment_id Attachment ID.
+	 * @param LogRow|null $logged        Its latest history row from last_logged(). Null: read it.
 	 *
 	 * @return array<int, array<string, mixed>>
 	 * @since  1.3.9
@@ -587,7 +601,7 @@ class WRIO_Image_Statistic {
 	 *
 	 * @phpstan-param 'attachment'|'cf_image'|'nextgen' $source
 	 *
-	 * @return array<int, array<string, mixed>> History rows, with "details": the server explanation of each failed file, by size.
+	 * @return array<int, LogRow> History rows, with "details": the server explanation of each failed file, by size.
 	 */
 	protected static function last_logged( $source, $limit, $object_id = 0 ) {
 		global $wpdb;
@@ -700,8 +714,8 @@ class WRIO_Image_Statistic {
 	/**
 	 * A log entry with the result of its history row: the entry is an error when an output failed in that attempt.
 	 *
-	 * @param array<string, mixed>      $entry Log entry.
-	 * @param array<string, mixed>|null $row   History row (see last_logged()). Null: the item has no history, the entry stays.
+	 * @param array<string, mixed> $entry Log entry.
+	 * @param LogRow|null          $row   History row (see last_logged()). Null: the item has no history, the entry stays.
 	 *
 	 * @return array<string, mixed>
 	 */
@@ -722,9 +736,9 @@ class WRIO_Image_Statistic {
 		$fallbacks   = $failures ? [ $explanation( $row['detail'] ?? '' ) ] : [];
 
 		foreach ( (array) json_decode( (string) $row['outputs'], true ) as $output => $result ) {
-			if ( in_array( $result['status'] ?? '', [ \WRIO\Storage\Store::FAILED, \WRIO\Storage\Store::MISSING ], true ) ) {
+			if ( is_array( $result ) && in_array( $result['status'] ?? '', [ \WRIO\Storage\Store::FAILED, \WRIO\Storage\Store::MISSING ], true ) ) {
 				$failures[]  = [ $result['status'], (string) ( $result['code'] ?? '' ), [ 'format' => (string) ( $result['format'] ?? $output ) ] ];
-				$fallbacks[] = $explanation( is_array( $details ) ? ( $details[ (string) ( $result['size'] ?? $row['size_name'] ?? '' ) ] ?? '' ) : ( $row['detail'] ?? '' ) );
+				$fallbacks[] = $explanation( is_array( $details ) ? ( $details[ (string) ( $result['size'] ?? $row['size_name'] ) ] ?? '' ) : ( $row['detail'] ?? '' ) );
 			}
 		}
 
@@ -750,9 +764,12 @@ class WRIO_Image_Statistic {
 	}
 
 	/**
-	 * @param int    $object_id
+	 * Get the converted image records of an attachment.
+	 *
+	 * @param int    $object_id Attachment ID.
 	 * @param string $format Format type: 'webp' or 'avif'. Default 'webp'.
 	 *
+	 * @return list<array<string, mixed>>
 	 * @since  1.3.9
 	 */
 	public function get_last_converted_image( $object_id, $format = 'webp' ) {
@@ -815,9 +832,9 @@ class WRIO_Image_Statistic {
 			'original_url'        => null,
 			'thumbnail_url'       => null,
 			'file_name'           => null,
-			'original_size'       => size_format( $original_size, 2 ),
+			'original_size'       => size_format( (int) $original_size, 2 ),
 			'original_size_bytes' => $original_size,
-			'optimized_size'      => size_format( $final_size, 2 ),
+			'optimized_size'      => size_format( (int) $final_size, 2 ),
 			'type'                => 'success',
 			'webp_size'           => null,
 			'avif_size'           => null,
@@ -837,9 +854,9 @@ class WRIO_Image_Statistic {
 			$formatted_data['converted_from'] = $extra_data->get_converted_from_size();
 
 			if ( 'avif' === $item_type ) {
-				$formatted_data['avif_size'] = size_format( $final_size, 2 );
+				$formatted_data['avif_size'] = size_format( (int) $final_size, 2 );
 			} else {
-				$formatted_data['webp_size'] = size_format( $final_size, 2 );
+				$formatted_data['webp_size'] = size_format( (int) $final_size, 2 );
 			}
 
 			if ( $extra_data->get_thumbnails_count() ) {
@@ -848,7 +865,7 @@ class WRIO_Image_Statistic {
 		} else {
 			// For attachment type, use WordPress attachment metadata
 			$upload_dir      = wp_upload_dir();
-			$attachment_meta = wp_get_attachment_metadata( $object_id );
+			$attachment_meta = wp_get_attachment_metadata( (int) $object_id );
 
 			if ( ! empty( $attachment_meta['file'] ) ) {
 				$image_url                       = trailingslashit( $upload_dir['baseurl'] ) . $attachment_meta['file'];
@@ -911,7 +928,9 @@ class WRIO_Image_Statistic {
 		}
 
 		/**
-		 * @var RIO_Attachment_Extra_Data $extra_data
+		 * Extra data of the queue item.
+		 *
+		 * @var RIO_Attachment_Extra_Data|null $extra_data
 		 */
 		$extra_data = $queue_model->get_extra_data();
 
@@ -935,7 +954,7 @@ class WRIO_Image_Statistic {
 
 		$upload_dir = wp_upload_dir();
 
-		$attachment_meta = wp_get_attachment_metadata( $queue_model->get_object_id() );
+		$attachment_meta = wp_get_attachment_metadata( (int) $queue_model->get_object_id() );
 		$formated_data   = [];
 
 		if ( ! empty( $attachment_meta['file'] ) ) {
@@ -957,9 +976,9 @@ class WRIO_Image_Statistic {
 					'original_url'   => $image_url . $converted_extension,
 					'thumbnail_url'  => $thumbnail_url,
 					'file_name'      => wp_basename( $attachment_meta['file'] ) . $converted_extension,
-					'original_size'  => size_format( $queue_model->get_original_size(), 2 ),
+					'original_size'  => size_format( (int) $queue_model->get_original_size(), 2 ),
 					'optimized_size' => '-',
-					$size_field_name => size_format( $queue_model->get_final_size(), 2 ),
+					$size_field_name => size_format( (int) $queue_model->get_final_size(), 2 ),
 				],
 				$default_formated_data
 			);
@@ -1028,9 +1047,9 @@ class WRIO_Image_Statistic {
 	 * Пример: вводим 67894 байт, получаем 67.8 KB
 	 * Пример: вводим 6789477 байт, получаем 6.7 MB
 	 *
-	 * @param int $size размер файла в байтах
+	 * @param int<0, max> $size размер файла в байтах.
 	 *
-	 * @return string
+	 * @return 0|non-empty-string
 	 */
 	public function convertToReadableSize( $size ) {
 		return wrio_convert_bytes( $size );
@@ -1039,8 +1058,8 @@ class WRIO_Image_Statistic {
 	/**
 	 * Get the main/full size conversion record for an attachment
 	 *
-	 * @param int    $object_id Attachment ID
-	 * @param string $format    'webp' or 'avif'
+	 * @param int    $object_id Attachment ID.
+	 * @param string $format    'webp' or 'avif'.
 	 *
 	 * @return RIO_Process_Queue|null
 	 */
@@ -1074,7 +1093,7 @@ class WRIO_Image_Statistic {
 		foreach ( $models as $model ) {
 			if ( ! empty( $model['extra_data'] ) ) {
 				$extra_data = json_decode( $model['extra_data'], true );
-				if ( isset( $extra_data['converted_from_size'] ) && $extra_data['converted_from_size'] === 'original' ) {
+				if ( is_array( $extra_data ) && isset( $extra_data['converted_from_size'] ) && 'original' === $extra_data['converted_from_size'] ) {
 					return new RIO_Process_Queue( $model );
 				}
 			}
@@ -1276,13 +1295,20 @@ class WRIO_Image_Statistic {
 	 * @return array{id: int, file_name: string, url: string, thumbnail_url: string, original_url: string}
 	 */
 	protected function failure_item( int $id ): array {
-		$file = get_attached_file( $id );
+		$file = wrio_file_path( get_attached_file( $id ) );
+
+		try {
+			$thumbnail_url = (string) wp_get_attachment_image_url( $id, 'thumbnail' );
+		} catch ( \ValueError $e ) {
+			// WordPress throws on a stored file name with a null byte (#491). The image is still listed, as a missing file.
+			$thumbnail_url = '';
+		}
 
 		return [
 			'id'            => $id,
 			'file_name'     => $file ? wp_basename( $file ) : get_the_title( $id ),
 			'url'           => (string) get_edit_post_link( $id, 'raw' ),
-			'thumbnail_url' => (string) wp_get_attachment_image_url( $id, 'thumbnail' ),
+			'thumbnail_url' => $thumbnail_url,
 			'original_url'  => (string) wp_get_attachment_url( $id ),
 		];
 	}

@@ -95,9 +95,6 @@ class WRIO_Actions {
 	 */
 	public static function clear_backup() {
 		$backup = WIO_Backup::get_instance();
-		if ( ! $backup instanceof WIO_Backup ) {
-			return [ 'cleared' => false ];
-		}
 
 		if ( ! $backup->removeBackupDir() ) {
 			return new WP_Error(

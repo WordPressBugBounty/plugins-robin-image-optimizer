@@ -415,6 +415,11 @@ class Optimizer {
 			$level = WRIO_Plugin::app()->getPopulateOption( 'image_optimization_level', 'normal' );
 		}
 
+		// A filter can return anything: the default level then.
+		if ( ! is_string( $level ) && ! is_int( $level ) ) {
+			$level = 'normal';
+		}
+
 		if ( 'custom' === $level ) {
 			return (int) WRIO_Plugin::app()->getPopulateOption( 'image_optimization_level_custom', wrio_get_default( 'image_optimization_level_custom' ) );
 		}
@@ -911,8 +916,12 @@ class Optimizer {
 
 			return Client::error(
 				'invalid_download',
-				// translators: 1: size in bytes, 2: image type such as image/webp.
-				sprintf( __( 'The downloaded file is not the optimized image (%1$d bytes, type "%2$s").', 'robin-image-optimizer' ), strlen( $contents ), $type ),
+				sprintf(
+					// translators: 1: size in bytes, 2: image type such as image/webp.
+					__( 'The downloaded file is not the optimized image (size in bytes: %1$d, type: "%2$s").', 'robin-image-optimizer' ),
+					strlen( $contents ),
+					$type
+				),
 				[ 'retryable' => true ]
 			);
 		}
@@ -976,10 +985,12 @@ class Optimizer {
 	 * @return OutputResult
 	 */
 	private static function failed( WP_Error $error ) {
+		$data = $error->get_error_data();
+
 		return [
 			'status' => 'failed',
 			'error'  => [
-				'code'   => (string) ( $error->get_error_data()['code'] ?? $error->get_error_code() ),
+				'code'   => is_array( $data ) && is_scalar( $data['code'] ?? null ) ? (string) $data['code'] : (string) $error->get_error_code(),
 				'detail' => $error->get_error_message(),
 			],
 		];

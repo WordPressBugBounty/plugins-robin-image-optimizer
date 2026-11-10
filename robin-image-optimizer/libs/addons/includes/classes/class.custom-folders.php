@@ -1,4 +1,9 @@
 <?php
+/**
+ * Custom folders: optimization, restore and the Other Media page.
+ *
+ * @package Robin_Image_Optimizer
+ */
 
 // Exit if accessed directly
 if ( ! defined( 'ABSPATH' ) ) {
@@ -9,6 +14,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Класс для работы с кастомными папками
  *
  * @version       1.0
+ *
+ * @phpstan-consistent-constructor
  */
 class WRIO_Custom_Folders {
 
@@ -17,16 +24,20 @@ class WRIO_Custom_Folders {
 	 *
 	 * @since  1.3.0
 	 * @access protected
-	 * @var    object
+	 * @var    static|null
 	 */
 	protected static $_instance;
 
 	/**
+	 * Custom folders by UID.
+	 *
 	 * @var WRIO_Folder[]
 	 */
 	private $folders = [];
 
 	/**
+	 * Folder images by image ID.
+	 *
 	 * @var WRIO_Folder_Image[]
 	 */
 	private $folder_images = [];
@@ -47,7 +58,9 @@ class WRIO_Custom_Folders {
 	}
 
 	/**
-	 * @return object|\WRIO_Custom_Folders object Main instance.
+	 * Get the single instance of the class.
+	 *
+	 * @return static Main instance.
 	 * @since  1.3.0
 	 */
 	public static function get_instance() {
@@ -60,6 +73,8 @@ class WRIO_Custom_Folders {
 
 	/**
 	 * Object init.
+	 *
+	 * @return void
 	 */
 	public function init() {
 
@@ -78,9 +93,13 @@ class WRIO_Custom_Folders {
 
 		add_action( 'admin_menu', [ $this, 'add_media_page' ] );
 		add_action( 'admin_enqueue_scripts', [ $this, 'media_page_assets' ] );
-		add_action( 'wbcr/rio/optimize_template/optimized_percent', [ $this, 'optimizedPercent' ], 10, 2 );
 	}
 
+	/**
+	 * Register the Other Media submenu page.
+	 *
+	 * @return void
+	 */
 	public function add_media_page() {
 		add_submenu_page(
 			'upload.php',
@@ -95,14 +114,26 @@ class WRIO_Custom_Folders {
 		);
 	}
 
+	/**
+	 * Enqueue the assets of the Other Media page.
+	 *
+	 * @param string $hook Current admin page hook.
+	 *
+	 * @return void
+	 */
 	public function media_page_assets( $hook ) {
-		if ( 'media_page_rio-custom-media' == $hook ) {
+		if ( 'media_page_rio-custom-media' === $hook ) {
 			wp_enqueue_style( 'wio-install-addons', WRIO_PLUGIN_URL . '/admin/assets/css/media.css', [], WRIO_Plugin::app()->getPluginVersion() );
 			wp_enqueue_style( 'wriop-other-media', WRIOP_PLUGIN_URL . '/admin/assets/css/other-media.css', [], WRIO_Plugin::app()->getPluginVersion() );
 			WRIO_App::enqueue_script( 'wio-install-addons', 'single-optimization' );
 		}
 	}
 
+	/**
+	 * Render the Other Media page.
+	 *
+	 * @return void
+	 */
 	public function custom_media_page() {
 		if ( ! class_exists( 'WP_List_Table' ) ) {
 			require_once ABSPATH . 'wp-admin/includes/class-wp-list-table.php';
@@ -119,7 +150,7 @@ class WRIO_Custom_Folders {
 	 *
 	 * @param string $uid Folder sha256 hash.
 	 *
-	 * @return bool|WRIO_Folder
+	 * @return WRIO_Folder|false
 	 */
 	public function getFolder( $uid ) {
 		if ( isset( $this->folders[ $uid ] ) ) {
@@ -432,7 +463,9 @@ class WRIO_Custom_Folders {
 	}
 
 	/**
-	 * Saved all folders in options.
+	 * Save all folders to options.
+	 *
+	 * @return void
 	 */
 	public function saveFolders() {
 		$folders = [];
@@ -445,8 +478,8 @@ class WRIO_Custom_Folders {
 	/**
 	 * Возвращает объект image
 	 *
-	 * @param int         $image_id
-	 * @param array|false $image_meta
+	 * @param int                        $image_id   Image ID.
+	 * @param array<string, mixed>|false $image_meta Image metadata, or false.
 	 *
 	 * @return WRIO_Folder_Image
 	 */
@@ -461,16 +494,17 @@ class WRIO_Custom_Folders {
 	/**
 	 * Оптимизирует cf_image
 	 *
-	 * @param int    $image_id номер картинки в таблице nextgen
-	 * @param string $level качество
+	 * @param int    $image_id Custom folder image ID.
+	 * @param string $level    Optimization level.
 	 *
-	 * @return array
+	 * @return array<string, mixed>
 	 */
 	public function optimizeImage( $image_id, $level = '' ) {
 		$cf_image = $this->getImage( $image_id );
 
-		// The queue row was deleted after the image was queued: the image has no path (WRIO_Folder_Image::__construct()).
-		if ( '' === $cf_image->get( 'path' ) ) {
+		// The queue row was deleted after the image was queued: it has no extra data (WRIO_Folder_Image::__construct()).
+		// A path that PHP refuses is empty too, but goes on to validate_path(), which saves the failure.
+		if ( ! $cf_image->getOptimizationData()->get_extra_data() instanceof WRIO_CF_Image_Extra_Data ) {
 			WRIO_Plugin::app()->logger->warning( sprintf( 'Skipped custom folder image #%d: its queue row does not exist.', $image_id ) );
 
 			return [
@@ -525,9 +559,9 @@ class WRIO_Custom_Folders {
 	/**
 	 * Обработка неоптимизированных изображений
 	 *
-	 * @param int $max_process_per_request кол-во аттачментов за 1 запуск
+	 * @param int $max_process_per_request Number of images per request.
 	 *
-	 * @return array|\WP_Error
+	 * @return array<string, mixed>|\WP_Error
 	 */
 	public function processUnoptimizedImages( $max_process_per_request = 5 ) {
 
@@ -568,32 +602,28 @@ class WRIO_Custom_Folders {
 			];
 		}
 
-		$folder_images_count = count( $folder_images );
-		$optimized_count     = 0;
-		$optimized_items     = [];
+		$optimized_count = 0;
+		$optimized_items = [];
 
 		// обработка
-		if ( $folder_images_count ) {
-			foreach ( $folder_images as $folder_image ) {
-				// Only a record that was never saved has no ID: the query reads saved rows.
-				if ( null === $folder_image->id ) {
-					continue;
-				}
-
-				if ( $optimized_count > 0 && ! wrio_has_time_left() ) {
-					$folder_images_count = $optimized_count;
-					break;
-				}
-
-				$result = $this->optimizeImage( $folder_image->id );
-
-				if ( ! empty( $result['stop'] ) ) {
-					return $result['stop'];
-				}
-
-				++$optimized_count;
-				$optimized_items[ $folder_image->id ] = $folder_image;
+		foreach ( $folder_images as $folder_image ) {
+			// Only a record that was never saved has no ID: the query reads saved rows.
+			if ( null === $folder_image->id ) {
+				continue;
 			}
+
+			if ( $optimized_count > 0 && ! wrio_has_time_left() ) {
+				break;
+			}
+
+			$result = $this->optimizeImage( $folder_image->id );
+
+			if ( ! empty( $result['stop'] ) ) {
+				return $result['stop'];
+			}
+
+			++$optimized_count;
+			$optimized_items[ $folder_image->id ] = $folder_image;
 		}
 
 		// Counted again: an image whose request failed stays to do.
@@ -617,9 +647,9 @@ class WRIO_Custom_Folders {
 	 * Восстановление из резервной копии
 	 *
 	 * @param int $folder_uid Folder id.
-	 * @param int $max_process_per_request кол-во аттачментов за 1 запуск
+	 * @param int $max_process_per_request Number of images per request.
 	 *
-	 * @return array
+	 * @return array<string, mixed>
 	 */
 	public function restoreFolderFromBackup( $folder_uid, $max_process_per_request = 5 ) {
 		WRIO_Plugin::app()->updatePopulateOption( 'cron_running', false ); // останавливаем крон
@@ -653,7 +683,11 @@ class WRIO_Custom_Folders {
 					}
 
 					$folder = $this->getFolder( $cf_image->get( 'folder_uid' ) );
-					$folder->reCountOptimizedFiles();
+
+					// A folder removed since the restore started has nothing to count.
+					if ( $folder ) {
+						$folder->reCountOptimizedFiles();
+					}
 				}
 			}
 			$this->saveFolders();
@@ -679,13 +713,13 @@ class WRIO_Custom_Folders {
 	/**
 	 * Хук возвращает ajax action для кнопки оптимизации.
 	 *
-	 * @param string $action
-	 * @param string $type
+	 * @param string $action Current AJAX action name.
+	 * @param string $type   Admin page type.
 	 *
 	 * @return string
 	 */
 	public function optimizeAjaxAction( $action, $type ) {
-		if ( $type == 'custom-folders' ) {
+		if ( 'custom-folders' === $type ) {
 			return 'wriop_process_cf_images';
 		}
 
@@ -695,13 +729,13 @@ class WRIO_Custom_Folders {
 	/**
 	 * Хук возвращает ajax action для кнопки переоптимизации.
 	 *
-	 * @param string $action
-	 * @param string $type
+	 * @param string $action Current AJAX action name.
+	 * @param string $type   Admin page type.
 	 *
 	 * @return string
 	 */
 	public function reoptimizeAjaxAction( $action, $type ) {
-		if ( $type == 'custom-folders' ) {
+		if ( 'custom-folders' === $type ) {
 			return 'wio_cf_reoptimize_image';
 		}
 
@@ -711,13 +745,13 @@ class WRIO_Custom_Folders {
 	/**
 	 * Хук возвращает ajax action для кнопки восстановления.
 	 *
-	 * @param string $action
-	 * @param string $type
+	 * @param string $action Current AJAX action name.
+	 * @param string $type   Admin page type.
 	 *
 	 * @return string
 	 */
 	public function restoreAjaxAction( $action, $type ) {
-		if ( $type == 'custom-folders' ) {
+		if ( 'custom-folders' === $type ) {
 			return 'wio_cf_restore_image';
 		}
 
@@ -746,11 +780,15 @@ class WRIO_Custom_Folders {
 	/**
 	 * Возвращает блок оптимизации.
 	 *
-	 * @param int $image_id
+	 * @param int|null $image_id Image ID, or null for a queue row that was never saved.
 	 *
 	 * @return string
 	 */
 	public function getMediaColumnContent( $image_id ) {
+		if ( null === $image_id ) {
+			return '';
+		}
+
 		$media_library = WRIO_Media_Library::get_instance();
 		$params        = $this->calculateParams( $image_id );
 		$status        = ( new WRIO_Folder_Image( $image_id ) )->getOptimizationData()->get_result_status();
@@ -763,13 +801,13 @@ class WRIO_Custom_Folders {
 	/**
 	 * Просчитывает параметры блока оптимизации
 	 *
-	 * @param int $image_id номер изображения nextgen
+	 * @param int $image_id Custom folder image ID.
 	 *
-	 * @return array $params
+	 * @return array<string, mixed>
 	 */
 	public function calculateParams( $image_id ) {
 		$cf_image             = new WRIO_Folder_Image( $image_id );
-		$isOptimized          = $cf_image->isOptimized();
+		$is_optimized         = $cf_image->isOptimized();
 		$diff_percent         = 0;
 		$diff_percent_all     = 0;
 		$original_main_size   = 0;
@@ -779,9 +817,11 @@ class WRIO_Custom_Folders {
 		$optimization_level   = '';
 		$error_msg            = '';
 		$backuped             = '';
-		if ( $isOptimized ) {
+		if ( $is_optimized ) {
 			$optimization_data = $cf_image->getOptimizationData();
 			/**
+			 * Extra data of the optimization.
+			 *
 			 * @var WRIO_CF_Image_Extra_Data $extra_data
 			 */
 			$extra_data           = $optimization_data->get_extra_data();
@@ -792,10 +832,10 @@ class WRIO_Custom_Folders {
 			$original_size        = $optimization_data->get_original_size();
 			$backuped             = $optimization_data->get_is_backed_up();
 			$error_msg            = $extra_data->get_error_msg();
-			if ( $attachment_file_size and $original_main_size ) {
+			if ( $attachment_file_size && $original_main_size ) {
 				$diff_percent = round( ( $original_main_size - $attachment_file_size ) * 100 / $original_main_size );
 			}
-			if ( $optimized_size and $original_size ) {
+			if ( $optimized_size && $original_size ) {
 				$diff_percent_all = round( ( $original_size - $optimized_size ) * 100 / $original_size );
 			}
 		} elseif ( RIO_Process_Queue::STATUS_ERROR === $cf_image->getOptimizationData()->get_result_status() ) {
@@ -805,7 +845,7 @@ class WRIO_Custom_Folders {
 		}
 		$params = [
 			'attachment_id'        => $image_id,
-			'is_optimized'         => $isOptimized,
+			'is_optimized'         => $is_optimized,
 			'attach_dimensions'    => 0,
 			'attachment_file_size' => $attachment_file_size,
 			'optimized_size'       => $optimized_size,
@@ -825,28 +865,9 @@ class WRIO_Custom_Folders {
 	}
 
 	/**
-	 * Возвращает процент оптимизации
-	 * Фильтр wbcr/rio/optimize_template/optimized_percent
-	 *
-	 * @param int    $percent процент оптимизации
-	 * @param string $type тип страницы
-	 *
-	 * @return int процент оптимизации
-	 */
-	public function optimizedPercent( $percent, $type ) {
-		if ( 'custom-folders' == $type ) {
-			$image_statistics = WRIO_Image_Statistic_Folders::get_instance();
-
-			return $image_statistics->getOptimizedPercent();
-		}
-
-		return $percent;
-	}
-
-	/**
 	 * Get ID's of unoptimized attachments
 	 *
-	 * @return array
+	 * @return list<int|null>
 	 */
 	public function getUnoptimizedImages() {
 		$image_statistics = WRIO_Image_Statistic_Folders::get_instance();
@@ -962,10 +983,7 @@ class WRIO_Custom_Folders {
 	 */
 	public static function scan_step( $uid, $offset, $total ) {
 		$folders = self::get_instance();
-		if ( ! $folders instanceof WRIO_Custom_Folders ) {
-			return new WP_Error( 'wrio_not_available', __( 'Custom folders are not available.', 'robin-image-optimizer' ), [ 'status' => 501 ] );
-		}
-		$folder = $folders->getFolder( (string) $uid );
+		$folder  = $folders->getFolder( (string) $uid );
 		if ( ! $folder instanceof WRIO_Folder ) {
 			return new WP_Error( 'wrio_bad_request', __( 'Folder not found.', 'robin-image-optimizer' ), [ 'status' => 404 ] );
 		}

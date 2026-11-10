@@ -143,6 +143,11 @@ class WRIO_Logger {
 		$content     = PHP_EOL . implode( PHP_EOL, $this->lines );
 		$this->lines = [];
 
+		// No log file: the folder is a link that could not be removed.
+		if ( '' === $this->get_dir() ) {
+			return false;
+		}
+
 		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents, WordPress.PHP.NoSilencedErrors.Discouraged
 		return false !== @file_put_contents( $this->get_dir(), $content, FILE_APPEND );
 	}
@@ -165,11 +170,17 @@ class WRIO_Logger {
 	 *
 	 * The name is kept from the Factory logger, which callers still use.
 	 *
-	 * @return string
+	 * @return string An empty string when the log folder is a link that could not be removed.
 	 */
 	public function get_dir() {
 		$base_dir = $this->get_base_dir();
-		$file     = $base_dir . 'app.log';
+
+		// A linked folder that could not be removed: no file, so nothing is read or written behind the link.
+		if ( is_link( untrailingslashit( $base_dir ) ) ) {
+			return '';
+		}
+
+		$file = $base_dir . 'app.log';
 
 		if ( file_exists( $file ) && filesize( $file ) >= self::ROTATE_SIZE ) {
 			for ( $i = self::ROTATE_LIMIT; $i >= 0; $i-- ) {
@@ -205,6 +216,22 @@ class WRIO_Logger {
 
 		$legacy = $logs . 'wbcr_image_optimizer';
 
+		// The target of a link is not a folder of the plugin: remove the link, do not read or write behind it.
+		foreach ( [ untrailingslashit( $path ), $legacy ] as $dir ) {
+			if ( is_link( $dir ) ) {
+				wp_delete_file( $dir );
+			}
+		}
+
+		// Nothing is merged behind a linked logs folder or a link that could not be removed: the folders there are not
+		// known to be of the plugin.
+		$foreign = is_link( untrailingslashit( $logs ) ) || is_link( $legacy ) || is_link( untrailingslashit( $path ) );
+
+		// The keyed folder is made first, so the old folder is not renamed to it.
+		if ( $foreign ) {
+			wp_mkdir_p( $path );
+		}
+
 		if ( ! file_exists( $path ) ) {
 			// phpcs:ignore WordPress.WP.AlternativeFunctions.rename_rename, WordPress.PHP.NoSilencedErrors.Discouraged
 			if ( ! is_dir( $legacy ) || ! @rename( $legacy, untrailingslashit( $path ) ) ) {
@@ -212,7 +239,7 @@ class WRIO_Logger {
 			}
 		}
 
-		if ( is_dir( $legacy ) ) {
+		if ( ! $foreign && is_dir( $legacy ) ) {
 			// One request merges at a time. Another request could remove the old folder while a moved log still has to
 			// go back into it. A request that does not get the lock leaves the old folder for a later call.
 			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen, WordPress.PHP.NoSilencedErrors.Discouraged
@@ -289,7 +316,8 @@ class WRIO_Logger {
 	 * @return string[]
 	 */
 	public function get_all() {
-		$files = glob( $this->get_base_dir() . '*.log' );
+		$dir   = $this->get_base_dir();
+		$files = is_link( untrailingslashit( $dir ) ) ? [] : glob( $dir . '*.log' );
 
 		return false === $files ? [] : $files;
 	}
@@ -386,7 +414,7 @@ class WRIO_Logger {
 		$active      = [];
 
 		foreach ( (array) get_option( 'active_plugins', [] ) as $plugin ) {
-			if ( isset( $all_plugins[ $plugin ] ) ) {
+			if ( is_string( $plugin ) && isset( $all_plugins[ $plugin ] ) ) {
 				$active[] = sprintf( '%s (%s)', $all_plugins[ $plugin ]['Name'], $all_plugins[ $plugin ]['Version'] );
 			}
 		}

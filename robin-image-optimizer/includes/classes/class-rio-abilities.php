@@ -154,7 +154,7 @@ class WRIO_Abilities {
 				'label'               => __( 'Optimize media', 'robin-image-optimizer' ),
 				'description'         => sprintf(
 					// translators: %d is the maximum number of attachments per call.
-					__( 'Optimize selected media library images. Without profile and format the images are queued for background optimization with the saved settings (poll robin/get-job with the returned job_id). With a profile the images are re-optimized immediately at that compression mode; with a format (webp or avif) they are converted immediately. Works in time-boxed chunks: while done is false, call again with the same input and the returned cursor. Max %d images.', 'robin-image-optimizer' ),
+					__( 'Optimize selected media library images. Without profile and format the images are queued for background optimization with the saved settings (poll robin/get-job with the returned job_id). With a profile the images are re-optimized immediately at that compression mode; with a format (webp or avif) they are converted immediately. Works in time-boxed chunks: while done is false, call again with the same input and the returned cursor. Images per call: %d at most.', 'robin-image-optimizer' ),
 					self::MAX_ITEMS
 				),
 				'category'            => self::CATEGORY,
@@ -207,7 +207,7 @@ class WRIO_Abilities {
 				'label'               => __( 'Restore original images', 'robin-image-optimizer' ),
 				'description'         => sprintf(
 					// translators: %d is the maximum number of attachments per call.
-					__( 'Restore optimized media library images from their backups. Only images optimized while "backup originals" was enabled can be restored. Works in time-boxed chunks: while done is false, call again with the same input and the returned cursor. Max %d images.', 'robin-image-optimizer' ),
+					__( 'Restore optimized media library images from their backups. Only images optimized while "backup originals" was enabled can be restored. Works in time-boxed chunks: while done is false, call again with the same input and the returned cursor. Images per call: %d at most.', 'robin-image-optimizer' ),
 					self::MAX_ITEMS
 				),
 				'category'            => self::CATEGORY,
@@ -1076,7 +1076,9 @@ class WRIO_Abilities {
 			return $test;
 		}
 
-		return self::run_route( 'delivery_test_finish', [ 'id' => (string) ( $test['id'] ?? '' ) ] );
+		$id = is_array( $test ) && is_string( $test['id'] ?? null ) ? $test['id'] : '';
+
+		return self::run_route( 'delivery_test_finish', [ 'id' => $id ] );
 	}
 
 	/**
@@ -1515,7 +1517,7 @@ class WRIO_Abilities {
 				'current' => $offset,
 				'total'   => $total,
 				// translators: %1$d is the number of processed images, %2$d is the total number of images.
-				'message' => sprintf( __( '%1$d of %2$d images processed.', 'robin-image-optimizer' ), $offset, $total ),
+				'message' => sprintf( _n( '%1$d of %2$d image processed.', '%1$d of %2$d images processed.', $total, 'robin-image-optimizer' ), $offset, $total ),
 			],
 		];
 	}
@@ -1839,7 +1841,7 @@ class WRIO_Abilities {
 				'current' => $total - $pending,
 				'total'   => $total,
 				// translators: %1$d is the number of processed images, %2$d is the total number of images.
-				'message' => sprintf( __( '%1$d of %2$d images processed.', 'robin-image-optimizer' ), $total - $pending, $total ),
+				'message' => sprintf( _n( '%1$d of %2$d image processed.', '%1$d of %2$d images processed.', $total, 'robin-image-optimizer' ), $total - $pending, $total ),
 			],
 			'complete' => 0 === $pending,
 			'counts'   => $counts,

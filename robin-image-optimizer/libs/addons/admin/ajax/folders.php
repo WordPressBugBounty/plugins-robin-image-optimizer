@@ -19,9 +19,6 @@ add_action(
 		$backup               = WRIOP_Backup::get_instance();
 		$backup_origin_images = WRIO_Plugin::app()->getPopulateOption( 'backup_origin_images', wrio_get_default( 'backup_origin_images' ) );
 		$cf                   = WRIO_Custom_Folders::get_instance();
-		if ( ! $backup instanceof WRIOP_Backup || ! $cf instanceof WRIO_Custom_Folders ) {
-			wp_send_json_error( [ 'message' => 'Unavailable' ], 500 );
-		}
 
 		if ( $backup_origin_images && ! $backup->isBackupWritable() ) {
 			echo $cf->getMediaColumnContent( $image_id ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- The column template escapes its own output.
@@ -60,10 +57,7 @@ add_action(
 		wp_suspend_cache_addition( true );
 		$image_id = isset( $_POST['id'] ) ? (int) $_POST['id'] : 0;
 
-		$cf = WRIO_Custom_Folders::get_instance();
-		if ( ! $cf instanceof WRIO_Custom_Folders ) {
-			wp_send_json_error( [ 'message' => 'Unavailable' ], 500 );
-		}
+		$cf       = WRIO_Custom_Folders::get_instance();
 		$cf_image = $cf->getImage( $image_id );
 		if ( $cf_image->isOptimized() ) {
 			$restored = $cf_image->restore();

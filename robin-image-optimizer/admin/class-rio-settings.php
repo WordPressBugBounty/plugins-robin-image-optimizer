@@ -433,7 +433,7 @@ class WRIO_Settings {
 	 */
 	public static function backup_stats() {
 		$backup = WIO_Backup::get_instance();
-		$dir    = $backup instanceof WIO_Backup ? $backup->getBackupDir() : '';
+		$dir    = $backup->getBackupDir();
 		$size   = 0;
 
 		if ( is_string( $dir ) && is_dir( $dir ) ) {
@@ -441,6 +441,9 @@ class WRIO_Settings {
 				// Full directory walk; cache the total if large backup folders make this slow.
 				$files = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $dir, FilesystemIterator::SKIP_DOTS ) );
 				foreach ( $files as $file ) {
+					if ( ! $file instanceof SplFileInfo ) {
+						continue;
+					}
 					// The deny files of wrio_protect_dir() are not backups.
 					if ( in_array( $file->getFilename(), [ '.htaccess', 'index.php' ], true ) ) {
 						continue;
@@ -622,7 +625,7 @@ class WRIO_Settings {
 			return $value ? 1 : 0;
 		}
 		if ( 'list' === $field['type'] ) {
-			return implode( ',', $value );
+			return implode( ',', (array) $value );
 		}
 
 		return $value;

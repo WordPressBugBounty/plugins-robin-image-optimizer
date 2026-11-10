@@ -1,4 +1,9 @@
 <?php
+/**
+ * Image backup and restore.
+ *
+ * @package Robin_Image_Optimizer
+ */
 
 // Exit if accessed directly
 if ( ! defined( 'ABSPATH' ) ) {
@@ -9,6 +14,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Класс для работы с резервным копированием изображений.
  *
  * @version       1.0
+ *
+ * @phpstan-consistent-constructor
  */
 class WIO_Backup {
 
@@ -20,12 +27,14 @@ class WIO_Backup {
 	 *
 	 * @since  1.3.0
 	 * @access protected
-	 * @var    object
+	 * @var    static|null
 	 */
 	protected static $_instance;
 
 	/**
-	 * @var array Данные о папке uploads, возвращаемые функцией wp_upload_dir()
+	 * Upload folder data returned by wp_upload_dir().
+	 *
+	 * @var array{path: string, url: string, subdir: string, basedir: string, baseurl: string, error: string|false}
 	 */
 	protected $wp_upload_dir;
 
@@ -59,12 +68,15 @@ class WIO_Backup {
 	protected $checked_backup_folder = '';
 
 	/**
-	 * @var string Путь к папке с резервными копиями изображений
+	 * Path to the folder with the image backups.
+	 *
+	 * @var string
 	 */
 	private $backup_dir;
 
 	/**
-	 * @since  1.3.0
+	 * Path to the backup folder of the current site.
+	 *
 	 * @var string
 	 */
 	private $blog_backup_dir;
@@ -77,9 +89,9 @@ class WIO_Backup {
 	}
 
 	/**
-	 * @since  1.3.0
+	 * Get the single instance of the class.
 	 *
-	 * @return object|\static object Main instance.
+	 * @return static Main instance.
 	 */
 	public static function get_instance() {
 		if ( ! isset( static::$_instance ) ) {
@@ -132,6 +144,10 @@ class WIO_Backup {
 
 		$backup_dir = wp_normalize_path( trailingslashit( $this->wp_upload_dir['basedir'] ) . self::BACKUP_DIR_NAME );
 
+		if ( self::link_error( $backup_dir ) ) {
+			return self::link_error( $backup_dir );
+		}
+
 		if ( ! is_dir( $backup_dir ) ) {
 			$backup_dir = $this->mkdir( $backup_dir );
 
@@ -143,6 +159,9 @@ class WIO_Backup {
 		wrio_protect_dir( $backup_dir );
 
 		$backup_dir = apply_filters( 'wbcr/rio/backup/backup_dir', trailingslashit( $backup_dir ) ); // phpcs:ignore WordPress.NamingConventions.ValidHookName.UseUnderscores -- public filter name, renaming it breaks existing filters.
+		if ( self::link_error( $backup_dir ) ) {
+			return self::link_error( $backup_dir );
+		}
 		if ( ! is_dir( $backup_dir ) ) {
 			$backup_dir = $this->mkdir( $backup_dir );
 			if ( is_wp_error( $backup_dir ) ) {
@@ -186,12 +205,46 @@ class WIO_Backup {
 	}
 
 	/**
+	 * The error of a backup folder that is a link: its target is not a folder of the plugin, so nothing is read,
+	 * written or deleted behind it.
+	 *
+	 * @param string $dir Folder.
+	 *
+	 * @return WP_Error|null
+	 */
+	private static function link_error( $dir ) {
+		return is_link( untrailingslashit( $dir ) ) ? new WP_Error( 'backup_root_is_link', __( 'The backup folder is a link.', 'robin-image-optimizer' ), $dir ) : null;
+	}
+
+	/**
+	 * Deletes a backup file. Not behind a link out of the backup folder: that file is not a backup.
+	 *
+	 * @param string $backup_file Backup file.
+	 *
+	 * @return void
+	 */
+	public function delete_backup( string $backup_file ) {
+		$backup_dir = $this->getBackupDir();
+
+		if ( ! is_wp_error( $backup_dir ) && self::is_inside( $backup_file, $backup_dir ) ) {
+			wp_delete_file( $backup_file );
+		}
+	}
+
+	/**
 	 * Очищает папку с резервными копиями
 	 *
 	 * @return bool
 	 */
 	public function removeBackupDir() {
 		$backup_dir = $this->getBackupDir();
+
+		if ( is_wp_error( $backup_dir ) ) {
+			$link = $backup_dir->get_error_data( 'backup_root_is_link' );
+
+			// wrio_rmdir() removes the link, not its target.
+			return is_string( $link ) && wrio_rmdir( $link );
+		}
 
 		return wrio_rmdir( $backup_dir );
 	}
@@ -211,12 +264,20 @@ class WIO_Backup {
 	/**
 	 * Получает путь к папке с резервными копиями
 	 *
-	 * @param array $attachment_meta   метаданные аттачмента
+	 * @param array<string, mixed> $attachment_meta Attachment metadata.
 	 *
 	 * @return string|WP_Error The folder, or the error when it cannot be created.
 	 */
 	public function getAttachmentBackupDir( $attachment_meta ) {
 		$backup_dir = $this->getBackupDir();
+
+		if ( is_wp_error( $backup_dir ) ) {
+			return $backup_dir;
+		}
+
+		if ( '' === wrio_file_path( $attachment_meta['file'] ?? null ) ) {
+			return new WP_Error( 'backup_path_invalid', __( 'The attachment has no valid file path.', 'robin-image-optimizer' ) );
+		}
 
 		// Get all subfolders in which the image is stored.
 		// This is necessary to create an alternate subfolders
@@ -239,7 +300,7 @@ class WIO_Backup {
 	/**
 	 * Делаем резервную копию аттачмента
 	 *
-	 * @param WIO_Attachment $wio_attachment   аттачмент
+	 * @param WIO_Attachment $wio_attachment Attachment.
 	 *
 	 * @return bool|WP_Error
 	 */
@@ -285,7 +346,7 @@ class WIO_Backup {
 	/**
 	 * Восстанавливаем аттачмент из резервной копии
 	 *
-	 * @param WIO_Attachment $wio_attachment   аттачмент
+	 * @param WIO_Attachment $wio_attachment Attachment.
 	 *
 	 * @return bool|WP_Error
 	 */
@@ -505,9 +566,9 @@ class WIO_Backup {
 	 *
 	 * @since  1.1.2
 	 *
-	 * @param string $file_path   путь к изображению
+	 * @param string $file_path Path to the image.
 	 *
-	 * @return array|WP_Error
+	 * @return array{id: string, image_path: string, image_url: string}|WP_Error
 	 */
 	public function createTempAttachment( $file_path ) {
 		if ( $this->isBackupWritable() ) {
@@ -555,7 +616,7 @@ class WIO_Backup {
 	 * Резервное копирование файла аттачмента.
 	 *
 	 * @param WIO_Attachment $wio_attachment   аттачмент.
-	 * @param string         $image_size       Размер(thumbnail, medium ... ).
+	 * @param string         $image_size Image size name, for example thumbnail or medium.
 	 * @param bool           $recorded         The queue row of the attachment says that it is backed up.
 	 *
 	 * @return bool|WP_Error The error "backup_copy_failed" when the copy is not complete.
@@ -654,7 +715,8 @@ class WIO_Backup {
 				return new WP_Error( 'backup_copy_failed', sprintf( __( 'Could not back up %s.', 'robin-image-optimizer' ), wp_basename( $original_file ) ) );
 			}
 		} finally {
-			$source = null;
+			// Closes the source file.
+			unset( $source );
 
 			if ( $temp_file && is_file( $temp_file ) ) {
 				wp_delete_file( $temp_file );
@@ -771,8 +833,8 @@ class WIO_Backup {
 	/**
 	 * The backup of the main file or of a size. Nothing is copied yet.
 	 *
-	 * @param WIO_Attachment $wio_attachment   аттачмент
-	 * @param string|null    $image_size       Размер(thumbnail, medium ... )
+	 * @param WIO_Attachment $wio_attachment Attachment.
+	 * @param string|null    $image_size Image size name, for example thumbnail or medium.
 	 *
 	 * @return array{0: string, 1: string, 2: array{0: int, 1: int}|false, 3: array{0: int, 1: int}|false, 4: string}|false|WP_Error
 	 *         The backup file, the file it restores, and what the check found for them (see $checked_source), or
@@ -851,15 +913,16 @@ class WIO_Backup {
 			return null;
 		}
 
-		$backup_path = $backup_dir . $filename;
+		$backup_path = wrio_file_path( $backup_dir . $filename );
 
-		return file_exists( $backup_path ) ? $backup_path : null;
+		// Not a file behind a link out of the backup folder: the AVIF estimate uploads this file.
+		return '' !== $backup_path && file_exists( $backup_path ) && $this->is_safe_backup( $backup_path ) ? $backup_path : null;
 	}
 
 	/**
 	 * Удаляем резервные копии аттачмента
 	 *
-	 * @param int $attachment_id   аттачмент id
+	 * @param int $attachment_id Attachment ID.
 	 *
 	 * @return bool|WP_Error
 	 */
@@ -880,15 +943,16 @@ class WIO_Backup {
 			$files = array_merge( $files, wp_list_pluck( $attachment_meta['sizes'], 'file' ) );
 		}
 
-		// Sizes can share one file. A size that was not optimized (not in the thumbnail setting) has no backup.
-		foreach ( array_unique( $files ) as $file ) {
+		// Sizes can share one file. A size that was not optimized (not in the thumbnail setting) has no backup, and
+		// neither has a size whose name PHP refuses (a null byte).
+		foreach ( array_unique( array_map( 'wrio_file_path', $files ) ) as $file ) {
 			$backup_file = $backup_dir . $file;
 
-			if ( ! is_file( $backup_file ) ) {
+			if ( '' === $file || ! is_file( $backup_file ) ) {
 				continue;
 			}
 
-			wp_delete_file( $backup_file );
+			$this->delete_backup( $backup_file );
 
 			if ( file_exists( $backup_file ) ) {
 				WRIO_Plugin::app()->logger->error( sprintf( 'Failed to delete backup file %s of attachment #%s', $backup_file, $attachment_id ) );
@@ -899,11 +963,11 @@ class WIO_Backup {
 	}
 
 	/**
-	 * alternateStorage
+	 * Pass the alternate storage servers through unchanged.
 	 *
-	 * @param array $servers
+	 * @param array<int|string, mixed> $servers Storage servers.
 	 *
-	 * @return array
+	 * @return array<int|string, mixed>
 	 */
 	public static function alternateStorage( $servers ) {
 
@@ -911,16 +975,25 @@ class WIO_Backup {
 	}
 
 	/**
-	 * @since  1.3.0
+	 * Create a backup folder.
 	 *
-	 * @param string $dir
+	 * @param string $dir Folder to create.
 	 *
 	 * @return string|WP_Error
 	 */
 	protected function mkdir( $dir ) {
 		WRIO_Plugin::app()->logger->info( sprintf( 'Try to create backup directory. Backup dir: (%s)', $dir ) );
 
-		if ( ! wp_mkdir_p( $dir ) ) {
+		// A link between the backup folder and the new folder would get the new folder in its target.
+		$parent = untrailingslashit( $dir );
+		while ( ! file_exists( $parent ) && dirname( $parent ) !== $parent ) {
+			$parent = dirname( $parent );
+		}
+
+		$root   = untrailingslashit( (string) $this->backup_dir );
+		$linked = '' !== $root && 0 === strpos( trailingslashit( $parent ), trailingslashit( $root ) ) && ! self::is_inside( $parent, $root );
+
+		if ( $linked || ! wp_mkdir_p( $dir ) ) {
 			WRIO_Plugin::app()->logger->error( sprintf( 'Unable to create backup directory (%s) as mkdir() failed', $dir ) );
 
 			return new WP_Error( 'mkdir_failed', sprintf( 'Unable to create backup folder (%s) as mkdir() failed.', $dir ) );
@@ -930,10 +1003,10 @@ class WIO_Backup {
 	}
 
 	/**
-	 * @since  1.3.0
+	 * Copy a backup file over the original file.
 	 *
-	 * @param string $backup_file
-	 * @param string $original_file
+	 * @param string $backup_file   Backup file to copy from.
+	 * @param string $original_file File to replace.
 	 *
 	 * @return bool
 	 */
@@ -1050,6 +1123,10 @@ class WIO_Backup {
 	 * @return string|false
 	 */
 	protected static function real_path_inside( string $path, string $dir ) {
+		if ( '' === wrio_file_path( $path ) ) {
+			return false;
+		}
+
 		clearstatcache( true, $path );
 
 		$root   = realpath( $dir );
@@ -1071,6 +1148,10 @@ class WIO_Backup {
 	 * @return bool
 	 */
 	protected function is_usable_backup( $backup_file ): bool {
+		if ( '' === wrio_file_path( $backup_file ) ) {
+			return false;
+		}
+
 		clearstatcache( true, $backup_file );
 
 		return is_file( $backup_file ) && 0 < (int) @filesize( $backup_file ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- false is not usable.

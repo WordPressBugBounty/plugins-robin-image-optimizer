@@ -195,7 +195,7 @@ class Events {
 		$replaced = array_keys( array_filter( $changes, fn( $event ) => 'replaced' === $event ) );
 		$backup   = WIO_Backup::get_instance();
 
-		if ( ! empty( $replaced ) && $backup instanceof WIO_Backup ) {
+		if ( ! empty( $replaced ) ) {
 			$directory = $backup->getAttachmentBackupDir( $before->getMetaData() );
 
 			if ( ! is_wp_error( $directory ) ) {
@@ -203,7 +203,7 @@ class Events {
 					$file = $directory . wp_basename( $paths[ $size ] );
 
 					if ( is_file( $file ) ) {
-						wp_delete_file( $file );
+						$backup->delete_backup( $file );
 					}
 				}
 			}
@@ -248,9 +248,9 @@ class Events {
 			\WRIO\V2\Format_Rows::delete( $attachment->get_files( true, false ) );
 
 			// Also a backup on disk without a flag: an earlier copy of the shared file left it to this attachment.
-			$on_disk = $backup instanceof WIO_Backup && is_file( (string) $backup->getAttachmentBackupPath( (int) $attachment_id ) );
+			$on_disk = is_file( (string) $backup->getAttachmentBackupPath( (int) $attachment_id ) );
 
-			if ( $backup instanceof WIO_Backup && ( $on_disk || $queue_row->get_is_backed_up() || in_array( 1, array_map( 'intval', wp_list_pluck( $rows, 'backed_up' ) ), true ) ) ) {
+			if ( $on_disk || $queue_row->get_is_backed_up() || in_array( 1, array_map( 'intval', wp_list_pluck( $rows, 'backed_up' ) ), true ) ) {
 				$backup->removeAttachmentBackup( (int) $attachment_id );
 			}
 		}
@@ -277,7 +277,7 @@ class Events {
 	 */
 	private static function delete_pre_edit_files( int $attachment_id, $backup ) {
 		$sizes = get_post_meta( $attachment_id, '_wp_attachment_backup_sizes', true );
-		$file  = get_attached_file( $attachment_id );
+		$file  = wrio_file_path( get_attached_file( $attachment_id ) );
 
 		if ( ! is_array( $sizes ) || ! $file ) {
 			return;
@@ -290,11 +290,16 @@ class Events {
 		$files      = [];
 
 		foreach ( $sizes as $key => $size ) {
-			if ( empty( $size['file'] ) ) {
+			if ( ! is_array( $size ) || empty( $size['file'] ) ) {
 				continue;
 			}
 
-			$name = wp_basename( (string) $size['file'] );
+			// A name that PHP refuses (a null byte) has no file to delete.
+			$name = wp_basename( wrio_file_path( $size['file'] ) );
+
+			if ( '' === $name ) {
+				continue;
+			}
 
 			// Another attachment still uses the file, for example a copy made before the edit. WordPress deletes the
 			// files from before an edit without this check.
@@ -309,8 +314,8 @@ class Events {
 				'optimize' => false,
 			];
 
-			if ( is_string( $backup_dir ) && '' !== $backup_dir && is_file( $backup_dir . $name ) ) {
-				wp_delete_file( $backup_dir . $name );
+			if ( $backup instanceof WIO_Backup && is_string( $backup_dir ) && '' !== $backup_dir && is_file( $backup_dir . $name ) ) {
+				$backup->delete_backup( $backup_dir . $name );
 			}
 		}
 
@@ -357,7 +362,7 @@ class Events {
 		$sizes = get_post_meta( $attachment_id, '_wp_attachment_backup_sizes', true );
 		$file  = (string) get_post_meta( $attachment_id, '_wp_attached_file', true );
 
-		if ( ! $queue_row->get_id() || ! is_array( $sizes ) || empty( $sizes['full-orig']['file'] ) || '' === $file ) {
+		if ( ! $queue_row->get_id() || ! is_array( $sizes ) || ! is_array( $sizes['full-orig'] ?? null ) || empty( $sizes['full-orig']['file'] ) || '' === $file ) {
 			return;
 		}
 

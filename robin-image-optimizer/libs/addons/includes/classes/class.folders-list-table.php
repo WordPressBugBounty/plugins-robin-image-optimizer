@@ -1,10 +1,18 @@
 <?php
+/**
+ * Admin list table of the custom folder images.
+ *
+ * @package Robin_Image_Optimizer
+ */
 
 /**
  * Class WRIO_Folders_List_Table
  */
 class WRIO_Folders_List_Table extends WP_List_Table {
 
+	/**
+	 * Sets the parent defaults of the list table.
+	 */
 	public function __construct() {
 		// Set parent defaults.
 		parent::__construct(
@@ -16,6 +24,11 @@ class WRIO_Folders_List_Table extends WP_List_Table {
 		);
 	}
 
+	/**
+	 * Returns the table columns, by column key.
+	 *
+	 * @return array<string, string>
+	 */
 	public function get_columns() {
 		$columns = [
 			'cb'           => '<input type="checkbox" />', // Render a checkbox instead of text.
@@ -29,6 +42,11 @@ class WRIO_Folders_List_Table extends WP_List_Table {
 		return $columns;
 	}
 
+	/**
+	 * Loads the queue rows of the current page and sets the pagination.
+	 *
+	 * @return void
+	 */
 	public function prepare_items() {
 		global $wpdb;
 
@@ -45,7 +63,7 @@ class WRIO_Folders_List_Table extends WP_List_Table {
 		$folder_uid = WRIO_Plugin::app()->request->get( 'folder-filter', null, true );
 		$status     = WRIO_Plugin::app()->request->get( 'status-filter', null, true );
 
-		if ( ! in_array( $status, [ 'success', 'unoptimized', 'error' ] ) ) {
+		if ( ! in_array( $status, [ 'success', 'unoptimized', 'error' ], true ) ) {
 			$status = null;
 		}
 
@@ -111,6 +129,11 @@ class WRIO_Folders_List_Table extends WP_List_Table {
 	}
 
 
+	/**
+	 * Renders the folder and status filters and the table.
+	 *
+	 * @return void
+	 */
 	public function display() {
 		$cf      = WRIO_Custom_Folders::get_instance();
 		$folders = $cf->getFolders();
@@ -118,7 +141,7 @@ class WRIO_Folders_List_Table extends WP_List_Table {
 		$folder_uid = WRIO_Plugin::app()->request->get( 'folder-filter', null, true );
 		$status     = WRIO_Plugin::app()->request->get( 'status-filter', null, true );
 
-		if ( ! in_array( $status, [ 'success', 'unoptimized', 'error' ] ) ) {
+		if ( ! in_array( $status, [ 'success', 'unoptimized', 'error' ], true ) ) {
 			$status = null;
 		}
 
@@ -166,12 +189,22 @@ class WRIO_Folders_List_Table extends WP_List_Table {
 		<?php
 	}
 
+	/**
+	 * Returns the sortable columns. The table has none.
+	 *
+	 * @return array<string, mixed>
+	 */
 	protected function get_sortable_columns() {
 		$sortable_columns = [];
 
 		return $sortable_columns;
 	}
 
+	/**
+	 * Returns the bulk actions. The table has none.
+	 *
+	 * @return array<string, string>
+	 */
 	protected function get_bulk_actions() {
 		$actions = [];
 
@@ -179,7 +212,9 @@ class WRIO_Folders_List_Table extends WP_List_Table {
 	}
 
 	/**
-	 * @param RIO_Process_Queue $item
+	 * Renders the checkbox column.
+	 *
+	 * @param RIO_Process_Queue $item The queue row.
 	 *
 	 * @return string
 	 */
@@ -192,11 +227,19 @@ class WRIO_Folders_List_Table extends WP_List_Table {
 	}
 
 	/**
-	 * @param RIO_Process_Queue $item
+	 * Renders the preview column.
+	 *
+	 * @param RIO_Process_Queue $item The queue row.
+	 *
+	 * @return void
 	 */
 	protected function column_preview( $item ) {
 
-		/** @var WRIO_CF_Image_Extra_Data $extra_data */
+		/**
+		 * Extra data of the custom folder image.
+		 *
+		 * @var WRIO_CF_Image_Extra_Data $extra_data
+		 */
 		$extra_data = $item->get_extra_data();
 
 		if ( ! empty( $extra_data ) ) {
@@ -215,11 +258,19 @@ class WRIO_Folders_List_Table extends WP_List_Table {
 	}
 
 	/**
-	 * @param RIO_Process_Queue $item
+	 * Renders the file column.
+	 *
+	 * @param RIO_Process_Queue $item The queue row.
+	 *
+	 * @return void
 	 */
 	protected function column_file( $item ) {
 
-		/** @var WRIO_CF_Image_Extra_Data $extra_data */
+		/**
+		 * Extra data of the custom folder image.
+		 *
+		 * @var WRIO_CF_Image_Extra_Data $extra_data
+		 */
 		$extra_data = $item->get_extra_data();
 
 		if ( ! empty( $extra_data ) ) {
@@ -239,11 +290,19 @@ class WRIO_Folders_List_Table extends WP_List_Table {
 	}
 
 	/**
-	 * @param RIO_Process_Queue $item
+	 * Renders the folder column.
+	 *
+	 * @param RIO_Process_Queue $item The queue row.
+	 *
+	 * @return void
 	 */
 	protected function column_folder( $item ) {
 
-		/** @var WRIO_CF_Image_Extra_Data $extra_data */
+		/**
+		 * Extra data of the custom folder image.
+		 *
+		 * @var WRIO_CF_Image_Extra_Data $extra_data
+		 */
 		$extra_data = $item->get_extra_data();
 
 		if ( ! empty( $extra_data ) ) {
@@ -256,20 +315,33 @@ class WRIO_Folders_List_Table extends WP_List_Table {
 	}
 
 	/**
-	 * @param RIO_Process_Queue $item
+	 * Renders the status column.
+	 *
+	 * @param RIO_Process_Queue $item The queue row.
+	 *
+	 * @return void
 	 */
 	protected function column_status( $item ) {
 		echo esc_html( WRIO_Custom_Folders::status_label( $item->get_result_status() ) );
 	}
 
 	/**
-	 * @param RIO_Process_Queue $item
+	 * Renders the optimization column.
+	 *
+	 * @param RIO_Process_Queue $item The queue row.
+	 *
+	 * @return void
 	 */
 	protected function column_optimization( $item ) {
 		$cf = WRIO_Custom_Folders::get_instance();
 		echo $cf->getMediaColumnContent( $item->get_id() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- The column template escapes its own output.
 	}
 
+	/**
+	 * Handles the bulk action of the request.
+	 *
+	 * @return void
+	 */
 	protected function process_bulk_action() {
 		// Detect when a bulk action is being triggered.
 		if ( 'delete' === $this->current_action() ) {

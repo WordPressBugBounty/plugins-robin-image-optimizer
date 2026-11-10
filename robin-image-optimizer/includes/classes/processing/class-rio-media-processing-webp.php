@@ -18,19 +18,23 @@ if ( ! defined( 'ABSPATH' ) ) {
 class WRIO_Media_Processing_Webp extends WRIO_Processing {
 
 	/**
+	 * Name of the background action.
+	 *
 	 * @var string
 	 */
 	protected $action = 'convert_process';
 
 	/**
-	 * @var string Format type (webp or avif)
+	 * Format to convert to, webp or avif.
+	 *
+	 * @var 'avif'|'webp'
 	 */
 	protected $format = 'webp';
 
 	/**
 	 * Constructor
 	 *
-	 * @param string $scope Processing scope
+	 * @param string $scope Processing scope.
 	 */
 	public function __construct( $scope ) {
 		parent::__construct( $scope );
@@ -46,7 +50,9 @@ class WRIO_Media_Processing_Webp extends WRIO_Processing {
 	}
 
 	/**
-	 * @return int Count of pushed queue
+	 * Push the attachments that still need a conversion to the queue.
+	 *
+	 * @return int Count of pushed queue.
 	 */
 	public function push_items() {
 		$attachment_ids = [];
@@ -65,7 +71,7 @@ class WRIO_Media_Processing_Webp extends WRIO_Processing {
 	/**
 	 * Метод оптимизирует изображения при выполнении задачи
 	 *
-	 * @param int $image
+	 * @param int $image Attachment ID.
 	 *
 	 * @return bool
 	 */

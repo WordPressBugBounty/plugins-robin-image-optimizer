@@ -75,10 +75,12 @@ class Urls_Replacer {
 	/**
 	 * Replace URL with converted format, or return a fallback value.
 	 *
-	 * @param string $url                    Original image URL.
-	 * @param mixed  $return_value_if_denied Value to return if the URL is not replaced.
+	 * @template T
 	 *
-	 * @return mixed
+	 * @param string $url                    Original image URL.
+	 * @param T      $return_value_if_denied Value to return if the URL is not replaced.
+	 *
+	 * @return string|T
 	 */
 	public function replace_url_or( $url, $return_value_if_denied ) {
 		$url = $this->replace_url( $url );
@@ -175,7 +177,7 @@ class Urls_Replacer {
 	 * @return string
 	 */
 	public function process_css_regex_callback( $matches ) {
-		list($all, $pre, $quote, $url, $post) = $matches;
+		list( , $pre, , $url, $post ) = $matches;
 		return $pre . $this->replace_url_or( $url, $url ) . $post;
 	}
 

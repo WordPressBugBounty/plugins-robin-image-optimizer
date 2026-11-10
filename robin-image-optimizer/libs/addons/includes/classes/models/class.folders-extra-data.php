@@ -1,4 +1,9 @@
 <?php
+/**
+ * Extra data model of the custom folder images.
+ *
+ * @package Robin_Image_Optimizer
+ */
 
 // Exit if accessed directly
 if ( ! defined( 'ABSPATH' ) ) {
@@ -14,27 +19,35 @@ if ( ! defined( 'ABSPATH' ) ) {
 class WRIO_CF_Image_Extra_Data extends RIO_Base_Extra_Data {
 
 	/**
+	 * Path to the file, relative to the folder.
+	 *
 	 * @var string путь к файлу относительно папки
 	 */
 	protected $file_path = null;
 
 	/**
+	 * Original size of the main file, in bytes.
+	 *
 	 * @var int оригинальный размер основного файла
 	 */
 	protected $original_main_size = null;
 
 	/**
+	 * Optimized size of the main file, in bytes.
+	 *
 	 * @var int оптимизированный размер основного файла
 	 */
 	protected $optimized_main_size = null;
 
 	/**
+	 * Folder path, relative to the WordPress root.
+	 *
 	 * @var string путь к папке относительно корня WP
 	 */
 	protected $folder_relative_path = null;
 
 	/**
-	 * get_file_path
+	 * Get the file path.
 	 *
 	 * @return string
 	 */
@@ -43,9 +56,9 @@ class WRIO_CF_Image_Extra_Data extends RIO_Base_Extra_Data {
 	}
 
 	/**
-	 * set_file_path
+	 * Set the file path.
 	 *
-	 * @param string $file_path
+	 * @param string $file_path File path.
 	 *
 	 * @return void
 	 */
@@ -54,7 +67,7 @@ class WRIO_CF_Image_Extra_Data extends RIO_Base_Extra_Data {
 	}
 
 	/**
-	 * get_original_main_size
+	 * Get the original main file size.
 	 *
 	 * @return int
 	 */
@@ -63,9 +76,9 @@ class WRIO_CF_Image_Extra_Data extends RIO_Base_Extra_Data {
 	}
 
 	/**
-	 * set_original_main_size
+	 * Set the original main file size.
 	 *
-	 * @param int $original_main_size
+	 * @param int $original_main_size Original main file size, in bytes.
 	 *
 	 * @return void
 	 */
@@ -74,7 +87,7 @@ class WRIO_CF_Image_Extra_Data extends RIO_Base_Extra_Data {
 	}
 
 	/**
-	 * get_optimized_main_size
+	 * Get the optimized main file size.
 	 *
 	 * @return int
 	 */
@@ -83,9 +96,9 @@ class WRIO_CF_Image_Extra_Data extends RIO_Base_Extra_Data {
 	}
 
 	/**
-	 * set_optimized_main_size
+	 * Set the optimized main file size.
 	 *
-	 * @param int $optimized_main_size
+	 * @param int $optimized_main_size Optimized main file size, in bytes.
 	 *
 	 * @return void
 	 */
@@ -94,7 +107,7 @@ class WRIO_CF_Image_Extra_Data extends RIO_Base_Extra_Data {
 	}
 
 	/**
-	 * get_folder_relative_path
+	 * Get the folder path, relative to the WordPress root.
 	 *
 	 * @return string
 	 */
@@ -103,9 +116,9 @@ class WRIO_CF_Image_Extra_Data extends RIO_Base_Extra_Data {
 	}
 
 	/**
-	 * set_folder_relative_path
+	 * Set the folder path, relative to the WordPress root.
 	 *
-	 * @param string $folder_relative_path
+	 * @param string $folder_relative_path Folder path, relative to the WordPress root.
 	 *
 	 * @return void
 	 */

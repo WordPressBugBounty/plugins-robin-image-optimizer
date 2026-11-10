@@ -1,4 +1,9 @@
 <?php
+/**
+ * Base extra data model.
+ *
+ * @package Robin_Image_Optimizer
+ */
 
 /**
  * Class RIO_Base_Extra_Data is a base DTO model for `extra_data` property in RIO_Process_Queue.
@@ -8,7 +13,9 @@
 class RIO_Base_Extra_Data extends RIO_Base_Object {
 
 	/**
-	 * @var string Instance of current class.
+	 * Name of the class that owns this data.
+	 *
+	 * @var string
 	 */
 	protected $class;
 
@@ -176,7 +183,7 @@ class RIO_Base_Extra_Data extends RIO_Base_Object {
 	/**
 	 * Magic override of to string method to convert
 	 *
-	 * @return bool|false|mixed|string
+	 * @return string
 	 */
 	public function __toString() {
 		$props = get_object_vars( $this );
@@ -188,7 +195,10 @@ class RIO_Base_Extra_Data extends RIO_Base_Object {
 		}
 		$props['class'] = get_called_class();
 
-		return wp_json_encode( $props );
+		$json = wp_json_encode( $props );
+
+		// A value JSON cannot hold (such as NAN) fails the encoding. PHP 7.4 has a fatal error on a false here; '' reads back as no extra data.
+		return false === $json ? '' : $json;
 	}
 
 	/**
@@ -203,7 +213,7 @@ class RIO_Base_Extra_Data extends RIO_Base_Object {
 	/**
 	 * Set class
 	 *
-	 * @param  string $class_name  Имя класса
+	 * @param  string $class_name  Class name.
 	 *
 	 * @return  void
 	 */

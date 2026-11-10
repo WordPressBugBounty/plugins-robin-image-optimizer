@@ -18,12 +18,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 class WRIO_Media_Processing extends WRIO_Processing {
 
 	/**
-	 * @param array $attachment_ids
+	 * Pushes the attachments to the queue, or the unoptimized Media Library images when none are given.
+	 *
+	 * @param int[] $attachment_ids Attachment IDs to push.
 	 *
 	 * @return int Count of pushed queue
 	 */
 	public function push_items( $attachment_ids = [] ) {
-		if ( empty( $attachment_ids ) && $this->scope === 'media-library' ) {
+		if ( empty( $attachment_ids ) && 'media-library' === $this->scope ) {
 			$media_library  = WRIO_Media_Library::get_instance();
 			$attachment_ids = $media_library->getUnoptimizedImages();
 		}
@@ -38,7 +40,7 @@ class WRIO_Media_Processing extends WRIO_Processing {
 	/**
 	 * Метод оптимизирует изображения при выполнении задачи
 	 *
-	 * @param int $image
+	 * @param int $image The attachment ID.
 	 *
 	 * @return int|false The item when it must stay in the queue.
 	 */

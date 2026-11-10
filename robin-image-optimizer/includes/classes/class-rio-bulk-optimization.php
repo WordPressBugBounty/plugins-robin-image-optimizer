@@ -33,6 +33,11 @@ class WRIO_Bulk_Optimization {
 		add_action( 'wp_ajax_wio_restore_image', [ $this, 'restore_image' ] );
 	}
 
+	/**
+	 * AJAX handler: optimize one attachment again and print its media column.
+	 *
+	 * @return void
+	 */
 	public function reoptimize_image() {
 		check_admin_referer( 'reoptimize' );
 
@@ -67,6 +72,11 @@ class WRIO_Bulk_Optimization {
 		wp_die();
 	}
 
+	/**
+	 * AJAX handler: convert one attachment to the requested format and print its media column.
+	 *
+	 * @return void
+	 */
 	public function convert_image() {
 		check_admin_referer( 'convert' );
 
@@ -89,6 +99,11 @@ class WRIO_Bulk_Optimization {
 		wp_die();
 	}
 
+	/**
+	 * AJAX handler: restore the original of one attachment and print its media column.
+	 *
+	 * @return void
+	 */
 	public function restore_image() {
 		check_admin_referer( 'restore' );
 

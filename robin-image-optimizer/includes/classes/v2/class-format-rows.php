@@ -93,8 +93,7 @@ class Format_Rows {
 				} elseif ( 'skipped' === $result['status'] && 'not_in_plan' === ( $result['reason'] ?? '' ) ) {
 					// The plan can change (a renewed license), so this is an error that a later run tries again.
 					$row->result_status = RIO_Process_Queue::STATUS_ERROR;
-					// translators: %s is the format name, WEBP or AVIF.
-					$extra->set_failure( 'not_in_plan', Client::error( 'not_in_plan', sprintf( __( 'Your plan does not include %s.', 'robin-image-optimizer' ), strtoupper( $format ) ), [ 'retryable' => true ] ) );
+					$extra->set_failure( 'not_in_plan', Client::error( 'not_in_plan', wrio_error_message( 'failed', 'not_in_plan', [ 'format' => $format ] ), [ 'retryable' => true ] ) );
 				} elseif ( 'skipped' === $result['status'] ) {
 					// For example, the format is not smaller than the file. A skipped row is not converted again.
 					$row->result_status = RIO_Process_Queue::STATUS_SKIP;

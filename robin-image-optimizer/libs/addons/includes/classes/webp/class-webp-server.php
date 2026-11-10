@@ -1,8 +1,15 @@
 <?php
+/**
+ * Web server rules for WebP and AVIF delivery.
+ *
+ * @package Robin_Image_Optimizer
+ */
 
 namespace WRIO\WEBP;
 
 /**
+ * Writes the web server rules for WebP and AVIF delivery.
+ *
  * @version       1.0
  */
 class Server {
@@ -13,9 +20,10 @@ class Server {
 	const PENDING_SYNC_OPTION = 'wrio_htaccess_sync_pending';
 
 	/**
-	 * return the server home path
+	 * Returns the server home path.
 	 *
 	 * @since  1.0.4
+	 * @return string
 	 */
 	public static function get_home_path() {
 		$home    = set_url_scheme( get_option( 'home' ), 'http' );
@@ -25,7 +33,7 @@ class Server {
 			$wp_path_rel_to_home = str_ireplace( $home, '', $siteurl ); /* $siteurl - $home */
 			$pos                 = strripos( str_replace( '\\', '/', $_SERVER['SCRIPT_FILENAME'] ), trailingslashit( $wp_path_rel_to_home ) );
 
-			if ( $pos !== false ) {
+			if ( false !== $pos ) {
 				$home_path = substr( $_SERVER['SCRIPT_FILENAME'], 0, $pos );
 				$home_path = trim( $home_path, '/\\' ) . DIRECTORY_SEPARATOR;
 
@@ -45,7 +53,7 @@ class Server {
 		$home_path = trim( $home_path, '\\/ ' );
 
 		// not for windows
-		if ( DIRECTORY_SEPARATOR != '\\' ) {
+		if ( DIRECTORY_SEPARATOR !== '\\' ) {
 			$home_path = DIRECTORY_SEPARATOR . $home_path;
 		}
 
@@ -200,6 +208,7 @@ class Server {
 	/**
 	 * Return whatever the htaccess config file is writable
 	 *
+	 * @param string $htaccess_file Path to the .htaccess file.
 	 * @since  1.0.4
 	 * @return bool
 	 */
@@ -215,6 +224,7 @@ class Server {
 	 * Return whatever the web.config config file is writable
 	 *
 	 * @since  1.0.4
+	 * @return bool
 	 */
 	public static function is_writable_webconfig_file() {
 		$home_path       = static::get_home_path();
@@ -228,6 +238,8 @@ class Server {
 	}
 
 	/**
+	 * Checks whether the mod_rewrite Apache module is loaded.
+	 *
 	 * @since  1.0.4
 	 * @return bool
 	 */
@@ -257,11 +269,11 @@ class Server {
 
 		if ( function_exists( 'apache_get_modules' ) ) {
 			$mods = apache_get_modules();
-			if ( in_array( $mod, $mods ) ) {
+			if ( in_array( $mod, $mods, true ) ) {
 				return true;
 			}
 		} elseif ( getenv( 'HTTP_MOD_REWRITE' ) !== false ) {
-			$mod_found = getenv( 'HTTP_MOD_REWRITE' ) == 'On' ? true : false;
+			$mod_found = getenv( 'HTTP_MOD_REWRITE' ) === 'On' ? true : false;
 
 			return $mod_found;
 		} elseif ( function_exists( 'phpinfo' ) && false === strpos( ini_get( 'disable_functions' ), 'phpinfo' ) ) {
@@ -397,6 +409,7 @@ class Server {
 	 * or turn off webp support option.
 	 *
 	 * @since  1.0.4
+	 * @return void
 	 */
 	public static function htaccess_clear_webp_rules() {
 		static::write_rules( '' );
@@ -409,7 +422,7 @@ class Server {
 	 *
 	 * @since  @since  1.0.4
 	 *
-	 * @param bool $clear
+	 * @return void
 	 */
 	public static function htaccess_update_webp_rules() {
 		// Only enabled formats: converted files can stay on disk after conversion is turned off.
@@ -486,7 +499,7 @@ class Server {
 
 		static::insert_with_markers( static::get_home_path() . DIRECTORY_SEPARATOR . '.htaccess', $rules );
 
-		if ( isset( $wp_upload_dir['error'] ) && $wp_upload_dir['error'] !== false ) {
+		if ( isset( $wp_upload_dir['error'] ) && false !== $wp_upload_dir['error'] ) {
 			\WRIO_Plugin::app()->logger->error( 'It is not possible to update webp rules for htaccess, because upload dir is not writable.' );
 		} else {
 			static::insert_with_markers( trailingslashit( $wp_upload_dir['basedir'] ) . '.htaccess', $rules );

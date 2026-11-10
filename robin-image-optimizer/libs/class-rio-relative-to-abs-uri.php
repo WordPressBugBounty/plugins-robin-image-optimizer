@@ -1,4 +1,9 @@
 <?php
+/**
+ * URL helpers that turn relative URLs into absolute ones.
+ *
+ * @package Robin_Image_Optimizer
+ */
 
 namespace WRIO\Paths;
 
@@ -24,13 +29,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 class phpUri {
 
 	/**
-	 * http(s)://
+	 * The URL scheme, for example http(s)://.
 	 *
 	 * @var string
 	 */
 	public $scheme;
 	/**
-	 * www.example.com
+	 * The host name, for example www.example.com.
 	 *
 	 * @var string
 	 */
@@ -54,6 +59,11 @@ class phpUri {
 	 */
 	public $fragment;
 
+	/**
+	 * Splits a URL string into its parts.
+	 *
+	 * @param string $string The URL string to split.
+	 */
 	private function __construct( $string ) {
 		preg_match_all( '/^(([^:\/?#]+):)?(\/\/([^\/?#]*))?([^?#]*)(\?([^#]*))?(#(.*))?$/', $string, $m );
 		$this->scheme    = $m[2][0];
@@ -72,6 +82,11 @@ class phpUri {
 		$this->fragment = $m[9][0];
 	}
 
+	/**
+	 * Builds the URL string from its parts.
+	 *
+	 * @return string
+	 */
 	private function to_str() {
 		$ret = '';
 		if ( ! empty( $this->scheme ) ) {
@@ -114,7 +129,7 @@ class phpUri {
 	/**
 	 * Parse an url string
 	 *
-	 * @param string $url   the url to parse
+	 * @param string $url   The url to parse.
 	 *
 	 * @return phpUri
 	 */
@@ -136,7 +151,7 @@ class phpUri {
 	/**
 	 * Join with a relative url
 	 *
-	 * @param string $relative   the relative url to join
+	 * @param string $relative   The relative url to join.
 	 *
 	 * @return string
 	 */

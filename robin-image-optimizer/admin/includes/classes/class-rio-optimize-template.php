@@ -1,4 +1,10 @@
 <?php
+/**
+ * Template of the media library optimization column.
+ *
+ * @package Robin_Image_Optimizer
+ */
+
 // Exit if accessed directly
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -13,48 +19,26 @@ class WIO_OptimizePageTemplate {
 
 	/**
 	 * Тип страницы
+	 *
+	 * @var string
 	 */
 	protected $page_type = 'media-library';
 
 
+	/**
+	 * Constructor.
+	 *
+	 * @param string $type Page type.
+	 */
 	public function __construct( $type = 'media-library' ) {
 		$this->page_type = $type;
 	}
 
 	/**
-	 * Выбор сайта для мультисайт режима
-	 */
-	/*
-	public function selectSite() {
-		if ( ! WRIO_Plugin::app()->isNetworkAdmin() ) {
-			return;
-		}
-		$blogs        = WIO_Multisite::getBlogs( $this->page_type );
-		$current_blog = WRIO_Plugin::app()->getPopulateOption( 'current_blog', 1 );
-		?>
-		<select style="width:200px;display:inline-block; height: 45px; margin-left:40px;" id="wbcr-rio-current-blog"
-				class="factory-dropdown factory-from-control-dropdown form-control"
-				data-context="<?php echo esc_attr( $this->page_type ); ?>"
-				data-nonce="<?php echo wp_create_nonce( 'update_blog_id' ); ?>">
-			<?php foreach ( $blogs as $blog ) : ?>
-				<?php
-				$blog_name = $blog->domain . $blog->path;
-				if ( defined( 'SUBDOMAIN_INSTALL' ) && SUBDOMAIN_INSTALL ) {
-					$blog_name = $blog->domain;
-				}
-				?>
-				<option <?php selected( $current_blog, $blog->blog_id ); ?>
-						value="<?php echo esc_attr( $blog->blog_id ); ?>"><?php echo esc_attr( $blog_name ); ?></option>
-			<?php endforeach; ?>
-		</select>
-		<?php
-	}*/
-
-	/**
 	 * Возвращает html код блока ручной оптимизации
 	 *
-	 * @param array $params {
-	 *                                    Параметры
+	 * @param array<string, mixed> $params {
+	 *     Параметры.
 	 *
 	 * @type int $attachment_id Attachment post ID
 	 * @type bool $is_optimized Оптимизировано ли изображение
@@ -153,7 +137,8 @@ class WIO_OptimizePageTemplate {
 						if ( ! $error_msg ) {
 							// если уровень кастомный от 1 до 100
 							if ( is_numeric( $optimization_level ) ) {
-								echo esc_html__( 'Custom', 'robin-image-optimizer' ) . ' ' . intval( $optimization_level ) . '%';
+								/* translators: %d: custom compression level, from 1 to 100. */
+								echo esc_html( sprintf( __( 'Custom %d%%', 'robin-image-optimizer' ), intval( $optimization_level ) ) );
 							} elseif ( 'normal' === $optimization_level ) {
 								// если уровень один из настроек
 								echo esc_html__( 'Lossless', 'robin-image-optimizer' );
@@ -193,12 +178,14 @@ class WIO_OptimizePageTemplate {
 						class="wio-reoptimize button-wio-manual-override-upload"
 						data-waiting-label="<?php esc_attr_e( 'Optimization in progress', 'robin-image-optimizer' ); ?>">
 						<span class="dashicons dashicons-admin-generic"></span>
-						<span
-							class="wio-hide-if-small"
-						>
-							<?php esc_html_e( 'Re-Optimize to:', 'robin-image-optimizer' ); ?>
-						</span><?php esc_html_e( 'Lossless', 'robin-image-optimizer' ); ?>
-						<span class="wio-hide-if-small"></span>
+						<?php
+						printf(
+							/* translators: %1$s and %2$s: the tags around the words that narrow screens hide. */
+							esc_html__( '%1$sRe-Optimize to:%2$s Lossless', 'robin-image-optimizer' ),
+							'<span class="wio-hide-if-small">',
+							'</span>'
+						);
+						?>
 					</a>
 				<?php endif; ?>
 				<?php if ( $other_levels && 'aggresive' !== $optimization_level ) : ?>
@@ -210,13 +197,14 @@ class WIO_OptimizePageTemplate {
 						class="wio-reoptimize button-wio-manual-override-upload"
 						data-waiting-label="<?php esc_attr_e( 'Optimization in progress', 'robin-image-optimizer' ); ?>">
 						<span class="dashicons dashicons-admin-generic"></span>
-						<span
-							class="wio-hide-if-small"
-						>
-							<?php esc_html_e( 'Re-Optimize to:', 'robin-image-optimizer' ); ?>
-						</span>
-						<?php esc_html_e( 'Lossy', 'robin-image-optimizer' ); ?>
-						<span class="wio-hide-if-small"></span>
+						<?php
+						printf(
+							/* translators: %1$s and %2$s: the tags around the words that narrow screens hide. */
+							esc_html__( '%1$sRe-Optimize to:%2$s Lossy', 'robin-image-optimizer' ),
+							'<span class="wio-hide-if-small">',
+							'</span>'
+						);
+						?>
 					</a>
 				<?php endif; ?>
 				<?php if ( $other_levels && 'ultra' !== $optimization_level ) : ?>
@@ -228,13 +216,14 @@ class WIO_OptimizePageTemplate {
 						class="wio-reoptimize button-wio-manual-override-upload"
 						data-waiting-label="<?php esc_attr_e( 'Optimization in progress', 'robin-image-optimizer' ); ?>">
 						<span class="dashicons dashicons-admin-generic"></span>
-						<span
-							class="wio-hide-if-small"
-						>
-							<?php esc_html_e( 'Re-Optimize to:', 'robin-image-optimizer' ); ?>
-						</span>
-						<?php esc_html_e( 'High', 'robin-image-optimizer' ); ?>
-						<span class="wio-hide-if-small"></span>
+						<?php
+						printf(
+							/* translators: %1$s and %2$s: the tags around the words that narrow screens hide. */
+							esc_html__( '%1$sRe-Optimize to:%2$s High', 'robin-image-optimizer' ),
+							'<span class="wio-hide-if-small">',
+							'</span>'
+						);
+						?>
 					</a>
 				<?php endif; ?>
 				<?php if ( $can_convert ) : ?>
@@ -278,7 +267,7 @@ class WIO_OptimizePageTemplate {
 			</div>
 			<!-- .wio-datas-actions-links -->
 			<?php
-		} elseif ( $attach_dimensions !== '0 x 0' ) {
+		} elseif ( '0 x 0' !== $attach_dimensions ) {
 			// Show full stats view if any conversion exists
 			if ( $webp_size || $avif_size ) {
 				?>

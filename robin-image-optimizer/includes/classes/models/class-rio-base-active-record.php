@@ -1,4 +1,9 @@
 <?php
+/**
+ * Base class of the database active records.
+ *
+ * @package Robin_Image_Optimizer
+ */
 
 // Exit if accessed directly
 if ( ! defined( 'ABSPATH' ) ) {
@@ -30,12 +35,12 @@ class RIO_Base_Active_Record extends RIO_Base_Object {
 	}
 
 	/**
+	 * Set a property when the model defines it.
+	 *
 	 * @todo override with activerecord impl
 	 *
-	 * @param string $name
-	 * @param mixed  $value
-	 *
-	 * @throws Exception
+	 * @param string $name  Property name.
+	 * @param mixed  $value Property value.
 	 */
 	public function __set( $name, $value ) {
 		if ( property_exists( $this, $name ) ) {
@@ -87,7 +92,7 @@ class RIO_Base_Active_Record extends RIO_Base_Object {
 	 *
 	 * None associative list of
 	 *
-	 * @return array Empty array returned in case when no indexes exist on table.
+	 * @return list<string> Empty array returned in case when no indexes exist on table.
 	 */
 	public static function get_table_indexes() {
 		return [];

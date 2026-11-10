@@ -1,4 +1,9 @@
 <?php
+/**
+ * AJAX handlers that re-optimize and restore NextGen images.
+ *
+ * @package Robin_Image_Optimizer
+ */
 
 // Exit if accessed directly
 if ( ! defined( 'ABSPATH' ) ) {
@@ -7,6 +12,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Переоптимизация аттачмента
+ *
+ * @return void
  */
 function wbcr_riop_reoptimizeImage() {
 	if ( ! check_ajax_referer( 'reoptimize', false, false ) || ! current_user_can( 'manage_options' ) ) {
@@ -30,7 +37,7 @@ function wbcr_riop_reoptimizeImage() {
 	$result = $nextgen_gallery->optimizeNextgenImage( $image_id, $level );
 
 	// A new level without the original, for example: say why nothing changed, as custom folders do.
-	if ( isset( $result['error'] ) && is_wp_error( $result['error'] ) ) {
+	if ( isset( $result['error'] ) ) {
 		echo '<p class="wio-restore-error" role="alert">' . esc_html( $result['error']->get_error_message() ) . '</p>';
 	}
 
@@ -40,6 +47,8 @@ function wbcr_riop_reoptimizeImage() {
 
 /**
  * Восстановление
+ *
+ * @return void
  */
 function wbcr_riop_restoreImage() {
 	if ( ! check_ajax_referer( 'restore', false, false ) || ! current_user_can( 'manage_options' ) ) {

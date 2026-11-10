@@ -152,7 +152,6 @@ class WRIO_App {
 				'mediaNew'  => admin_url( 'media-new.php' ),
 				'pricing'   => $pricing_url,
 				'avifPlans' => $support->get_pricing_url( true, 'avif_banner' ),
-				'avifFaq'   => 'https://docs.themeisle.com/robin-image-optimizer/how-to-convert-images-to-avif-in-robin-image-optimizer',
 				'support'   => 'https://wordpress.org/support/plugin/robin-image-optimizer/',
 				'ticket'    => self::themeisle_link( 'https://themeisle.com/contact/', 'bug-security-ticket' ),
 				'review'    => 'https://wordpress.org/support/plugin/robin-image-optimizer/reviews/#new-post',
@@ -197,9 +196,9 @@ class WRIO_App {
 		$rail       = self::get_rail_data( $is_premium );
 
 		$data = [
-			'route'   => $route,
-			'scope'   => $scope,
-			'flags'   => [
+			'route'    => $route,
+			'scope'    => $scope,
+			'flags'    => [
 				'nextgenActive'    => wrio_is_active_nextgen_gallery(),
 				'errorLog'         => (bool) $plugin->getPopulateOption( 'error_log', false ),
 				// Clearfy owns the licence on these installs, so the plugin does
@@ -213,8 +212,10 @@ class WRIO_App {
 				// The rail card says the same thing with the site's own numbers, so one of them is enough.
 				'showAvifBanner'   => 'media-library' === $scope && ! $is_premium && ! wrio_is_avif_banner_dismissed() && ! $rail['avifUpsell'],
 			],
-			'rail'    => $rail,
-			'notices' => self::get_notices( $route ),
+			'rail'     => $rail,
+			'notices'  => self::get_notices( $route ),
+			// "Learn more about AVIF": here, not in the first-load urls, so a page switch updates utm_medium.
+			'avifDocs' => wrio_docs_url( 'https://docs.themeisle.com/robin-image-optimizer/how-to-convert-images-to-avif-in-robin-image-optimizer', 'avif', $route ),
 		];
 
 		if ( 'bulk' === $route ) {
@@ -385,7 +386,7 @@ class WRIO_App {
 	/**
 	 * Every log entry in file order, plus the total log size, as the Factory page showed them.
 	 *
-	 * @return array{entries: array<int, array<string, string>>, size: string}
+	 * @return array{entries: list<array{date: string, time: string, host: string, level: string, message: string}>, size: string, exportNonce: string, support: array{url: string, message: string, button: string}}
 	 */
 	public static function get_log_data() {
 		$logger  = WRIO_Plugin::app()->logger;

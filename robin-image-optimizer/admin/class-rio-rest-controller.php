@@ -600,10 +600,7 @@ class WRIO_Rest_Controller {
 		}
 
 		$folders = WRIO_Custom_Folders::get_instance();
-		if ( ! $folders instanceof WRIO_Custom_Folders ) {
-			return self::not_available();
-		}
-		$folder = $folders->addFolder( $path );
+		$folder  = $folders->addFolder( $path );
 		if ( is_wp_error( $folder ) ) {
 			$folder->add_data( [ 'status' => 400 ] );
 
@@ -659,7 +656,7 @@ class WRIO_Rest_Controller {
 		}
 		$folders = WRIO_Custom_Folders::get_instance();
 		$uid     = (string) $request->get_param( 'uid' );
-		if ( ! $folders instanceof WRIO_Custom_Folders || ! $folders->getFolder( $uid ) ) {
+		if ( ! $folders->getFolder( $uid ) ) {
 			return new WP_Error( 'wrio_not_found', __( 'Folder not found.', 'robin-image-optimizer' ), [ 'status' => 404 ] );
 		}
 		$folders->removeFolder( $uid );

@@ -1,4 +1,9 @@
 <?php
+/**
+ * WebP and AVIF picture tag output.
+ *
+ * @package Robin_Image_Optimizer
+ */
 
 namespace WRIO\WEBP\HTML;
 

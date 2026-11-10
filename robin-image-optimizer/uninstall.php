@@ -1,4 +1,9 @@
 <?php
+/**
+ * Removes the plugin data when the plugin is deleted.
+ *
+ * @package Robin_Image_Optimizer
+ */
 
 // if uninstall.php is not called by WordPress, die
 if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
@@ -78,7 +83,7 @@ $wrio_delete_converted = static function () use ( $wpdb ): void {
 
 		$path = wp_normalize_path( $path );
 
-		if ( '' === $path || md5( 0 === strpos( $path, $root ) ? substr( $path, strlen( $root ) ) : $path ) !== $row->path_hash ) {
+		if ( '' === wrio_file_path( $path ) || md5( 0 === strpos( $path, $root ) ? substr( $path, strlen( $root ) ) : $path ) !== $row->path_hash ) {
 			continue;
 		}
 
@@ -188,6 +193,21 @@ if ( class_exists( 'WRIO_Plugin' ) ) {
 }
 
 // The log folders of WRIO_Logger (the old one, and the one with the random key) and of the Factory logger before 2.1.
-foreach ( array_merge( (array) glob( trailingslashit( WP_CONTENT_DIR ) . 'logs/wbcr_image_optimizer*', GLOB_ONLYDIR ), [ trailingslashit( WP_CONTENT_DIR ) . 'logs/robin-image-optimizer' ] ) as $wrio_log_dir ) {
+$wrio_log_dirs = array_merge( (array) glob( trailingslashit( WP_CONTENT_DIR ) . 'logs/wbcr_image_optimizer*', GLOB_ONLYDIR ), [ trailingslashit( WP_CONTENT_DIR ) . 'logs/robin-image-optimizer' ] );
+
+// Behind a linked logs folder, a folder is of the plugin only when it has the deny rules of wrio_protect_dir(): the
+// logger writes them into each folder with a key, also the folders of older salts.
+if ( is_link( trailingslashit( WP_CONTENT_DIR ) . 'logs' ) ) {
+	$wrio_log_dirs = array_filter(
+		$wrio_log_dirs,
+		static function ( $dir ) {
+			$rules = is_file( (string) $dir . '/.htaccess' ) ? file( (string) $dir . '/.htaccess' ) : false;
+
+			return is_array( $rules ) && isset( $rules[0] ) && 0 === strpos( $rules[0], '# Robin Image Optimizer: deny web access' );
+		}
+	);
+}
+
+foreach ( $wrio_log_dirs as $wrio_log_dir ) {
 	wrio_rmdir( (string) $wrio_log_dir );
 }

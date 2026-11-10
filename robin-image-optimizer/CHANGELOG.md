@@ -1,3 +1,11 @@
+#####   Version 2.1.1 (2026-11-10)
+
+- Fixed the first image on a page not loading with high priority near a collapsed Details or Accordion block.
+- Fixed scheduled optimization stopping on sites with a low PHP memory limit or on images with an invalid file path.
+- Fixed backup cleanup deleting files outside the backup folder.
+- Fixed several rare crashes with backups and NextGEN Gallery.
+- Updated dependencies.
+
 ####   Version 2.1.0 (2026-11-02)
 
 - Added new, easier admin pages for Bulk Optimization, Settings, License, and Error Log.

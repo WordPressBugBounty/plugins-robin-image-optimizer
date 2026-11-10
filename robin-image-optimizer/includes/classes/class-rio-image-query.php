@@ -103,7 +103,7 @@ class WRIO_Image_Query {
 			$size = (int) ( $data['filesize'] ?? 0 );
 
 			if ( $size <= 0 ) {
-				$file = get_attached_file( (int) $attachment_id );
+				$file = wrio_file_path( get_attached_file( (int) $attachment_id ) );
 				$size = $file && is_file( $file ) ? (int) filesize( $file ) : 0;
 			}
 

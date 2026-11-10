@@ -1,4 +1,9 @@
 <?php
+/**
+ * NextGen extra data model for the Robin Image Optimizer.
+ *
+ * @package Robin_Image_Optimizer
+ */
 
 // Exit if accessed directly
 if ( ! defined( 'ABSPATH' ) ) {
@@ -14,22 +19,28 @@ if ( ! defined( 'ABSPATH' ) ) {
 class WRIO_Nextgen_Extra_Data extends RIO_Base_Extra_Data {
 
 	/**
+	 * Original size of the main file.
+	 *
 	 * @var int оригинальный размер основного файла
 	 */
 	protected $original_main_size = null;
 
 	/**
+	 * Optimized size of the main file.
+	 *
 	 * @var int оптимизированный размер основного файла
 	 */
 	protected $optimized_main_size = null;
 
 	/**
+	 * Path of the image relative to the WordPress root.
+	 *
 	 * @var string относительный путь к изображению
 	 */
 	protected $image_relative_path = null;
 
 	/**
-	 * get_original_main_size
+	 * Returns the original main file size.
 	 *
 	 * @return int
 	 */
@@ -38,9 +49,9 @@ class WRIO_Nextgen_Extra_Data extends RIO_Base_Extra_Data {
 	}
 
 	/**
-	 * set_original_main_size
+	 * Sets the original main file size.
 	 *
-	 * @param int $original_main_size
+	 * @param int $original_main_size The original main file size.
 	 *
 	 * @return void
 	 */
@@ -49,7 +60,7 @@ class WRIO_Nextgen_Extra_Data extends RIO_Base_Extra_Data {
 	}
 
 	/**
-	 * get_optimized_main_size
+	 * Returns the optimized main file size.
 	 *
 	 * @return int
 	 */
@@ -58,9 +69,9 @@ class WRIO_Nextgen_Extra_Data extends RIO_Base_Extra_Data {
 	}
 
 	/**
-	 * set_optimized_main_size
+	 * Sets the optimized main file size.
 	 *
-	 * @param int $optimized_main_size
+	 * @param int $optimized_main_size The optimized main file size.
 	 *
 	 * @return void
 	 */
@@ -69,7 +80,7 @@ class WRIO_Nextgen_Extra_Data extends RIO_Base_Extra_Data {
 	}
 
 	/**
-	 * get_image_relative_path
+	 * Returns the image path relative to the WordPress root.
 	 *
 	 * @return string
 	 */
@@ -78,9 +89,9 @@ class WRIO_Nextgen_Extra_Data extends RIO_Base_Extra_Data {
 	}
 
 	/**
-	 * set_image_relative_path
+	 * Sets the image path relative to the WordPress root.
 	 *
-	 * @param string $image_relative_path
+	 * @param string $image_relative_path The image path relative to the WordPress root.
 	 *
 	 * @return void
 	 */

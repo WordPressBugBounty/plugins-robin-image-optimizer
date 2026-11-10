@@ -24,21 +24,29 @@ if ( ! defined( 'ABSPATH' ) ) {
 abstract class WRIO_Processing {
 
 	/**
+	 * Prefix of the queue identifier.
+	 *
 	 * @var string
 	 */
 	protected $prefix = 'wrio';
 
 	/**
+	 * Action name used in the queue identifier.
+	 *
 	 * @var string
 	 */
 	protected $action = 'optimize_process';
 
 	/**
+	 * Queue scope.
+	 *
 	 * @var string
 	 */
 	public $scope;
 
 	/**
+	 * Full queue identifier, built from the prefix, action and scope.
+	 *
 	 * @var string
 	 */
 	protected $identifier;
@@ -58,11 +66,15 @@ abstract class WRIO_Processing {
 	protected $start_time = 0;
 
 	/**
+	 * Name of the cron health check event.
+	 *
 	 * @var string
 	 */
 	protected $cron_hook_identifier;
 
 	/**
+	 * Name of the cron interval.
+	 *
 	 * @var string
 	 */
 	protected $cron_interval_identifier;
@@ -293,11 +305,17 @@ abstract class WRIO_Processing {
 	public function schedule_cron_healthcheck( $schedules ) {
 		$interval = apply_filters( $this->identifier . '_cron_interval', 5 );
 
+		// Before init a translation logs a "loaded too early" notice.
+		if ( did_action( 'init' ) ) {
+			/* translators: %d: number of minutes. */
+			$format = _n( 'Every %d Minute', 'Every %d Minutes', $interval, 'robin-image-optimizer' );
+		} else {
+			$format = 1 === $interval ? 'Every %d Minute' : 'Every %d Minutes';
+		}
+
 		$schedules[ $this->identifier . '_cron_interval' ] = [
 			'interval' => MINUTE_IN_SECONDS * $interval,
-			// Before init a translation logs a "loaded too early" notice.
-			// translators: %d is the number of minutes
-			'display'  => sprintf( did_action( 'init' ) ? __( 'Every %d Minutes', 'robin-image-optimizer' ) : 'Every %d Minutes', $interval ),
+			'display'  => sprintf( $format, $interval ),
 		];
 
 		return $schedules;
@@ -502,9 +520,11 @@ abstract class WRIO_Processing {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE {$column} LIKE %s ORDER BY {$column} LIKE %s DESC, {$key_column} ASC LIMIT 1", $key, $priority_key ) );
 
+		$data = maybe_unserialize( $row->$value_column );
+
 		return [
-			'key'  => $row->$column,
-			'data' => maybe_unserialize( $row->$value_column ),
+			'key'  => (string) $row->$column,
+			'data' => is_array( $data ) ? $data : [],
 		];
 	}
 

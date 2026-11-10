@@ -1,2 +1,6 @@
 <?php
-// silence is golden
+/**
+ * Prevents directory listing.
+ *
+ * @package Robin_Image_Optimizer
+ */

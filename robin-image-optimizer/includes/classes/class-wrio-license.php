@@ -88,10 +88,10 @@ class WRIO_License {
 
 		// Fallback to Freemius storage
 		$freemius_data = get_option( 'wbcr_io_license', [] );
-		if ( ! empty( $freemius_data['license']['secret_key'] ) ) {
+		if ( is_array( $freemius_data ) && is_array( $freemius_data['license'] ?? null ) && ! empty( $freemius_data['license']['secret_key'] ) ) {
 			$this->source       = self::SOURCE_FREEMIUS;
 			$this->data         = $freemius_data;
-			$this->license_data = $freemius_data['license'] ?? [];
+			$this->license_data = $freemius_data['license'];
 			return;
 		}
 
@@ -441,7 +441,7 @@ class WRIO_License {
 	 * @return array<string, mixed>
 	 */
 	public function get_site_data() {
-		return isset( $this->data['site'] ) ? $this->data['site'] : [];
+		return isset( $this->data['site'] ) && is_array( $this->data['site'] ) ? $this->data['site'] : [];
 	}
 
 	/**
@@ -450,6 +450,6 @@ class WRIO_License {
 	 * @return array<string, mixed>
 	 */
 	public function get_user_data() {
-		return isset( $this->data['user'] ) ? $this->data['user'] : [];
+		return isset( $this->data['user'] ) && is_array( $this->data['user'] ) ? $this->data['user'] : [];
 	}
 }

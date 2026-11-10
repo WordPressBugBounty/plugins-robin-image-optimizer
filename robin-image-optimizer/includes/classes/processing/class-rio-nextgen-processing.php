@@ -18,11 +18,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 class WRIO_Nextgen_Processing extends WRIO_Processing {
 
 	/**
+	 * Queues the unoptimized NextGEN images.
+	 *
 	 * @return int Count of pushed queue
 	 */
 	public function push_items() {
 		$attachment_ids = [];
-		if ( $this->scope === 'nextgen' ) {
+		if ( 'nextgen' === $this->scope ) {
 			$nextgen_gallery = WRIO_Nextgen_Gallery::get_instance();
 			$attachment_ids  = $nextgen_gallery->getUnoptimizedImages();
 		}
@@ -37,7 +39,7 @@ class WRIO_Nextgen_Processing extends WRIO_Processing {
 	/**
 	 * Метод оптимизирует изображения при выполнении задачи
 	 *
-	 * @param int $image
+	 * @param int $image The NextGEN image ID.
 	 *
 	 * @return int|false The item when it must stay in the queue.
 	 */
@@ -51,9 +53,9 @@ class WRIO_Nextgen_Processing extends WRIO_Processing {
 		if ( $image ) {
 			WRIO_Plugin::app()->logger->info( sprintf( 'Start optimize attachment: %s', $image ) );
 
-			if ( $this->scope === 'nextgen' ) {
+			if ( 'nextgen' === $this->scope ) {
 				$nextgen_gallery = WRIO_Nextgen_Gallery::get_instance();
-				$result          = $nextgen_gallery->optimizeNextgenImage( $image );
+				$nextgen_gallery->optimizeNextgenImage( $image );
 			}
 
 			WRIO_Plugin::app()->logger->info( sprintf( 'End optimize attachment: %s', $image ) );

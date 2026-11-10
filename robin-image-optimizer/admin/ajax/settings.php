@@ -2,6 +2,7 @@
 /**
  * Ajax действие, которое выполняется при сохранении настроек
  *
+ * @package       Robin_Image_Optimizer
  * @version       1.0
  */
 
@@ -28,7 +29,7 @@ add_action(
 			die();
 		}
 
-		if ( ! in_array( $level, [ 'normal', 'aggresive', 'ultra' ] ) ) {
+		if ( ! in_array( $level, [ 'normal', 'aggresive', 'ultra' ], true ) ) {
 			die();
 		}
 

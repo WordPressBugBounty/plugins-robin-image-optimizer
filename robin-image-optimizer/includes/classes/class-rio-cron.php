@@ -1,4 +1,9 @@
 <?php
+/**
+ * Scheduled optimization cron jobs.
+ *
+ * @package Robin_Image_Optimizer
+ */
 
 // Exit if accessed directly
 if ( ! defined( 'ABSPATH' ) ) {
@@ -32,6 +37,8 @@ class WRIO_Cron {
 
 	/**
 	 * Подключение хуков
+	 *
+	 * @return void
 	 */
 	public function initHooks() {
 		add_action( 'wrio/cron/optimization_process', [ $this, 'optimization_process' ], 10, 1 );
@@ -56,35 +63,41 @@ class WRIO_Cron {
 	 */
 	public static function schedules() {
 		$translate = did_action( 'init' );
+		$minutes   = static function ( int $count ) use ( $translate ): string {
+			/* translators: %d: number of minutes. */
+			return sprintf( $translate ? _n( '%d min', '%d min', $count, 'robin-image-optimizer' ) : '%d min', $count );
+		};
 
 		return [
 			'wio_1_min'  => [
 				'interval' => MINUTE_IN_SECONDS,
-				'label'    => $translate ? __( '1 min', 'robin-image-optimizer' ) : '1 min',
+				'label'    => $minutes( 1 ),
 			],
 			'wio_2_min'  => [
 				'interval' => 2 * MINUTE_IN_SECONDS,
-				'label'    => $translate ? __( '2 min', 'robin-image-optimizer' ) : '2 min',
+				'label'    => $minutes( 2 ),
 			],
 			'wio_5_min'  => [
 				'interval' => 5 * MINUTE_IN_SECONDS,
-				'label'    => $translate ? __( '5 min', 'robin-image-optimizer' ) : '5 min',
+				'label'    => $minutes( 5 ),
 			],
 			'wio_10_min' => [
 				'interval' => 10 * MINUTE_IN_SECONDS,
-				'label'    => $translate ? __( '10 min', 'robin-image-optimizer' ) : '10 min',
+				'label'    => $minutes( 10 ),
 			],
 			'wio_30_min' => [
 				'interval' => 30 * MINUTE_IN_SECONDS,
-				'label'    => $translate ? __( '30 min', 'robin-image-optimizer' ) : '30 min',
+				'label'    => $minutes( 30 ),
 			],
 			'wio_hourly' => [
 				'interval' => HOUR_IN_SECONDS,
-				'label'    => $translate ? __( '1 hour', 'robin-image-optimizer' ) : '1 hour',
+				/* translators: %d: number of hours. */
+				'label'    => sprintf( $translate ? _n( '%d hour', '%d hours', 1, 'robin-image-optimizer' ) : '%d hour', 1 ),
 			],
 			'wio_daily'  => [
 				'interval' => DAY_IN_SECONDS,
-				'label'    => $translate ? __( '1 day', 'robin-image-optimizer' ) : '1 day',
+				/* translators: %d: number of days. */
+				'label'    => sprintf( $translate ? _n( '%d day', '%d days', 1, 'robin-image-optimizer' ) : '%d day', 1 ),
 			],
 		];
 	}
@@ -144,6 +157,10 @@ class WRIO_Cron {
 
 	/**
 	 * Запуск Cron задачи
+	 *
+	 * @param int $attachment_id Attachment ID.
+	 *
+	 * @return void
 	 */
 	public static function start_single( $attachment_id ) {
 		wp_schedule_single_event( time() + 10, 'wrio/cron/optimization_process', [ $attachment_id ] );
@@ -193,6 +210,10 @@ class WRIO_Cron {
 
 	/**
 	 * Запуск Cron задачи
+	 *
+	 * @param non-empty-string $type Event type, such as optimization.
+	 *
+	 * @return void
 	 */
 	public static function start( $type = 'optimization' ) {
 		$interval = WRIO_Plugin::app()->getPopulateOption( 'image_autooptimize_shedule_time', 'wio_5_min' );
@@ -321,9 +342,7 @@ class WRIO_Cron {
 
 		WRIO_Plugin::app()->logger->info( sprintf( 'Start cron job. Scope: %s', $cron_running_page ) );
 
-		$result = null;
-
-		if ( 'media-library' == $cron_running_page ) {
+		if ( 'media-library' === $cron_running_page ) {
 			$media_library = WRIO_Media_Library::get_instance();
 			$result        = $media_library->processUnoptimizedImages( $max_process_per_request );
 		} elseif ( in_array( $cron_running_page, [ 'nextgen-gallery', 'nextgen' ], true ) && class_exists( 'WRIO_Nextgen_Gallery' ) ) {
@@ -346,7 +365,7 @@ class WRIO_Cron {
 		}
 
 		// The queue is empty: no event stays behind (#244).
-		if ( is_array( $result ) && isset( $result['remain'] ) && $result['remain'] <= 0 ) {
+		if ( isset( $result['remain'] ) && $result['remain'] <= 0 ) {
 			self::stop();
 		}
 

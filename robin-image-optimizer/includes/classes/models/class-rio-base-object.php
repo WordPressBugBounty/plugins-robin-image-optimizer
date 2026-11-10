@@ -1,4 +1,9 @@
 <?php
+/**
+ * Base model with magic property access.
+ *
+ * @package Robin_Image_Optimizer
+ */
 
 // Exit if accessed directly
 if ( ! defined( 'ABSPATH' ) ) {
@@ -28,7 +33,7 @@ class RIO_Base_Object {
 	/**
 	 * RIO_Base_Object constructor.
 	 *
-	 * @param array $config name-value pairs that will be used to initialize the object properties.
+	 * @param array<string, mixed> $config name-value pairs that will be used to initialize the object properties.
 	 */
 	public function __construct( $config = [] ) {
 
@@ -41,6 +46,8 @@ class RIO_Base_Object {
 
 	/**
 	 * Initiate model.
+	 *
+	 * @return void
 	 */
 	public function init() {
 	}
@@ -48,7 +55,9 @@ class RIO_Base_Object {
 	/**
 	 * Configure object.
 	 *
-	 * @param array $config name-value pairs that will be used to initialize the object properties.
+	 * @param array<string, mixed> $config name-value pairs that will be used to initialize the object properties.
+	 *
+	 * @return void
 	 */
 	public function configure( $config ) {
 		RIO_Base_Helper::configure( $this, $config );
@@ -60,10 +69,11 @@ class RIO_Base_Object {
 	 * Do not call this method directly as it is a PHP magic method that
 	 * will be implicitly called when executing `$value = $object->property;`.
 	 *
-	 * @param string $name the property name
+	 * @param string $name The property name.
 	 *
-	 * @return mixed the property value
-	 * @throws Exception if the property is not defined
+	 * @return mixed The property value.
+	 * @throws \Exception If the property is write-only.
+	 * @throws Exception If the property is not defined.
 	 * @see __set()
 	 */
 	public function __get( $name ) {
@@ -82,10 +92,11 @@ class RIO_Base_Object {
 	 * Do not call this method directly as it is a PHP magic method that
 	 * will be implicitly called when executing `$object->property = $value;`.
 	 *
-	 * @param string $name the property name or the event name
-	 * @param mixed  $value the property value
+	 * @param string $name The property name or the event name.
+	 * @param mixed  $value The property value.
 	 *
-	 * @throws Exception if the property is not defined
+	 * @throws \Exception If the property is read-only.
+	 * @throws \Exception If the property is not defined.
 	 * @see __get()
 	 */
 	public function __set( $name, $value ) {

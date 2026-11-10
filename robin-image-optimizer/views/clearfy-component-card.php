@@ -1,9 +1,16 @@
 <?php
+/**
+ * Clearfy card of the Robin plugin on the components page.
+ *
+ * @package Robin_Image_Optimizer
+ */
 
 defined( 'ABSPATH' ) || die( 'Cheatin’ uh?' );
 
 /**
- * @var array                           $data
+ * Template data.
+ *
+ * @var array<string, mixed> $data
  */
 
 if ( ! class_exists( 'WCL_Plugin' ) ) {

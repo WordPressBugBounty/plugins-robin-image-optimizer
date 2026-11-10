@@ -4,6 +4,7 @@
  *
  * @see           RIO_Process_Queue for further information.
  *
+ * @package       Robin_Image_Optimizer
  * @version       1.0
  */
 
@@ -19,6 +20,7 @@ add_action( 'wp_ajax_wrio_meta_migrations', 'wbcr_rio_migrate_postmeta_to_proces
  *
  * @since  1.3.0
  * @see    RIO_Process_Queue as referce for new table.
+ * @return void
  */
 function wbcr_rio_migrate_postmeta_to_process_queue() {
 	global $wpdb;
@@ -44,7 +46,9 @@ function wbcr_rio_migrate_postmeta_to_process_queue() {
 
 	$attachments = wbcr_rio_get_meta_to_migrate();
 
-	if ( isset( $attachments->posts ) && ( $attachments_total = count( $attachments->posts ) ) > 0 ) {
+	$attachments_total = isset( $attachments->posts ) ? count( $attachments->posts ) : 0;
+
+	if ( $attachments_total > 0 ) {
 
 		if ( $attachments_total < $limit ) {
 			$limit = $attachments_total;
@@ -58,10 +62,12 @@ function wbcr_rio_migrate_postmeta_to_process_queue() {
 
 		WRIO_Plugin::app()->logger->memory_usage();
 
-		/**
-		 * @var WP_Post $attachment
-		 */
 		for ( $i = 0; $i < $limit; $i++ ) {
+			/**
+			 * Attachment row.
+			 *
+			 * @var WP_Post $attachment
+			 */
 			$attachment = $attachments->posts[ $i ];
 			$post_meta  = get_post_custom( $attachment->ID );
 
@@ -147,8 +153,8 @@ function wbcr_rio_migrate_postmeta_to_process_queue() {
 		}
 
 		$left_items = $attachments_total - $processed_items;
-		// translators: %s is the number of items left to migrate
-		$message        = sprintf( __( 'left to migrate: %s items', 'robin-image-optimizer' ), $left_items );
+		/* translators: %s: number of items left to migrate. */
+		$message        = sprintf( __( 'Items left to migrate: %s', 'robin-image-optimizer' ), number_format_i18n( $left_items ) );
 		$need_more_time = true;
 
 		WRIO_Plugin::app()->logger->info( 'Succefull migrated ' . $processed_items . ' items.' );

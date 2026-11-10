@@ -36,6 +36,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @phpstan-type ForgetEvent 'restored'|'deleted'|'size_removed'|'not_processed'
  * @phpstan-type PendingEvent 'edited'|'replaced'|'format_lost'
  * @phpstan-type ItemFailure 'missing_file'|'no_metadata'|'backup_failed'|'path_denied'|'unexpected_error'|'crashed'|'memory_limit'
+ * @phpstan-type Files array<string, array{path: string, url?: string, optimize?: bool, object_id?: int|null}>
  * @phpstan-type Fingerprint array{size: int<0, max>, mtime: int<0, max>, hash?: string, full_hash?: string}
  * @phpstan-type Row array{id: numeric-string, source: Source, object_id: numeric-string, size_name: string, format: Output, status: Status, path_hash: string, original_size: numeric-string, final_size: numeric-string, source_size: numeric-string, source_mtime: numeric-string, source_hash?: string, source_full_hash?: string, mime_type: string, level: string, backed_up: numeric-string, code: string, permanent: numeric-string, attempts: numeric-string, next_attempt_at: string|null, request_id: string, legacy: numeric-string, updated_at: string}
  * @phpstan-type Columns array<string, string|int|null>
@@ -565,15 +566,16 @@ class Store {
 	 * "missing" rows. A failure is requested when its retry is due. Every other output (none, missing, stale) is
 	 * requested.
 	 *
-	 * @param array                              $item    The item.
-	 * @param array<string, array{path: string}> $files   Files by size name.
-	 * @param array<string, Output[]>            $outputs Wanted outputs by size name.
+	 * @param array                   $item    The item.
+	 * @param array                   $files   Files by size name.
+	 * @param array<string, Output[]> $outputs Wanted outputs by size name.
 	 *
 	 * @phpstan-param Item $item
+	 * @phpstan-param Files $files
 	 *
-	 * @param bool                               $prune   Forget the pending rows of every output that is not wanted any
-	 *                                                     more, for example of a size that is no longer optimized. False
-	 *                                                     for a conversion: it forgets those of its formats only.
+	 * @param bool                    $prune   Forget the pending rows of every output that is not wanted any
+	 *                                          more, for example of a size that is no longer optimized. False
+	 *                                          for a conversion: it forgets those of its formats only.
 	 *
 	 * @return array{request: array<string, non-empty-list<Output>>, done: array<string, array<Output, Row>>}|null Null when the
 	 *         old rows of the item could not be copied: what they say is done is not known, so nothing is requested.
@@ -726,9 +728,9 @@ class Store {
 	 * The context of wrio_error_message() with the limits of the plan, when the server sent them. They are the
 	 * ones the message is about.
 	 *
-	 * @param array<string, mixed> $context Context.
+	 * @param array{format?: string, path?: string, limit?: int, megapixels?: float|int, next_attempt_at?: string|null, attempts?: int, fallback?: string} $context Context.
 	 *
-	 * @return array<string, mixed>
+	 * @return array{format?: string, path?: string, limit?: int, megapixels?: float|int, next_attempt_at?: string|null, attempts?: int, fallback?: string}
 	 */
 	public static function message_context( array $context ) {
 		$limits = \WRIO\V2\Client::from_settings()->cached_limits();
@@ -1413,7 +1415,7 @@ class Store {
 			];
 		}
 
-		$code = (string) ( $result['error']['code'] ?? '' );
+		$code = is_array( $result['error'] ?? null ) && is_scalar( $result['error']['code'] ?? null ) ? (string) $result['error']['code'] : '';
 
 		return self::failure( '' !== $code ? $code : 'processing_failed' );
 	}
@@ -1540,9 +1542,10 @@ class Store {
 	 * missing or pending row goes too: after a restore, the next run is the same as the first one, also
 	 * for an item whose damaged main file failed for good.
 	 *
-	 * @param Source                             $source    attachment, cf_image or nextgen.
-	 * @param int                                $object_id Item ID.
-	 * @param array<string, array{path: string}> $files     Files of the item by size name.
+	 * @param Source $source    attachment, cf_image or nextgen.
+	 * @param int    $object_id Item ID.
+	 * @param array  $files     Files of the item by size name.
+	 * @phpstan-param Files $files
 	 *
 	 * @return array<string, Row> The deleted rows.
 	 */
@@ -2279,6 +2282,13 @@ class Store {
 	 * @return Fingerprint
 	 */
 	public static function fingerprint( $path, $hash = false ) {
+		if ( '' === wrio_file_path( $path ) ) {
+			return [
+				'size'  => 0,
+				'mtime' => 0,
+			];
+		}
+
 		clearstatcache( true, $path );
 
 		if ( ! is_file( $path ) ) {

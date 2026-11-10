@@ -274,6 +274,10 @@ class Delivery_Test {
 	protected static function delete( $id ) {
 		delete_transient( self::FOLDER . $id );
 		$dir = self::dir( $id );
+		// start() makes a real folder: the files behind a link are not of the test.
+		if ( is_link( $dir ) ) {
+			return;
+		}
 		foreach ( self::files() as $file ) {
 			wp_delete_file( $dir . '/' . $file );
 		}
@@ -344,7 +348,7 @@ class Delivery_Test {
 			'Pragma'        => 'no-cache',
 		];
 		// A staging site behind basic auth answers 401 without it. Uploads on a CDN never get the credentials.
-		if ( isset( $_SERVER['PHP_AUTH_USER'], $_SERVER['PHP_AUTH_PW'] ) && self::is_site_url( $url ) ) {
+		if ( isset( $_SERVER['PHP_AUTH_USER'], $_SERVER['PHP_AUTH_PW'] ) && is_string( $_SERVER['PHP_AUTH_USER'] ) && is_string( $_SERVER['PHP_AUTH_PW'] ) && self::is_site_url( $url ) ) {
 			$headers['Authorization'] = 'Basic ' . base64_encode( wp_unslash( $_SERVER['PHP_AUTH_USER'] ) . ':' . wp_unslash( $_SERVER['PHP_AUTH_PW'] ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput, WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- the credentials of this request, sent back to this site.
 		}
 

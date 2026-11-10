@@ -1,4 +1,10 @@
 <?php
+/**
+ * Robin Image Optimizer plugin class file.
+ *
+ * @package Robin_Image_Optimizer
+ */
+
 // Exit if accessed directly
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -20,6 +26,8 @@ class WRIO_Plugin {
 	const NAME = 'wbcr_image_optimizer';
 
 	/**
+	 * Singleton instance of the plugin.
+	 *
 	 * @see self::app()
 	 * @var WRIO_Plugin
 	 */
@@ -104,7 +112,7 @@ class WRIO_Plugin {
 		if ( is_admin() ) {
 			add_filter( 'big_image_size_threshold', [ $this, 'big_image_size_threshold' ] );
 
-			if ( defined( 'DOING_AJAX' ) && DOING_AJAX ) {
+			if ( wp_doing_ajax() ) {
 				// Ajax files
 				require_once WRIO_PLUGIN_DIR . '/includes/classes/class-rio-bulk-optimization.php';
 				new WRIO_Bulk_Optimization();
@@ -178,7 +186,7 @@ class WRIO_Plugin {
 	 * @see survey.js in SDK.
 	 */
 	public function get_survey_metadata( $data ) {
-		$install_days_number = intval( ( time() - get_option( self::get_sdk_namespace() . '_install', time() ) ) / DAY_IN_SECONDS );
+		$install_days_number = intval( ( time() - (int) get_option( self::get_sdk_namespace() . '_install', time() ) ) / DAY_IN_SECONDS );
 
 		$license_status = 'invalid';
 		$plan           = null;
@@ -314,9 +322,9 @@ class WRIO_Plugin {
 	/**
 	 * Set the black friday data.
 	 *
-	 * @param array<string, mixed> $configs The configuration array for the loaded products.
+	 * @param array<string, array<string, mixed>> $configs The configuration array for the loaded products.
 	 *
-	 * @return array<string, mixed> The configurations.
+	 * @return array<string, array<string, mixed>> The configurations.
 	 */
 	public function add_black_friday_data( $configs ) {
 		$config = $configs['default'];
@@ -376,6 +384,8 @@ class WRIO_Plugin {
 	 * Hide SDK promo notice for pro uses.
 	 *
 	 * @access public
+	 *
+	 * @return bool
 	 */
 	public static function sdk_hide_promo_notice() {
 		return self::app()->premium->is_active();
@@ -383,9 +393,9 @@ class WRIO_Plugin {
 	/**
 	 * Register product into SDK.
 	 *
-	 * @param array $products All products.
+	 * @param array<int, string> $products All products.
 	 *
-	 * @return array Registered product.
+	 * @return array<int, string> Registered product.
 	 */
 	public static function register_sdk( $products ) {
 		$products[] = WRIO_PLUGIN_FILE;
@@ -673,8 +683,6 @@ class WRIO_Plugin {
 
 	/**
 	 * Loads the back-end features.
-	 *
-	 * @throws Exception
 	 */
 	public function plugins_loaded(): void {
 		// The upload hooks: wp-admin, cron, REST uploads, and WP-CLI (wp media import).
@@ -709,6 +717,8 @@ class WRIO_Plugin {
 
 	/**
 	 * Подключаем модули классы и функции
+	 *
+	 * @return void
 	 */
 	protected function includes() {
 
@@ -768,14 +778,7 @@ class WRIO_Plugin {
 		);
 		add_action( 'wp_ajax_wrio_loopback_test', 'wrio_loopback_test_handler' );
 		if ( $this->getPopulateOption( 'fetchpriority_first_image', false ) ) {
-			// Before wptexturize() (10), after do_blocks() (9): a ">" in a quoted value does not break the tag.
-			add_filter( 'the_content', 'wrio_escape_img_attribute_gt', 9 );
-			// Before wp_filter_content_tags() (12): WordPress then reads the existing attributes.
-			add_filter( 'the_content', 'wrio_normalize_priority_attributes', 11 );
-			// After wp_filter_content_tags() (12): an attribute that WordPress added stays.
-			add_filter( 'the_content', 'wrio_add_fetchpriority', 20 );
-			// The whole page decides: a priority that later content renders wins over the one Robin added.
-			add_action( 'template_redirect', 'wrio_start_priority_buffer' );
+			wrio_register_fetchpriority_hooks();
 		}
 		add_action( 'wp_ajax_nopriv_wrio_loopback_test', 'wrio_loopback_test_handler' );
 
@@ -872,11 +875,11 @@ class WRIO_Plugin {
 	 * Option enables error logging on frontend. If for some reason webp images are not displayed on the front-end, you can use
 	 * this option to catch errors and send this report to the plugin support service.
 	 *
-	 * @return int
+	 * @return int|false
 	 * @since  1.3.6
 	 */
 	public function is_keep_error_log_on_frontend() {
-		if ( is_admin() || ( defined( 'DOING_AJAX' ) && DOING_AJAX ) || ( defined( 'DOING_CRON' ) && DOING_CRON ) ) {
+		if ( is_admin() || wp_doing_ajax() || wp_doing_cron() ) {
 			return false;
 		}
 

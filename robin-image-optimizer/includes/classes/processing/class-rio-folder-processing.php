@@ -18,11 +18,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 class WRIO_Folder_Processing extends WRIO_Processing {
 
 	/**
+	 * Pushes the unoptimized custom folder images to the queue.
+	 *
 	 * @return int Count of pushed queue
 	 */
 	public function push_items() {
 		$attachment_ids = [];
-		if ( $this->scope === 'custom-folders' ) {
+		if ( 'custom-folders' === $this->scope ) {
 			$cf             = WRIO_Custom_Folders::get_instance();
 			$attachment_ids = $cf->getUnoptimizedImages();
 		}
@@ -37,7 +39,7 @@ class WRIO_Folder_Processing extends WRIO_Processing {
 	/**
 	 * Метод оптимизирует изображения при выполнении задачи
 	 *
-	 * @param int $image
+	 * @param int $image The custom folder image ID.
 	 *
 	 * @return int|false The item when it must stay in the queue.
 	 */
@@ -51,9 +53,9 @@ class WRIO_Folder_Processing extends WRIO_Processing {
 		if ( $image ) {
 			WRIO_Plugin::app()->logger->info( sprintf( 'Start optimize custom folder image: %s', $image ) );
 
-			if ( $this->scope === 'custom-folders' ) {
-				$cf     = WRIO_Custom_Folders::get_instance();
-				$result = $cf->optimizeImage( $image );
+			if ( 'custom-folders' === $this->scope ) {
+				$cf = WRIO_Custom_Folders::get_instance();
+				$cf->optimizeImage( $image );
 			}
 
 			WRIO_Plugin::app()->logger->info( sprintf( 'End optimize custom folder image: %s', $image ) );

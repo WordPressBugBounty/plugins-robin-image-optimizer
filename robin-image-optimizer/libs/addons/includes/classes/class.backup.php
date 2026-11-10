@@ -1,4 +1,9 @@
 <?php
+/**
+ * Backup and restore of the original images for the Robin Image Optimizer addons.
+ *
+ * @package Robin_Image_Optimizer
+ */
 
 // Exit if accessed directly
 if ( ! defined( 'ABSPATH' ) ) {
@@ -20,19 +25,24 @@ class WRIOP_Backup extends WIO_Backup {
 	 *
 	 * @since  1.3.0
 	 * @access protected
-	 * @var    object
+	 * @var    static|null
 	 */
 	protected static $_instance;
 
 	/**
 	 * Получает путь к папке с резервными копиями
 	 *
-	 * @param array $gallery_meta   метаданные аттачмента
+	 * @param stdClass $gallery_meta   метаданные аттачмента.
 	 *
-	 * @return string
+	 * @return non-empty-string|WP_Error
 	 */
 	public function getNextgenBackupDir( $gallery_meta ) {
-		$backup_dir  = $this->getBackupDir();
+		$backup_dir = $this->getBackupDir();
+
+		if ( is_wp_error( $backup_dir ) ) {
+			return $backup_dir;
+		}
+
 		$backup_dir .= self::NEXTGEN_BACKUP_DIR_NAME . '/' . $gallery_meta->gid;
 
 		if ( ! is_dir( $backup_dir ) ) {
@@ -49,7 +59,7 @@ class WRIOP_Backup extends WIO_Backup {
 	/**
 	 * Делаем резервную копию NextGEN
 	 *
-	 * @param WRIO_Image_Nextgen $nextgen_image   аттачмент
+	 * @param WRIO_Image_Nextgen $nextgen_image   аттачмент.
 	 *
 	 * @return bool|WP_Error
 	 */
@@ -71,6 +81,11 @@ class WRIOP_Backup extends WIO_Backup {
 		$backup_file           = $backup_dir . $nextgen_image->get( 'file' );
 		$backup_thumbnail_file = $backup_dir . $nextgen_image->get( 'thumbnail_file' );
 		$image_id              = (int) $nextgen_image->get( 'id' );
+
+		// A name that PHP refuses (a null byte) is a missing file, as in WRIO_Image_Nextgen: there is nothing to back up.
+		if ( '' === wrio_file_path( $original_file . $original_thumbnail_file . $backup_file . $backup_thumbnail_file ) ) {
+			return false;
+		}
 
 		// A gallery folder under the backup folder that links out of it would get the copies.
 		if ( ! $this->is_safe_backup( $backup_file ) || ! $this->is_safe_backup( $backup_thumbnail_file ) ) {
@@ -105,12 +120,7 @@ class WRIOP_Backup extends WIO_Backup {
 	 *
 	 * @param int $limit     Limit on number of NextGen image to restore. Default: 50, maximum 1000.
 	 *
-	 * @return array {
-	 *     Result of process: how many images restored and how many remain.
-	 * @type int  $processed Count of processed images.
-	 * @type int  $remane    Count of remained images to be processed.
-	 * @type int  $total     Count of images left to restore, with the failed ones.
-	 * }
+	 * @return array{processed: int, remane: int, total: int} Result of process: how many images restored and how many remain.
 	 */
 	public function restoreAllNextGen( $limit = 50 ) {
 		return $this->restore_all_items(
@@ -127,12 +137,7 @@ class WRIOP_Backup extends WIO_Backup {
 	 *
 	 * @param int $limit     Limit on number of Custom Folders to restore. Default: 50, maximum 1000.
 	 *
-	 * @return array {
-	 *     Result of process: how many folders restored and how many remain.
-	 * @type int  $processed Count of processed folders.
-	 * @type int  $remane    Count of remained folders to be processed.
-	 * @type int  $total     Count of images left to restore, with the failed ones.
-	 * }
+	 * @return array{processed: int, remane: int, total: int} Result of process: how many folders restored and how many remain.
 	 */
 	public function restoreAllCustomFolders( $limit = 50 ) {
 		$result = $this->restore_all_items(
@@ -227,11 +232,17 @@ class WRIOP_Backup extends WIO_Backup {
 	/**
 	 * Восстанавливаем из резервной копии NextGEN
 	 *
-	 * @param WRIO_Image_Nextgen $nextgen_image   аттачмент
+	 * @param WRIO_Image_Nextgen $nextgen_image   аттачмент.
 	 *
 	 * @return true|WP_Error
 	 */
 	public function restoreNextgen( $nextgen_image ) {
+		// Without the folder no backup can be read: restoring nothing would still forget the rows.
+		$backup_dir = $this->getNextgenBackupDir( $nextgen_image->get( 'gallery_meta' ) );
+		if ( is_wp_error( $backup_dir ) ) {
+			return $backup_dir;
+		}
+
 		$copies   = $this->nextgen_backups( $nextgen_image );
 		$replaced = $this->replaced_files( 'nextgen', (int) $nextgen_image->get( 'id' ), $copies );
 		$copies   = array_diff_key( $copies, $replaced );
@@ -266,6 +277,13 @@ class WRIOP_Backup extends WIO_Backup {
 			return new WP_Error( 'no_backup', __( 'The original of this image is not kept, so it cannot be restored.', 'robin-image-optimizer' ) );
 		}
 
+		// A gallery folder that links out of the backup folder is not read, as backupNextgen() does not write it.
+		foreach ( $copies as list( $backup ) ) {
+			if ( ! $this->is_safe_backup( $backup ) ) {
+				return new WP_Error( 'backup_path_invalid', sprintf( 'Unable to restore from a backup. It is outside the backup folder (%s).', $backup ) );
+			}
+		}
+
 		$restored = $this->copy_backups( array_values( $copies ) );
 
 		if ( is_wp_error( $restored ) ) {
@@ -273,7 +291,7 @@ class WRIOP_Backup extends WIO_Backup {
 		}
 
 		foreach ( array_merge( $copies, $replaced ) as list( $backup ) ) {
-			wp_delete_file( $backup );
+			$this->delete_backup( $backup );
 		}
 
 		return true;
@@ -329,7 +347,7 @@ class WRIOP_Backup extends WIO_Backup {
 	 */
 	public function deleteNextgenBackups( $nextgen_image ) {
 		foreach ( $this->nextgen_backups( $nextgen_image ) as list( $backup ) ) {
-			wp_delete_file( $backup );
+			$this->delete_backup( $backup );
 		}
 	}
 
@@ -346,18 +364,33 @@ class WRIOP_Backup extends WIO_Backup {
 	 * @return array<string, array{0: string, 1: string}> By size name: original, thumbnail.
 	 */
 	private function nextgen_backups( $nextgen_image ) {
-		$backup_dir            = $this->getNextgenBackupDir( $nextgen_image->get( 'gallery_meta' ) );
-		$backup_thumbnail_file = $backup_dir . $nextgen_image->get( 'thumbnail_file' );
-		$thumbnail_file        = (string) $nextgen_image->get( 'thumbnail_path' );
-		$copies                = [ 'original' => [ $backup_dir . $nextgen_image->get( 'file' ), (string) $nextgen_image->get( 'path' ) ] ];
+		$backup_dir = $this->getNextgenBackupDir( $nextgen_image->get( 'gallery_meta' ) );
 
-		$rows = \WRIO\Storage\Store::rows( 'nextgen', (int) $nextgen_image->get( 'id' ) );
-		// Rows copied from the old queue (legacy) know nothing of the thumbnail.
-		$legacy              = empty( $rows ) || ! empty( $rows['original|optimized']['legacy'] );
-		$thumbnail_backed_up = isset( $rows['thumbnail|optimized'] ) || ( $legacy && is_file( $thumbnail_file ) );
+		if ( is_wp_error( $backup_dir ) ) {
+			return [];
+		}
 
-		if ( file_exists( $backup_thumbnail_file ) || $thumbnail_backed_up ) {
-			$copies['thumbnail'] = [ $backup_thumbnail_file, $thumbnail_file ];
+		$copies = array_filter(
+			[
+				'original'  => [ $backup_dir . $nextgen_image->get( 'file' ), (string) $nextgen_image->get( 'path' ) ],
+				'thumbnail' => [ $backup_dir . $nextgen_image->get( 'thumbnail_file' ), (string) $nextgen_image->get( 'thumbnail_path' ) ],
+			],
+			static function ( $copy ) {
+				return '' !== wrio_file_path( $copy[0] ) && '' !== wrio_file_path( $copy[1] );
+			}
+		);
+
+		if ( isset( $copies['thumbnail'] ) ) {
+			list( $backup_thumbnail_file, $thumbnail_file ) = $copies['thumbnail'];
+
+			$rows = \WRIO\Storage\Store::rows( 'nextgen', (int) $nextgen_image->get( 'id' ) );
+			// Rows copied from the old queue (legacy) know nothing of the thumbnail.
+			$legacy              = empty( $rows ) || ! empty( $rows['original|optimized']['legacy'] );
+			$thumbnail_backed_up = isset( $rows['thumbnail|optimized'] ) || ( $legacy && is_file( $thumbnail_file ) );
+
+			if ( ! file_exists( $backup_thumbnail_file ) && ! $thumbnail_backed_up ) {
+				unset( $copies['thumbnail'] );
+			}
 		}
 
 		return $copies;
@@ -366,7 +399,7 @@ class WRIOP_Backup extends WIO_Backup {
 	/**
 	 * Получает путь к папке с резервными копиями
 	 *
-	 * @param string $image_abs_path   абсолютный путь к файлу картинки
+	 * @param string $image_abs_path   абсолютный путь к файлу картинки.
 	 *
 	 * @return string|WP_Error
 	 */
@@ -411,7 +444,7 @@ class WRIOP_Backup extends WIO_Backup {
 	/**
 	 * Делаем резервную копию Custom Folder Image
 	 *
-	 * @param WRIO_Folder_Image $folder_image   Custom Folder Image
+	 * @param WRIO_Folder_Image $folder_image   Custom Folder Image.
 	 *
 	 * @return bool|WP_Error
 	 */
@@ -456,7 +489,7 @@ class WRIOP_Backup extends WIO_Backup {
 	/**
 	 * Восстанавливаем из резервной копии Custom Folder Image
 	 *
-	 * @param WRIO_Folder_Image $folder_image   Custom Folder Image
+	 * @param WRIO_Folder_Image $folder_image   Custom Folder Image.
 	 *
 	 * @return bool|WP_Error
 	 */

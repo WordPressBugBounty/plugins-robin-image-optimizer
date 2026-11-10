@@ -1,4 +1,9 @@
 <?php
+/**
+ * WP-CLI commands for the Robin Image Optimizer.
+ *
+ * @package Robin_Image_Optimizer
+ */
 
 // Exit if accessed directly
 if ( ! defined( 'ABSPATH' ) ) {
@@ -27,6 +32,11 @@ class WRIO_CLI_Commands {
 	 *     wp robin optimize nextgen
 	 *
 	 * @when after_wp_load
+	 *
+	 * @param list<string>         $args       Positional arguments.
+	 * @param array<string, mixed> $assoc_args Associative arguments.
+	 *
+	 * @return void
 	 */
 	public function optimize( $args, $assoc_args ) {
 		list( $scope )   = $args;
@@ -71,6 +81,11 @@ class WRIO_CLI_Commands {
 	 *     wp robin stop nextgen
 	 *
 	 * @when after_wp_load
+	 *
+	 * @param list<string>         $args       Positional arguments.
+	 * @param array<string, mixed> $assoc_args Associative arguments.
+	 *
+	 * @return void
 	 */
 	public function stop( $args, $assoc_args ) {
 		list( $scope ) = $args;
@@ -107,6 +122,11 @@ class WRIO_CLI_Commands {
 	 *     wp robin status nextgen
 	 *
 	 * @when after_wp_load
+	 *
+	 * @param list<string>         $args       Positional arguments.
+	 * @param array<string, mixed> $assoc_args Associative arguments.
+	 *
+	 * @return void
 	 */
 	public function status( $args, $assoc_args ) {
 		list( $scope ) = $args;

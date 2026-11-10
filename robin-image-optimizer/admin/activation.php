@@ -1,8 +1,8 @@
 <?php
-
 /**
  * Activator for the Robin image optimizer
  *
+ * @package       Robin_Image_Optimizer
  * @version       1.0
  */
 
@@ -20,7 +20,8 @@ class WIO_Activation {
 	 * Runs activation actions.
 	 *
 	 * @since 1.0.0
-	 * @throws \Exception
+	 * @throws \Exception If an installation step fails.
+	 * @return void
 	 */
 	public function activate() {
 		WRIO_Plugin::app()->logger->info( 'Parent plugin start installation!' );
@@ -86,6 +87,7 @@ class WIO_Activation {
 	 * Runs activation actions.
 	 *
 	 * @since 1.0.0
+	 * @return void
 	 */
 	public function deactivate() {
 		WRIO_Plugin::app()->logger->info( 'Parent plugin start deactivation!' );

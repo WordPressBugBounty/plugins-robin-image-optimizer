@@ -20,7 +20,8 @@ class WIOUpdate010501 {
 		$old_dir = $this->get_old_dir();
 		$new_dir = WRIO_Plugin::app()->logger->get_base_dir();
 
-		$files = array_diff( scandir( $old_dir ), [ '..', '.' ] );
+		// No old folder, or a link that the logger could not remove: nothing is copied.
+		$files = null === $old_dir || is_link( untrailingslashit( $new_dir ) ) ? [] : array_diff( scandir( $old_dir ), [ '..', '.' ] );
 		foreach ( $files as $file ) {
 			@copy( $old_dir . $file, $new_dir . $file );
 		}
@@ -57,6 +58,11 @@ class WIOUpdate010501 {
 		}
 
 		$path = $base_path . $selected_logs_folder . '/';
+
+		// The target of a link is not the old log folder: nothing is written to it or copied from it.
+		if ( is_link( untrailingslashit( $base_path ) ) || is_link( untrailingslashit( $path ) ) ) {
+			return null;
+		}
 
 		if ( ! file_exists( $path ) ) {
 			@mkdir( $path, 0755, true );

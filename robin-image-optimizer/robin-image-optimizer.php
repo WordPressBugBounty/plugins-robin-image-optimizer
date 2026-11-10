@@ -4,7 +4,7 @@
  * Plugin URI: https://robinoptimizer.com
  * Description: Optimize images without losing quality, speed up your website load, improve SEO and save money on server and CDN bandwidth.
  * Author: Themeisle <contact@themeisle.com>
- * Version: 2.1.0
+ * Version: 2.1.1
  * Text Domain: robin-image-optimizer
  * Domain Path: /languages/
  * Author URI: https://themeisle.com
@@ -12,6 +12,8 @@
  * WordPress Available:  yes
  * Requires License:    yes
  * Requires PHP: 7.4
+ *
+ * @package Robin_Image_Optimizer
  */
 
 // Exit if accessed directly

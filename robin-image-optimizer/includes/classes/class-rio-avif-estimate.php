@@ -130,7 +130,7 @@ class WRIO_Avif_Estimate {
 		foreach ( $ids as $id ) {
 			$path = ( new WIO_Attachment( (int) $id ) )->isOptimized()
 				? $backup->getAttachmentBackupPath( (int) $id )
-				: get_attached_file( (int) $id );
+				: wrio_file_path( get_attached_file( (int) $id ) );
 
 			if ( $path && is_readable( $path ) ) {
 				$paths[] = $path;

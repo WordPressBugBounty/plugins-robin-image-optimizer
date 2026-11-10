@@ -1,4 +1,9 @@
 <?php
+/**
+ * Media Library optimization hooks for the Robin Image Optimizer.
+ *
+ * @package Robin_Image_Optimizer
+ */
 
 // Exit if accessed directly
 if ( ! defined( 'ABSPATH' ) ) {
@@ -43,6 +48,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  *     edit_url: string|null,
  *     excluded: string
  * }
+ *
+ * @phpstan-consistent-constructor
  */
 class WRIO_Media_Library {
 
@@ -83,12 +90,14 @@ class WRIO_Media_Library {
 	 *
 	 * @since  1.3.0
 	 * @access protected
-	 * @var    WRIO_Media_Library
+	 * @var    WRIO_Media_Library|null
 	 */
 	protected static $_instance;
 
 	/**
-	 * @var array Массив для хранения объектов WIO_Attachment
+	 * Attachment objects, by attachment ID.
+	 *
+	 * @var array<int, WIO_Attachment>
 	 */
 	private $attachments = [];
 
@@ -100,6 +109,8 @@ class WRIO_Media_Library {
 	private $state_rows = [];
 
 	/**
+	 * Returns the single instance of the class.
+	 *
 	 * @return WRIO_Media_Library Main instance.
 	 * @since  1.3.0
 	 */
@@ -113,6 +124,8 @@ class WRIO_Media_Library {
 
 	/**
 	 * Установка хуков
+	 *
+	 * @return void
 	 */
 	public function initHooks() {
 		// оптимизация при загрузке в медиабиблиотеку
@@ -139,7 +152,6 @@ class WRIO_Media_Library {
 		}
 		add_action( 'admin_enqueue_scripts', [ $this, 'enqueueMeadiaScripts' ], 10 );
 		add_action( 'wp_enqueue_media', [ $this, 'enqueue_modal_scripts' ] );
-		add_action( 'wbcr/rio/optimize_template/optimized_percent', [ $this, 'optimizedPercent' ], 10, 2 );
 	}
 
 	/**
@@ -315,12 +327,16 @@ class WRIO_Media_Library {
 	}
 
 	/**
-	 * @param int    $attachment_id
-	 * @param string $retina_file
+	 * Optimizes an attachment after a Retina 2x file is added.
+	 *
+	 * @param int    $attachment_id Attachment ID.
+	 * @param string $retina_file   Path of the added Retina file.
+	 *
+	 * @return void
 	 */
 	public static function optimize_after_retina_2x_add( $attachment_id, $retina_file ) {
-		$metadata = get_post_meta( $attachment_id );
-		self::optimize_after_upload( $metadata, $attachment_id );
+		$metadata = wp_get_attachment_metadata( $attachment_id );
+		self::optimize_after_upload( is_array( $metadata ) ? $metadata : [], $attachment_id );
 	}
 
 	/**
@@ -408,11 +424,11 @@ class WRIO_Media_Library {
 	/**
 	 * Оптимизация при загрузке в медиабиблиотеку
 	 *
-	 * @param array  $metadata      метаданные аттачмента.
-	 * @param int    $attachment_id Номер аттачмента из медиабиблиотеки.
-	 * @param string $context       "create" for new metadata, "update" for changed metadata.
+	 * @param array<string, mixed> $metadata Метаданные аттачмента.
+	 * @param int                  $attachment_id Номер аттачмента из медиабиблиотеки.
+	 * @param string               $context "create" for new metadata, "update" for changed metadata.
 	 *
-	 * @return array $metadata Метаданные аттачмента
+	 * @return array<string, mixed> Метаданные аттачмента.
 	 */
 	public static function optimize_after_upload( $metadata, $attachment_id, $context = 'create' ) {
 		// The browser still sends the sizes: optimize when the finalize request has all of them.
@@ -514,8 +530,8 @@ class WRIO_Media_Library {
 	/**
 	 * Возвращает объект аттачмента
 	 *
-	 * @param int   $attachment_id
-	 * @param mixed $attachment_meta
+	 * @param int                        $attachment_id   The attachment ID.
+	 * @param array<string, mixed>|false $attachment_meta The attachment metadata, or false to read it.
 	 *
 	 * @return WIO_Attachment
 	 */
@@ -530,10 +546,10 @@ class WRIO_Media_Library {
 	/**
 	 * Оптимизирует аттачмент и сохраняет статистику
 	 *
-	 * @param int    $attachment_id
-	 * @param string $level уровень оптимизации
+	 * @param int    $attachment_id The attachment ID.
+	 * @param string $level Уровень оптимизации.
 	 *
-	 * @return array|WP_Error The error of a failed restore before a re-optimization.
+	 * @return array<string, mixed>|WP_Error The error of a failed restore before a re-optimization.
 	 */
 	public function optimizeAttachment( $attachment_id, $level = '' ) {
 		$wio_attachment    = $this->getAttachment( $attachment_id );
@@ -580,7 +596,7 @@ class WRIO_Media_Library {
 	/**
 	 * Восстанавливает аттачмент из резервной копии и сохраняет статистику
 	 *
-	 * @param int $attachment_id
+	 * @param int $attachment_id The attachment ID.
 	 *
 	 * @return bool|WP_Error
 	 */
@@ -613,7 +629,7 @@ class WRIO_Media_Library {
 	/**
 	 * Get ID's of unoptimized attachments
 	 *
-	 * @return array
+	 * @return int[]
 	 */
 	public function getUnoptimizedImages() { // phpcs:ignore WordPress.NamingConventions.ValidFunctionName.MethodNameInvalid -- public method of the plugin API.
 		// The background run keeps to the upload dates of the run (#246).
@@ -625,7 +641,7 @@ class WRIO_Media_Library {
 	 *
 	 * @param string $format Format type: 'webp' or 'avif'. Default 'webp'.
 	 *
-	 * @return array
+	 * @return int[]
 	 */
 	public function getUnconvertedImages( $format = 'webp' ) {
 		return WRIO_Image_Statistic::get_unconverted_images( $format );
@@ -765,7 +781,7 @@ class WRIO_Media_Library {
 	 * @param int    $max_process_per_request Number of attachments per request.
 	 * @param string $format                  Target format: 'webp' or 'avif'. Default 'webp'.
 	 *
-	 * @return array|\WP_Error
+	 * @return array<string, mixed>|\WP_Error
 	 *
 	 * @since  1.5.3
 	 */
@@ -780,7 +796,7 @@ class WRIO_Media_Library {
 		$unconverted_attachments_ids = WRIO_Image_Query::get_instance()->get_unconverted_ids( $format, $max_process_per_request );
 
 		// временно
-		$attachments_count = ! empty( $unconverted_attachments_ids ) ? sizeof( $unconverted_attachments_ids ) : 0;
+		$attachments_count = ! empty( $unconverted_attachments_ids ) ? count( $unconverted_attachments_ids ) : 0;
 		$total_unconverted = WRIO_Image_Statistic::get_unconverted_count( $format );
 		$converted_items   = [];
 
@@ -832,6 +848,7 @@ class WRIO_Media_Library {
 	 * @param int         $attachment_id Attachment ID.
 	 * @param string|null $format        webp or avif. Null converts to every enabled format.
 	 *
+	 * @return void
 	 * @since  1.5.3
 	 */
 	public function webpConvertAttachment( $attachment_id, $format = null ) {
@@ -897,7 +914,7 @@ class WRIO_Media_Library {
 		// One query for the whole library (#248). Only an image whose file is not at its _wp_attached_file path is
 		// loaded, to read the path from its metadata as optimize() does.
 		foreach ( WRIO_Image_Query::get_instance()->get_untouched_files() as $id => $file ) {
-			if ( '' !== $file && file_exists( $basedir . $file ) ) {
+			if ( '' !== wrio_file_path( $file ) && file_exists( $basedir . $file ) ) {
 				continue;
 			}
 
@@ -980,7 +997,7 @@ class WRIO_Media_Library {
 
 		$remane = $optimized_count - $restored_count - count( $failed );
 
-		if ( $remane === 0 ) {
+		if ( 0 === $remane ) {
 			// Should empty original/optimized size once all backups are empty
 			WRIO_Plugin::app()->updateOption( 'original_size', 0 );
 			WRIO_Plugin::app()->updateOption( 'optimized_size', 0 );
@@ -1048,10 +1065,10 @@ class WRIO_Media_Library {
 	/**
 	 * Add "Image Optimizer" column in the Media Uploader
 	 *
-	 * @param array   $form_fields An array of attachment form fields.
-	 * @param WP_Post $post        The WP_Post attachment object.
+	 * @param array<string, mixed> $form_fields An array of attachment form fields.
+	 * @param WP_Post              $post        The WP_Post attachment object.
 	 *
-	 * @return array
+	 * @return array<string, mixed>
 	 */
 	public function attachmentEditorFields( $form_fields, $post ) {
 		global $pagenow;
@@ -1094,9 +1111,9 @@ class WRIO_Media_Library {
 	/**
 	 * Add "wio" column in upload.php.
 	 *
-	 * @param array $columns An array of columns displayed in the Media list table.
+	 * @param array<string, string> $columns An array of columns displayed in the Media list table.
 	 *
-	 * @return array
+	 * @return array<string, string>
 	 */
 	public function addMediaColumn( $columns ) {
 		$columns['wio_optimized_file'] = __( 'Robin Image Optimizer', 'robin-image-optimizer' );
@@ -1109,6 +1126,8 @@ class WRIO_Media_Library {
 	 *
 	 * @param string $column_name   Name of the custom column.
 	 * @param int    $attachment_id Attachment ID.
+	 *
+	 * @return void
 	 */
 	public function manageMediaColumn( $column_name, $attachment_id ) {
 		if ( 'wio_optimized_file' !== $column_name ) {
@@ -1167,8 +1186,8 @@ class WRIO_Media_Library {
 	/**
 	 * Возвращает шаблон для вывода блока кнопок на странице ручной оптимизации
 	 *
-	 * @param array  $params @see calculateMediaLibraryParams()
-	 * @param string $type   Тип страницы
+	 * @param array<string, mixed> $params @see calculateMediaLibraryParams().
+	 * @param string               $type Тип страницы.
 	 *
 	 * @return string
 	 */
@@ -1195,7 +1214,7 @@ class WRIO_Media_Library {
 	/**
 	 * Рассчитывает параметры для блока статистики в медиабиблиотеке
 	 *
-	 * @param int $attachment_id
+	 * @param int $attachment_id Attachment ID.
 	 *
 	 * @return MediaLibraryParams
 	 */
@@ -1218,14 +1237,14 @@ class WRIO_Media_Library {
 		// The raw edit link: the URL goes to JSON, and the app escapes it. The display form holds &amp;, which breaks the link.
 		$original_url  = wp_get_attachment_url( $attachment_id );
 		$edit_url      = get_edit_post_link( $attachment_id, 'raw' );
-		$original_name = basename( $original_url );
+		$original_name = $original_url ? basename( $original_url ) : '';
 
 		if ( isset( $attach_meta['width'] ) && isset( $attach_meta['height'] ) ) {
 			$attach_dimensions = $attach_meta['width'] . ' × ' . $attach_meta['height'];
 		}
 
 		clearstatcache();
-		$attachment_file      = get_attached_file( $attachment_id );
+		$attachment_file      = wrio_file_path( get_attached_file( $attachment_id ) );
 		$attachment_file_size = 0;
 
 		if ( $attachment_file && file_exists( $attachment_file ) ) {
@@ -1279,7 +1298,9 @@ class WRIO_Media_Library {
 			}
 
 			/**
-			 * @var $extra_data RIO_Attachment_Extra_Data
+			 * Extra data of the optimized attachment.
+			 *
+			 * @var RIO_Base_Extra_Data|null $extra_data
 			 */
 			$extra_data           = $optimization_data->get_extra_data();
 			$original_main_size   = $original_size;
@@ -1304,9 +1325,8 @@ class WRIO_Media_Library {
 				$error_msg = $extra_data->get_error_msg();
 			}
 
-			$backuped         = $optimization_data->get_is_backed_up();
-			$diff_percent     = 0;
-			$diff_percent_all = 0;
+			$backuped     = $optimization_data->get_is_backed_up();
+			$diff_percent = 0;
 
 			if ( $attachment_file_size && $original_main_size ) {
 				$diff_percent = round( ( $original_main_size - $attachment_file_size ) * 100 / $original_main_size, 2 );
@@ -1394,9 +1414,13 @@ class WRIO_Media_Library {
 
 	/**
 	 * Добавляем стили и скрипты в медиабиблиотеку
+	 *
+	 * @param string $hook The current admin page hook.
+	 *
+	 * @return void
 	 */
 	public function enqueueMeadiaScripts( $hook ) {
-		if ( $hook != 'upload.php' ) {
+		if ( 'upload.php' !== $hook ) {
 			return;
 		}
 		wp_enqueue_style( 'wio-install-addons', WRIO_PLUGIN_URL . '/admin/assets/css/media.css', [], WRIO_Plugin::app()->getPluginVersion() );
@@ -1414,24 +1438,5 @@ class WRIO_Media_Library {
 		if ( is_admin() ) {
 			$this->enqueueMeadiaScripts( 'upload.php' );
 		}
-	}
-
-	/**
-	 * Возвращает процент оптимизации
-	 * Фильтр wbcr/rio/optimize_template/optimized_percent
-	 *
-	 * @param int    $percent процент оптимизации
-	 * @param string $type    тип страницы
-	 *
-	 * @return int процент оптимизации
-	 */
-	public function optimizedPercent( $percent, $type ) {
-		if ( 'media-library' == $type ) {
-			$image_statistics = WRIO_Image_Statistic::get_instance();
-
-			return $image_statistics->getOptimizedPercent();
-		}
-
-		return $percent;
 	}
 }

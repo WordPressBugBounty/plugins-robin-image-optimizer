@@ -2,6 +2,7 @@
 /**
  * Used to process different filters.
  *
+ * @package Robin_Image_Optimizer
  * @version 1.0
  */
 
@@ -33,9 +34,7 @@ add_filter(
 			/* NextGen*/
 			$nextgen_restored = $premium_backup->restoreAllNextGen( $limit );
 
-			if ( isset( $nextgen_restored['remane'] ) ) {
-				$remane_count += $nextgen_restored['remane'];
-			}
+			$remane_count += $nextgen_restored['remane'];
 
 			// The rows that remane counts, so the progress stays between 0 and 100 %.
 			$total += $nextgen_restored['total'];
@@ -44,9 +43,7 @@ add_filter(
 		/* Custom folders */
 		$cf_restored = $premium_backup->restoreAllCustomFolders( $limit );
 
-		if ( isset( $cf_restored['remane'] ) ) {
-			$remane_count += $cf_restored['remane'];
-		}
+		$remane_count += $cf_restored['remane'];
 
 		$total += $cf_restored['total'];
 

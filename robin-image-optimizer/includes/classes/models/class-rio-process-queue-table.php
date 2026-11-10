@@ -1,4 +1,9 @@
 <?php
+/**
+ * Model of the process queue table.
+ *
+ * @package Robin_Image_Optimizer
+ */
 
 // Exit if accessed directly
 if ( ! defined( 'ABSPATH' ) ) {
@@ -53,12 +58,16 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 	const LEVEL_CUSTOM    = 'custom';
 
 	/**
-	 * @var null|int Primary key.
+	 * Primary key.
+	 *
+	 * @var null|int
 	 */
 	protected $id = null;
 
 	/**
-	 * @var null|string Server id which was used for processing.
+	 * Server id which was used for processing.
+	 *
+	 * @var null|string
 	 */
 	protected $server_id = null;
 
@@ -70,7 +79,9 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 	protected $object_id = null;
 
 	/**
-	 * @var null|string Object name. Usually, this can be table name where to take object id.
+	 * Object name. Usually, this can be table name where to take object id.
+	 *
+	 * @var null|string
 	 */
 	protected $object_name = null;
 
@@ -82,12 +93,16 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 	protected $item_type = null;
 
 	/**
-	 * @var null|string Unique item hash. Serves purpose of search.
+	 * Unique item hash. Serves purpose of search.
+	 *
+	 * @var null|string
 	 */
 	protected $item_hash = null;
 
 	/**
-	 * @var null|string Unique alternative hash. Serves purpose of search.
+	 * Unique alternative hash. Serves purpose of search.
+	 *
+	 * @var null|string
 	 */
 	protected $item_hash_alternative = null;
 
@@ -127,17 +142,23 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 	protected $final_size = null;
 
 	/**
-	 * @var null|string Original MIME TYPE. e.g. image/jpeg.
+	 * Original MIME TYPE. e.g. image/jpeg.
+	 *
+	 * @var null|string
 	 */
 	protected $original_mime_type = null;
 
 	/**
-	 * @var null|string Final mime type. e.g. image/webp.
+	 * Final mime type. e.g. image/webp.
+	 *
+	 * @var null|string
 	 */
 	protected $final_mime_type = null;
 
 	/**
-	 * @var null|RIO_Base_Extra_Data Extra data to be saved. e.g. JSON response from API.
+	 * Extra data to be saved. e.g. JSON response from API.
+	 *
+	 * @var null|RIO_Base_Extra_Data
 	 */
 	protected $extra_data = null;
 
@@ -149,30 +170,11 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 	protected $created_at = null;
 
 	/**
-	 * @var RIO_Base_Extra_Data Keeps instance of extra data to leave state of $extra_data untouched.
-	 */
-	private static $_extra_data;
-
-	/**
 	 * Rows preloaded by prime().
 	 *
 	 * @var array<string, object|null> Keyed by "object_id:item_type" and consumed on first load().
 	 */
 	protected static $primed_rows = [];
-
-	/**
-	 * {@inheritdoc}
-	 */
-	public function init() {
-		parent::init();
-
-		// Support both webp and avif with unified extra data model
-		if ( in_array( $this->item_type, [ 'webp', 'avif' ] ) ) {
-			static::$_extra_data = new RIOP_WebP_Extra_Data(); // Works for both formats
-		} else {
-			static::$_extra_data = new RIO_Base_Extra_Data();
-		}
-	}
 
 	/**
 	 * {@inheritdoc}
@@ -211,6 +213,8 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 	 * It is used to check the migration and create a schema in the database.
 	 * Updates the level of activity performed in the database.
 	 *
+	 * @param int $version Database version.
+	 *
 	 * @return void
 	 * @since  1.3.8
 	 */
@@ -221,9 +225,9 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 	/**
 	 * Find db item by hash.
 	 *
-	 * @param string $hash Hash to search for.
+	 * @param string|null $hash Hash to search for.
 	 *
-	 * @return null|$this
+	 * @return null|RIO_Process_Queue
 	 */
 	public static function find_by_hash( $hash ) {
 		global $wpdb;
@@ -247,9 +251,7 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 	/**
 	 * Find all by specified condition.
 	 *
-	 * @param array  $condition Key => value condition to be used to search.
-	 * @param string $order
-	 * @param string $limit
+	 * @param array<string, mixed> $condition Key => value condition to be used to search.
 	 *
 	 * @return null|self[]
 	 */
@@ -598,7 +600,7 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 	 * @return bool
 	 */
 	public function is_optimized() {
-		if ( $this->result_status == self::STATUS_SUCCESS ) {
+		if ( self::STATUS_SUCCESS === $this->result_status ) {
 			return true;
 		}
 
@@ -612,7 +614,7 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 	 * @return bool
 	 */
 	public function is_skipped() {
-		if ( $this->result_status == self::STATUS_SKIP ) {
+		if ( self::STATUS_SKIP === $this->result_status ) {
 			return true;
 		}
 
@@ -622,7 +624,7 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 	/**
 	 * Подготовка данных для сохранения в базе
 	 *
-	 * @return array свойства модели в виде массива. Подготовлены для сохранения в базе данных
+	 * @return array<string, mixed> свойства модели в виде массива. Подготовлены для сохранения в базе данных
 	 */
 	public function prepare_data_to_save() {
 		if ( ! $this->created_at ) {
@@ -674,11 +676,11 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 				// если данных нет в базе, то вставляем новую запись в таблицу
 				$count = $wpdb->insert( $table_name, $data );
 
-			if ( $count !== false && $count > 0 ) {
-				$lastId = $wpdb->insert_id;
+			if ( false !== $count && $count > 0 ) {
+				$last_id = $wpdb->insert_id;
 
-				if ( ! empty( $lastId ) ) {
-					$this->id = $lastId;
+				if ( ! empty( $last_id ) ) {
+					$this->id = $last_id;
 
 					$is_success = true;
 
@@ -695,7 +697,7 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 		/**
 		 * Filter whether to execute hook or not.
 		 *
-		 * @param $execute_hook bool
+		 * @param bool $execute_hook Whether to execute the hook.
 		 */
 		$execute_hook = apply_filters( 'wbcr/riop/queue_item_save_execute_hook', true );
 
@@ -703,7 +705,7 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 			/**
 			 * Fires after queue item was saved or updated successfully.
 			 *
-			 * @param RIO_Process_Queue $this
+			 * @param RIO_Process_Queue $item The saved item.
 			 * @param bool              $quota Deduct from the quota?
 			 */
 			do_action( 'wbcr/riop/queue_item_saved', $this, false );
@@ -727,7 +729,7 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 
 		WRIO_Plugin::app()->logger->debug( sprintf( 'Deleted queue item #%s', $this->id ) );
 
-		return $rows_affected !== false;
+		return false !== $rows_affected;
 	}
 
 	/**
@@ -747,7 +749,7 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 			if ( ! empty( $extra_data ) ) {
 				$class = isset( $extra_data['class'] ) ? $extra_data['class'] : null;
 
-				if ( ! empty( $class ) && class_exists( $class ) ) {
+				if ( ! empty( $class ) && is_string( $class ) && class_exists( $class ) ) {
 					$this->extra_data = new $class( $extra_data );
 
 					return $this->extra_data;
@@ -875,6 +877,11 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 		$this->object_id = $object_id;
 	}
 
+	/**
+	 * Get the object ID.
+	 *
+	 * @return int|numeric-string|null Object ID as stored in the database.
+	 */
 	public function get_object_id() {
 		return $this->object_id;
 	}
@@ -932,6 +939,11 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 		}
 	}
 
+	/**
+	 * The item hash alternative.
+	 *
+	 * @return null|string
+	 */
 	public function get_item_hash_alternative() {
 		return $this->item_hash_alternative;
 	}
@@ -1016,6 +1028,11 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 		$this->original_size = $original_size;
 	}
 
+	/**
+	 * Get the original file size.
+	 *
+	 * @return int|numeric-string|null Size in bytes as stored in the database.
+	 */
 	public function get_original_size() {
 		return $this->original_size;
 	}
@@ -1031,6 +1048,11 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 		$this->final_size = $final_size;
 	}
 
+	/**
+	 * Get the final file size.
+	 *
+	 * @return int|numeric-string|null Size in bytes as stored in the database.
+	 */
 	public function get_final_size() {
 		return $this->final_size;
 	}
@@ -1087,7 +1109,7 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 	}
 
 	/**
-	 * get_created_at
+	 * Get the creation timestamp.
 	 *
 	 * @return int|numeric-string|null Null before the row is saved.
 	 */
@@ -1151,6 +1173,8 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 
 	/**
 	 * {@inheritdoc}
+	 *
+	 * @return list<non-empty-string>
 	 */
 	public static function get_table_indexes() {
 		$table_name                  = static::table_name();
@@ -1220,7 +1244,8 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 	/**
 	 * Try to create a plugin table in database
 	 *
-	 * @throws \Exception
+	 * @return void
+	 * @throws \Exception When the plugin tables cannot be created.
 	 * @since  1.3.6
 	 */
 	public static function try_create_plugin_tables() {
@@ -1263,6 +1288,7 @@ class RIO_Process_Queue extends RIO_Base_Active_Record {
 	 * In some cases, plugin table can be utf8mb4_unicode_520_ci, and Wodpress table can be
 	 * utf8mb4_unicode_ci. This leads to problems when performing comparisons between two tables.
 	 *
+	 * @return void
 	 * @since  1.3.6
 	 */
 	public static function fix_table_collation() {

@@ -1,4 +1,9 @@
 <?php
+/**
+ * NextGEN image model for the optimizer.
+ *
+ * @package Robin_Image_Optimizer
+ */
 
 // Exit if accessed directly
 if ( ! defined( 'ABSPATH' ) ) {
@@ -13,60 +18,80 @@ if ( ! defined( 'ABSPATH' ) ) {
 class WRIO_Image_Nextgen {
 
 	/**
-	 * @var int номер картинки в таблице nextgen
+	 * Номер картинки в таблице nextgen.
+	 *
+	 * @var int
 	 */
 	private $id;
 
 	/**
-	 * @var string путь к картинке
+	 * Путь к картинке.
+	 *
+	 * @var string
 	 */
 	private $path;
 
 	/**
-	 * @var string путь к миниатюре
+	 * Путь к миниатюре.
+	 *
+	 * @var string
 	 */
 	private $thumbnail_path;
 
 	/**
-	 * @var string имя файла
+	 * Имя файла.
+	 *
+	 * @var string
 	 */
 	private $file;
 
 	/**
-	 * @var string имя файла миниатюры
+	 * Имя файла миниатюры.
+	 *
+	 * @var string
 	 */
 	private $thumbnail_file;
 
 	/**
-	 * @var string УРЛ
+	 * УРЛ.
+	 *
+	 * @var string
 	 */
 	private $url;
 
 	/**
-	 * @var string УРЛ миниатюры
+	 * УРЛ миниатюры.
+	 *
+	 * @var string
 	 */
 	private $thumbnail_url;
 
 	/**
-	 * @var array мета данные картинки
+	 * Мета данные картинки.
+	 *
+	 * @var array<string, mixed>|object|null
 	 */
 	private $meta;
 
 	/**
-	 * @var array мета данные галереи
+	 * Мета данные галереи.
+	 *
+	 * @var array<string, mixed>|object|null
 	 */
 	private $gallery_meta;
 
 	/**
-	 * @var RIO_Process_Queue данные по оптимизации
+	 * Данные по оптимизации.
+	 *
+	 * @var RIO_Process_Queue|null
 	 */
 	private $optimization_data = null;
 
 	/**
 	 * Инициализация картинки из nextgen gallery
 	 *
-	 * @param int   $image_id номер картинки в таблице nextgen
-	 * @param array $image_data метаданные картинки
+	 * @param int            $image_id   Номер картинки в таблице nextgen.
+	 * @param stdClass|false $image_data Метаданные картинки.
 	 */
 	public function __construct( $image_id, $image_data = false ) {
 		global $wpdb;
@@ -85,8 +110,10 @@ class WRIO_Image_Nextgen {
 		global $wpdb;
 		$this->gallery_meta = $wpdb->get_row( "SELECT * FROM {$wpdb->prefix}ngg_gallery WHERE gid = " . intval( $this->meta->galleryid ) );
 
-		$this->path           = wp_normalize_path( ABSPATH . trailingslashit( $this->gallery_meta->path ) . $this->meta->filename );
-		$this->thumbnail_path = wp_normalize_path( ABSPATH . trailingslashit( $this->gallery_meta->path ) . 'thumbs/' . $this->thumbnail_file );
+		// A stored name or folder that PHP refuses (a null byte) gives no path: the image fails as a missing file.
+		$valid                = '' !== wrio_file_path( $this->gallery_meta->path . $this->meta->filename );
+		$this->path           = $valid ? wp_normalize_path( ABSPATH . trailingslashit( $this->gallery_meta->path ) . $this->meta->filename ) : '';
+		$this->thumbnail_path = $valid ? wp_normalize_path( ABSPATH . trailingslashit( $this->gallery_meta->path ) . 'thumbs/' . $this->thumbnail_file ) : '';
 		$this->url            = site_url( trailingslashit( $this->gallery_meta->path ) . $this->meta->filename );
 		$this->thumbnail_url  = site_url( trailingslashit( $this->gallery_meta->path ) . 'thumbs/' . $this->thumbnail_file );
 	}
@@ -94,7 +121,7 @@ class WRIO_Image_Nextgen {
 	/**
 	 * Возвращает свойство аттачмента
 	 *
-	 * @param string $property имя свойства
+	 * @param string $property Имя свойства.
 	 *
 	 * @return mixed
 	 */
@@ -113,9 +140,6 @@ class WRIO_Image_Nextgen {
 	 */
 	public function isOptimized() {
 		$optimization_data = $this->getOptimizationData();
-		if ( empty( $optimization_data ) ) {
-			return false;
-		}
 		if ( $optimization_data->is_optimized() ) {
 			return true;
 		}
@@ -312,7 +336,9 @@ class WRIO_Image_Nextgen {
 	}
 
 	/**
-	 * Делает резервную копию изображения
+	 * Делает резервную копию изображения.
+	 *
+	 * @return bool|WP_Error
 	 */
 	public function backup() {
 		$backup = WRIOP_Backup::get_instance();
@@ -364,7 +390,7 @@ class WRIO_Image_Nextgen {
 		/**
 		 * Хук срабатывает после восстановления nextgen image
 		 *
-		 * @param RIO_Process_Queue $optimization_data
+		 * @param RIO_Process_Queue|null $optimization_data
 		 *
 		 * @since 1.2.0
 		 */
@@ -400,6 +426,10 @@ class WRIO_Image_Nextgen {
 
 			if ( ! $dimensions ) {
 				continue;
+			}
+
+			if ( ! is_array( $image->meta_data[ $size ] ?? null ) ) {
+				$image->meta_data[ $size ] = [];
 			}
 
 			$image->meta_data[ $size ]['width']  = $dimensions[0];

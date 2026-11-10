@@ -1,4 +1,9 @@
 <?php
+/**
+ * Custom folder model.
+ *
+ * @package Robin_Image_Optimizer
+ */
 
 // Exit if accessed directly
 if ( ! defined( 'ABSPATH' ) ) {
@@ -13,27 +18,37 @@ if ( ! defined( 'ABSPATH' ) ) {
 class WRIO_Folder {
 
 	/**
-	 * @var string Folder path.
+	 * Folder path.
+	 *
+	 * @var string
 	 */
 	protected $path = '';
 
 	/**
-	 * @var string SHA256 folder's path hash.
+	 * SHA256 hash of the folder path.
+	 *
+	 * @var string
 	 */
 	protected $uid = '';
 
 	/**
-	 * @var int Number of files in current folder.
+	 * Number of files in the folder.
+	 *
+	 * @var int
 	 */
 	protected $files_count = 0;
 
 	/**
-	 * @var int Number of optimized files in current folder.
+	 * Number of optimized files in the folder.
+	 *
+	 * @var int
 	 */
 	protected $optimized_count = 0;
 
 	/**
-	 * @var int Number of errors in current folder.
+	 * Number of errors in the folder.
+	 *
+	 * @var int
 	 */
 	protected $errors_count = 0;
 
@@ -47,7 +62,7 @@ class WRIO_Folder {
 	/**
 	 * WRIO_Folder constructor.
 	 *
-	 * @param array $params List of params set on the model.
+	 * @param array<string, mixed> $params List of params set on the model.
 	 */
 	public function __construct( $params = [] ) {
 		// нужна проверка пути
@@ -64,7 +79,7 @@ class WRIO_Folder {
 	 *
 	 * @param string $property_name Property name.
 	 *
-	 * @return bool
+	 * @return mixed The property value, or false when it is not set.
 	 */
 	public function get( $property_name ) {
 		if ( isset( $this->$property_name ) ) {
@@ -79,6 +94,8 @@ class WRIO_Folder {
 	 *
 	 * @param string $property_name Property name.
 	 * @param mixed  $value Value to set.
+	 *
+	 * @return void
 	 */
 	public function set( $property_name, $value ) {
 		if ( isset( $this->$property_name ) ) {
@@ -89,7 +106,7 @@ class WRIO_Folder {
 	/**
 	 * Convert object to associative array form.
 	 *
-	 * @return array
+	 * @return array<string, mixed>
 	 */
 	public function toArray() {
 		return [
@@ -105,8 +122,8 @@ class WRIO_Folder {
 	/**
 	 * Обходит каталог и добавляет в индекс файлы
 	 *
-	 * @param mixed $offset отступ от начала
-	 * @param mixed $max_process_elements кол-во элементов за итерацию
+	 * @param int $offset              Offset from the start.
+	 * @param int $max_process_elements Number of elements per iteration.
 	 *
 	 * @return int Кол-во элементов, обработанных при индексировании
 	 */
@@ -119,17 +136,21 @@ class WRIO_Folder {
 		$db_table = RIO_Process_Queue::table_name();
 
 		foreach ( $iterator as $file ) {
-			$ext = substr( $file, strrpos( strtolower( $file ), '.' ) + 1 ); // получаем расширение файла
-			if ( in_array( strtolower( $ext ), $allowed ) ) {
+			if ( ! $file instanceof SplFileInfo ) {
+				continue;
+			}
+
+			$path = $file->getPathname();
+			$ext  = substr( $path, strrpos( strtolower( $path ), '.' ) + 1 ); // получаем расширение файла
+			if ( in_array( strtolower( $ext ), $allowed, true ) ) {
 				// сделать путь относительно корня
-				$files[] = $this->real_path_to_relative( $file->getPathname() );
+				$files[] = $this->real_path_to_relative( $path );
 			}
 		}
 
 		$files = array_slice( $files, $offset, $max_process_elements );
 		foreach ( $files as $file ) {
-			$file = wp_normalize_path( $file );
-			// $file_path = str_replace( $this->path, '', $file );
+			$file     = wp_normalize_path( $file );
 			$file_uid = hash( 'sha256', str_replace( wp_normalize_path( ABSPATH ), '', $file ) );
 			$sql      = $wpdb->prepare( "SELECT * FROM {$db_table} WHERE item_hash_alternative = %s AND item_hash = %s;", $this->uid, $file_uid ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Plugin table name.
 			$row      = $wpdb->get_row( $sql ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Prepared above.
@@ -209,21 +230,19 @@ class WRIO_Folder {
 	/**
 	 * Get allowed list of extensions.
 	 *
-	 * @return array
+	 * @return list<'jpg'|'jpeg'|'png'>
 	 */
 	public function getAllowedFilesExt() { // phpcs:ignore WordPress.NamingConventions.ValidFunctionName.MethodNameInvalid -- public API.
 		$allowed_formats = explode( ',', WRIO_Plugin::app()->getPopulateOption( 'allowed_formats', 'image/jpeg,image/png,image/gif' ) );
 		$allowed         = [];
 		foreach ( $allowed_formats as $format ) {
-			if ( $format == 'image/jpeg' ) {
+			if ( 'image/jpeg' === $format ) {
 				$allowed[] = 'jpg';
 				$allowed[] = 'jpeg';
-			} elseif ( $format == 'image/png' ) {
+			} elseif ( 'image/png' === $format ) {
 				$allowed[] = 'png';
 			}
 		}
-
-		// $allowed = [ 'jpg', 'jpeg', 'png' ];
 
 		return $allowed;
 	}
@@ -231,15 +250,20 @@ class WRIO_Folder {
 	/**
 	 * Count number of files in a folder.
 	 *
-	 * @return int
+	 * @return int<0, max>
 	 */
 	public function countFiles() {
 		$iterator = $this->getRecursiveIterator();
 		$allowed  = $this->getAllowedFilesExt();
 		$count    = 0;
 		foreach ( $iterator as $file ) {
-			$ext = substr( $file, strrpos( strtolower( $file ), '.' ) + 1 ); // получаем расширение файла
-			if ( in_array( strtolower( $ext ), $allowed ) ) {
+			if ( ! $file instanceof SplFileInfo ) {
+				continue;
+			}
+
+			$path = $file->getPathname();
+			$ext  = substr( $path, strrpos( strtolower( $path ), '.' ) + 1 ); // получаем расширение файла
+			if ( in_array( strtolower( $ext ), $allowed, true ) ) {
 				++$count;
 			}
 		}
@@ -261,6 +285,11 @@ class WRIO_Folder {
 		return $files_count;
 	}
 
+	/**
+	 * Recount the files of the folder.
+	 *
+	 * @return int
+	 */
 	public function reCountFiles() {
 		$this->files_count = $this->countFiles();
 
@@ -285,6 +314,8 @@ class WRIO_Folder {
 
 	/**
 	 * Remove the folder and its rows. The statistics are computed from the rows.
+	 *
+	 * @return void
 	 */
 	public function remove() {
 		global $wpdb;
@@ -359,7 +390,7 @@ class WRIO_Folder {
 	 *
 	 * Files and folders that resolve outside the root, through a symlink for example, are skipped.
 	 *
-	 * @return RecursiveIteratorIterator
+	 * @return RecursiveIteratorIterator<RecursiveIterator<mixed, mixed>>
 	 */
 	public function getRecursiveIterator() { // phpcs:ignore WordPress.NamingConventions.ValidFunctionName.MethodNameInvalid -- public API.
 		$path = $this->real_path();

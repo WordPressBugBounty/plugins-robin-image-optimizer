@@ -51,7 +51,23 @@ function wrio_error_anchor( $status, $code ) {
  * @return string
  */
 function wrio_error_docs_url( $status, $code ) {
-	return WRIO_ERRORS_DOCS_URL . '#' . wrio_error_anchor( $status, $code );
+	// Both lists of errors are on the Bulk Optimization page. The UTMs go before the anchor, so utm_content names
+	// the page, not the section.
+	return wrio_docs_url( WRIO_ERRORS_DOCS_URL, 'optimization-errors', 'bulk' ) . '#' . wrio_error_anchor( $status, $code );
+}
+
+/**
+ * A docs link with the Themeisle UTM parameters (utm_source=wpadmin), so visits from the plugin show in analytics.
+ * The link must be the docs page itself: a redirect drops the parameters.
+ *
+ * @param string $url      Docs page URL.
+ * @param string $campaign Feature or placement of the link (utm_campaign).
+ * @param string $medium   Screen that shows the link (utm_medium).
+ *
+ * @return string
+ */
+function wrio_docs_url( $url, $campaign, $medium ) {
+	return function_exists( 'tsdk_utmify' ) ? tsdk_utmify( $url, $campaign, $medium ) : $url;
 }
 
 /**
@@ -90,12 +106,24 @@ function wrio_error_hints() {
 		'invalid_response'       => $wait . ' ' . $support,
 		'no_answer'              => $wait . ' ' . $support,
 		'processing_failed'      => $wait . ' ' . $support,
-		'http_request_failed'    => __( 'Your server cannot reach the optimization server. Ask your host to allow requests to dashboard.robinoptimizer.com.', 'robin-image-optimizer' ),
+		'http_request_failed'    => sprintf(
+			/* translators: %s: host name of the optimization server. */
+			__( 'Your server cannot reach the optimization server. Ask your host to allow requests to %s.', 'robin-image-optimizer' ),
+			'dashboard.robinoptimizer.com'
+		),
 		'http_error'             => $wait . ' ' . $support,
 		'download_failed'        => $wait,
 		'invalid_download'       => $wait,
-		'time_limit'             => __( 'Ask your host to raise the PHP max_execution_time (60 seconds or more), or lower "Images per iteration".', 'robin-image-optimizer' ),
-		'memory_limit'           => __( 'Ask your host to raise the PHP memory_limit (256 MB or more), or resize the image before the upload.', 'robin-image-optimizer' ),
+		'time_limit'             => sprintf(
+			/* translators: %d: minimum value of the PHP max_execution_time setting, in seconds. */
+			__( 'Ask your host to set the PHP max_execution_time to %d or higher, or lower "Images per iteration".', 'robin-image-optimizer' ),
+			60
+		),
+		'memory_limit'           => sprintf(
+			/* translators: %s: minimum PHP memory_limit, such as "256 MB". */
+			__( 'Ask your host to raise the PHP memory_limit (%s or more), or resize the image before the upload.', 'robin-image-optimizer' ),
+			size_format( 256 * MB_IN_BYTES )
+		),
 		'crashed'                => __( 'Ask your host to raise the PHP memory_limit and max_execution_time, then click Optimize on the image.', 'robin-image-optimizer' ),
 		'backup_failed'          => __( 'Make the uploads folder writable for the web server, or turn off "Backup images".', 'robin-image-optimizer' ),
 		'save_failed'            => __( 'Make the uploads folder writable for the web server.', 'robin-image-optimizer' ),

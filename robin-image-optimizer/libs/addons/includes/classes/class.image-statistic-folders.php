@@ -1,4 +1,9 @@
 <?php
+/**
+ * Statistics of the custom folder images.
+ *
+ * @package Robin_Image_Optimizer
+ */
 
 // Exit if accessed directly
 if ( ! defined( 'ABSPATH' ) ) {
@@ -9,6 +14,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Класс для работы со статистическими данными по оптимизации изображений
  *
  * @version       1.0
+ *
+ * @phpstan-import-type LogRow from WRIO_Image_Statistic
  */
 class WRIO_Image_Statistic_Folders extends WRIO_Image_Statistic {
 
@@ -29,7 +36,7 @@ class WRIO_Image_Statistic_Folders extends WRIO_Image_Statistic {
 	/**
 	 * Загрузка статистики и расчёт некоторых параметров
 	 *
-	 * @return array
+	 * @return array<string, mixed>
 	 */
 	public function load() {
 		if ( \WRIO\Storage\Backfill::reads() ) {
@@ -87,6 +94,8 @@ class WRIO_Image_Statistic_Folders extends WRIO_Image_Statistic {
 
 	/**
 	 * Общее кол-во изображений
+	 *
+	 * @return int
 	 */
 	public function getTotalCount() {
 		$cf             = WRIO_Custom_Folders::get_instance();
@@ -137,6 +146,8 @@ class WRIO_Image_Statistic_Folders extends WRIO_Image_Statistic {
 
 	/**
 	 * Кол-во неоптимизированных изображений
+	 *
+	 * @return int
 	 */
 	public function getUnoptimizedCount() {
 		global $wpdb;
@@ -181,7 +192,7 @@ class WRIO_Image_Statistic_Folders extends WRIO_Image_Statistic {
 	/**
 	 * Возвращает неоптимизированные изображения
 	 *
-	 * @param int $limit   ограничение выборки
+	 * @param int $limit   Ограничение выборки.
 	 *
 	 * @return RIO_Process_Queue[]|array
 	 */
@@ -270,8 +281,8 @@ class WRIO_Image_Statistic_Folders extends WRIO_Image_Statistic {
 	/**
 	 * Get the last optimized image record for a specific model.
 	 *
-	 * @param RIO_Process_Queue|int     $model  Queue model, or the ID of a queue row (the bulk step passes one).
-	 * @param array<string, mixed>|null $logged Its latest history row from last_logged(). Null: read it.
+	 * @param RIO_Process_Queue|int $model  Queue model, or the ID of a queue row (the bulk step passes one).
+	 * @param LogRow|null           $logged Its latest history row from last_logged(). Null: read it.
 	 *
 	 * @return array<int, array<string, mixed>>
 	 * @since  1.1
@@ -319,9 +330,11 @@ class WRIO_Image_Statistic_Folders extends WRIO_Image_Statistic {
 	}
 
 	/**
+	 * Formats one queue row for the bulk log.
+	 *
 	 * @since  1.0.4
 	 *
-	 * @param int|RIO_Process_Queue $queue_model
+	 * @param int|RIO_Process_Queue $queue_model Queue row or image ID.
 	 */
 	protected function format_for_log( $queue_model ) {
 		if ( $queue_model instanceof RIO_Process_Queue ) {
@@ -333,8 +346,9 @@ class WRIO_Image_Statistic_Folders extends WRIO_Image_Statistic {
 
 		$optimization_data = $cf_image->getOptimizationData();
 
-		$main_file   = $cf_image->get( 'path' );
-		$main_saving = $total_saving = 0;
+		$main_file    = $cf_image->get( 'path' );
+		$total_saving = 0;
+		$main_saving  = 0;
 
 		if ( $optimization_data->original_size ) {
 			$total_saving = ( $optimization_data->original_size - $optimization_data->final_size ) * 100 / $optimization_data->original_size;
@@ -359,6 +373,8 @@ class WRIO_Image_Statistic_Folders extends WRIO_Image_Statistic {
 		];
 
 		/**
+		 * Extra data of the optimization row.
+		 *
 		 * @var WRIO_CF_Image_Extra_Data $extra_data
 		 */
 		$extra_data = $optimization_data->get_extra_data();
@@ -369,7 +385,7 @@ class WRIO_Image_Statistic_Folders extends WRIO_Image_Statistic {
 
 			$error = $extra_data->get_error();
 
-			if ( $optimization_data->result_status === RIO_Process_Queue::STATUS_ERROR || ! empty( $error ) ) {
+			if ( RIO_Process_Queue::STATUS_ERROR === $optimization_data->result_status || ! empty( $error ) ) {
 				$formated_data['type'] = 'error';
 
 				$error_message = $extra_data->get_error_msg();

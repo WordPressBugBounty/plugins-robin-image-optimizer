@@ -93,7 +93,7 @@ class WRIO_Subscribe_Widget {
 
 		$data = json_decode( wp_remote_retrieve_body( $response ), true );
 
-		if ( isset( $data['code'] ) ) {
+		if ( is_array( $data ) && isset( $data['code'] ) ) {
 			update_option( self::OPTION_SUBSCRIBED, 1 );
 
 			return [ 'message' => __( 'Subscribed successfully!', 'robin-image-optimizer' ) ];

@@ -8,6 +8,8 @@
  * Text Domain: robin-image-optimizer
  * Domain Path: /languages/ Author
  * URI: https://themeisle.com
+ *
+ * @package Robin_Image_Optimizer
  */
 
 // Выход при непосредственном доступе
@@ -18,6 +20,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 if ( ! function_exists( 'wrio_premium_load' ) ) {
 
+	/**
+	 * Loads the premium features when the free plugin is active.
+	 *
+	 * @return void
+	 */
 	function wrio_premium_load() {
 
 		if ( ! defined( 'WRIO_PLUGIN_ACTIVE' ) ) {
@@ -94,12 +101,12 @@ if ( ! function_exists( 'wrio_premium_load' ) ) {
 			require_once WRIOP_PLUGIN_DIR . '/admin/boot.php';
 		}
 	}
-	// add_action( 'plugins_loaded', 'wrio_premium_load', 20 );
 }
 
 /**
  * Function is performed when the parent plugin Robin image optimizer is activated.
  *
+ * @return void
  * @since  1.0.4
  */
 function wrio_premium_activate() {
@@ -113,6 +120,7 @@ function wrio_premium_activate() {
 /**
  * Function is performed when the parent plugin Robin image optimizer is deactivated.
  *
+ * @return void
  * @since  1.0.4
  */
 function wrio_premium_deactivate() {

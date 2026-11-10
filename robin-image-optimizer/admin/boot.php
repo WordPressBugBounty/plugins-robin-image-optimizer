@@ -2,6 +2,7 @@
 /**
  * Admin boot
  *
+ * @package   Robin_Image_Optimizer
  * @version   1.0
  */
 
@@ -19,6 +20,7 @@ add_action(
 );
 
 /**
+ * Hides the Robin card on the Clearfy components list unless the Clearfy license is active.
  *
  * @since  1.3.0
  */
@@ -30,7 +32,7 @@ add_filter(
 		}
 		if ( ! empty( $components ) ) {
 			foreach ( $components as $key => $component ) {
-				if ( 'robin_image_optimizer' == $component['name'] ) {
+				if ( 'robin_image_optimizer' === $component['name'] ) {
 					unset( $components[ $key ] );
 				}
 			}

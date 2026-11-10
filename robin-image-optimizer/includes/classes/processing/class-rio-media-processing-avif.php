@@ -20,23 +20,18 @@ if ( ! defined( 'ABSPATH' ) ) {
 class WRIO_Media_Processing_Avif extends WRIO_Processing {
 
 	/**
+	 * Name of the queue action.
+	 *
 	 * @var string
 	 */
 	protected $action = 'convert_process';
 
 	/**
-	 * @var string Format type
+	 * Conversion format.
+	 *
+	 * @var 'avif'|'webp' Format type.
 	 */
 	protected $format = 'avif';
-
-	/**
-	 * Constructor
-	 *
-	 * @param string $scope Processing scope
-	 */
-	public function __construct( $scope ) {
-		parent::__construct( $scope );
-	}
 
 	/**
 	 * Push items to queue
@@ -46,7 +41,7 @@ class WRIO_Media_Processing_Avif extends WRIO_Processing {
 	public function push_items() {
 		$attachment_ids = [];
 
-		if ( $this->scope === 'media-library_avif' ) {
+		if ( 'media-library_avif' === $this->scope ) {
 			$media_library  = WRIO_Media_Library::get_instance();
 			$attachment_ids = $media_library->getUnconvertedImages( 'avif' );
 		}
@@ -62,7 +57,7 @@ class WRIO_Media_Processing_Avif extends WRIO_Processing {
 	 * Метод конвертирует изображения в AVIF при выполнении задачи
 	 * Method converts images to AVIF when executing task
 	 *
-	 * @param int $image Attachment ID
+	 * @param int $image Attachment ID.
 	 *
 	 * @return bool
 	 */

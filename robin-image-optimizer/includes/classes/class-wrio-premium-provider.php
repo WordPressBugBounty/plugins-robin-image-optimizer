@@ -233,9 +233,12 @@ class WRIO_Premium_Provider {
 		$response_code = wp_remote_retrieve_response_code( $response );
 		$response_body = wp_remote_retrieve_body( $response );
 		$data          = json_decode( $response_body, true );
+		if ( ! is_array( $data ) ) {
+			$data = [];
+		}
 
 		if ( 200 !== $response_code || isset( $data['error'] ) ) {
-			$error_message = isset( $data['error']['message'] )
+			$error_message = is_array( $data['error'] ?? null ) && is_string( $data['error']['message'] ?? null )
 				? $data['error']['message']
 				: __( 'License activation failed.', 'robin-image-optimizer' );
 
@@ -282,7 +285,7 @@ class WRIO_Premium_Provider {
 	private function get_or_create_site_uid() {
 		$uid = get_option( 'wrio_freemius_uid' );
 
-		if ( empty( $uid ) ) {
+		if ( empty( $uid ) || ! is_string( $uid ) ) {
 			$uid = wp_generate_uuid4();
 			$uid = str_replace( '-', '', $uid );
 			update_option( 'wrio_freemius_uid', $uid );
@@ -300,9 +303,9 @@ class WRIO_Premium_Provider {
 	 * @return array<string, mixed> License data for storage.
 	 */
 	private function build_license_data_from_response( $data, $key, $uid ) {
-		$install = isset( $data['install'] ) ? $data['install'] : $data;
-		$user    = isset( $data['user'] ) ? $data['user'] : [];
-		$license = isset( $data['license'] ) ? $data['license'] : [];
+		$install = isset( $data['install'] ) && is_array( $data['install'] ) ? $data['install'] : $data;
+		$user    = isset( $data['user'] ) && is_array( $data['user'] ) ? $data['user'] : [];
+		$license = isset( $data['license'] ) && is_array( $data['license'] ) ? $data['license'] : [];
 
 		return [
 			'license' => [
@@ -447,7 +450,7 @@ class WRIO_Premium_Provider {
 
 		$license_data = get_option( 'wbcr_io_license', [] );
 
-		if ( isset( $license_data['license']['billing_cycle'] ) ) {
+		if ( is_array( $license_data ) && is_array( $license_data['license'] ?? null ) && isset( $license_data['license']['billing_cycle'] ) ) {
 			$license_data['license']['billing_cycle'] = null;
 			update_option( 'wbcr_io_license', $license_data );
 		}

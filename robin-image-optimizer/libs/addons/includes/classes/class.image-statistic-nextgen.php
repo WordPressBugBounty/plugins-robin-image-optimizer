@@ -1,4 +1,9 @@
 <?php
+/**
+ * Nextgen image statistics.
+ *
+ * @package Robin_Image_Optimizer
+ */
 
 // Exit if accessed directly
 if ( ! defined( 'ABSPATH' ) ) {
@@ -29,7 +34,7 @@ class WRIO_Image_Statistic_Nextgen extends WRIO_Image_Statistic {
 	/**
 	 * Загрузка статистики и расчёт некоторых параметров
 	 *
-	 * @return array
+	 * @return array<string, mixed>
 	 */
 	public function load() {
 		if ( \WRIO\Storage\Backfill::reads() ) {
@@ -47,11 +52,8 @@ class WRIO_Image_Statistic_Nextgen extends WRIO_Image_Statistic {
 			ON t2.item_type = 'nextgen' and t1.pid = t2.object_id
 			WHERE t2.result_status Is Null or ( t2.result_status != 'success' and t2.result_status != 'error' )";
 
-		$error_count  = RIO_Process_Queue::count_by_type_status( 'nextgen', 'error' );
-		$total_images = $this->getTotalCount();
-		if ( ! $total_images ) {
-			$total_images = 0;
-		}
+		$error_count                              = RIO_Process_Queue::count_by_type_status( 'nextgen', 'error' );
+		$total_images                             = (int) $this->getTotalCount();
 		$unoptimized                              = $wpdb->get_var( $sql_unoptimized ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Fixed SQL with table names only.
 		list( $percent_diff, $percent_diff_line ) = static::size_percents( $original_size, $optimized_size );
 		$optimized_exists_images_count            = $total_images - $unoptimized - $error_count; // оптимизированные картинки, которые сейчас есть в медиабиблиотеке
@@ -118,6 +120,8 @@ class WRIO_Image_Statistic_Nextgen extends WRIO_Image_Statistic {
 
 	/**
 	 * Общее кол-во изображений nextgen
+	 *
+	 * @return string|null
 	 */
 	public function getTotalCount() {
 		global $wpdb;
@@ -129,6 +133,8 @@ class WRIO_Image_Statistic_Nextgen extends WRIO_Image_Statistic {
 
 	/**
 	 * Кол-во неоптимизированных изображений
+	 *
+	 * @return int|string|null
 	 */
 	public function getUnoptimizedCount() {
 		global $wpdb;
@@ -229,6 +235,8 @@ class WRIO_Image_Statistic_Nextgen extends WRIO_Image_Statistic {
 			$optimization_data = new RIO_Process_Queue( $row );
 
 			/**
+			 * Extra data of the optimization.
+			 *
 			 * @var WRIO_Nextgen_Extra_Data $extra_data
 			 */
 			$extra_data = $optimization_data->get_extra_data();
@@ -242,7 +250,7 @@ class WRIO_Image_Statistic_Nextgen extends WRIO_Image_Statistic {
 
 				$error = $extra_data->get_error();
 
-				if ( $row->result_status == RIO_Process_Queue::STATUS_ERROR || ! empty( $error ) ) {
+				if ( RIO_Process_Queue::STATUS_ERROR === $row->result_status || ! empty( $error ) ) {
 					$log['type'] = 'error';
 
 					$error_message = $extra_data->get_error_msg();
@@ -251,10 +259,12 @@ class WRIO_Image_Statistic_Nextgen extends WRIO_Image_Statistic {
 				}
 			}
 
-			$main_file                = trailingslashit( ABSPATH ) . trailingslashit( $row->gallery_path ) . $row->file_name;
-			$main_file_optimized_size = $main_saving = $total_saving = 0;
+			$main_file                = wrio_file_path( trailingslashit( ABSPATH ) . trailingslashit( $row->gallery_path ) . $row->file_name );
+			$main_file_optimized_size = 0;
+			$main_saving              = 0;
+			$total_saving             = 0;
 
-			if ( file_exists( $main_file ) ) {
+			if ( '' !== $main_file && file_exists( $main_file ) ) {
 				$main_file_optimized_size = filesize( $main_file );
 			}
 

@@ -69,8 +69,8 @@ class WRIO_Support {
 	 * @param array<string, mixed> $data Configuration data including 'url' and optional 'pages_map'.
 	 */
 	public function __construct( array $data = [] ) {
-		$this->site_url    = isset( $data['url'] ) ? $data['url'] : 'https://developer.flavflavor.dev';
-		$this->plugin_name = isset( $data['plugin_name'] ) ? $data['plugin_name'] : 'robin-image-optimizer';
+		$this->site_url    = isset( $data['url'] ) && is_string( $data['url'] ) ? $data['url'] : 'https://developer.flavflavor.dev';
+		$this->plugin_name = isset( $data['plugin_name'] ) && is_string( $data['plugin_name'] ) ? $data['plugin_name'] : 'robin-image-optimizer';
 
 		// Allow custom page slug mapping
 		if ( isset( $data['pages_map'] ) && is_array( $data['pages_map'] ) ) {

@@ -1,4 +1,9 @@
 <?php
+/**
+ * Image of a custom folder.
+ *
+ * @package Robin_Image_Optimizer
+ */
 
 // Exit if accessed directly
 if ( ! defined( 'ABSPATH' ) ) {
@@ -13,35 +18,45 @@ if ( ! defined( 'ABSPATH' ) ) {
 class WRIO_Folder_Image {
 
 	/**
-	 * @var int номер картинки в таблице
+	 * Номер картинки в таблице.
+	 *
+	 * @var int
 	 */
 	private $id;
 
 	/**
-	 * @var string путь к картинке относительно папки
+	 * Путь к картинке относительно папки.
+	 *
+	 * @var string
 	 */
 	private $path;
 
 	/**
-	 * @var string УРЛ
+	 * УРЛ картинки.
+	 *
+	 * @var string
 	 */
 	private $url;
 
 	/**
-	 * @var string уникальный идентификатор директории
+	 * Уникальный идентификатор директории.
+	 *
+	 * @var string|null
 	 */
 	private $folder_uid;
 
 	/**
-	 * @var RIO_Process_Queue данные по оптимизации
+	 * Данные по оптимизации.
+	 *
+	 * @var RIO_Process_Queue
 	 */
 	private $optimization_data;
 
 	/**
 	 * Инициализация картинки из custom folder
 	 *
-	 * @param int                                    $image_id   номер картинки в таблице folders.
-	 * @param array|false|RIO_Process_Queue|stdClass $image_data метаданные картинки, or its queue row.
+	 * @param int                                                   $image_id   номер картинки в таблице folders.
+	 * @param array<string, mixed>|false|RIO_Process_Queue|stdClass $image_data метаданные картинки, or its queue row.
 	 */
 	public function __construct( $image_id, $image_data = false ) {
 		$this->id = $image_id;
@@ -65,7 +80,8 @@ class WRIO_Folder_Image {
 		 */
 		$extra_data = $this->optimization_data->get_extra_data();
 		// A deleted queue row has no extra data, so the image has an empty path. WRIO_Custom_Folders::optimizeImage() skips it.
-		$file_path = $extra_data instanceof WRIO_CF_Image_Extra_Data ? (string) $extra_data->get_file_path() : '';
+		// A stored path that PHP refuses (a null byte) is no path either: validate_path() saves path_denied.
+		$file_path = $extra_data instanceof WRIO_CF_Image_Extra_Data ? wrio_file_path( $extra_data->get_file_path() ) : '';
 		// The same root as real_path_to_relative() in class.folder.php.
 		$base_path        = WRIO_Custom_Folders::get_storage_root();
 		$this->path       = '' === $file_path ? '' : wp_normalize_path( untrailingslashit( $base_path ) . $file_path );
@@ -76,7 +92,7 @@ class WRIO_Folder_Image {
 	/**
 	 * Возвращает свойство аттачмента
 	 *
-	 * @param string $property   имя свойства
+	 * @param string $property   Имя свойства.
 	 *
 	 * @return mixed
 	 */
@@ -94,11 +110,6 @@ class WRIO_Folder_Image {
 	 * @return RIO_Process_Queue
 	 */
 	public function getOptimizationData() {
-		if ( empty( $this->optimization_data ) ) {
-			$this->optimization_data = $this->createOptimizationData();
-			$this->optimization_data->load();
-		}
-
 		return $this->optimization_data;
 	}
 
@@ -116,13 +127,13 @@ class WRIO_Folder_Image {
 		);
 	}
 
-
+	/**
+	 * Загружает строку очереди этой картинки из базы данных.
+	 *
+	 * @return void
+	 */
 	protected function loadOptimizationData() {
 		global $wpdb;
-
-		if ( empty( $this->optimization_data ) ) {
-			$this->optimization_data = $this->createOptimizationData();
-		}
 
 		$table_name = RIO_Process_Queue::table_name();
 		$sql        = $wpdb->prepare(
@@ -148,9 +159,6 @@ class WRIO_Folder_Image {
 	 */
 	public function isOptimized() {
 		$optimization_data = $this->getOptimizationData();
-		if ( empty( $optimization_data ) ) {
-			return false;
-		}
 		if ( $optimization_data->is_optimized() ) {
 			return true;
 		}
@@ -333,13 +341,15 @@ class WRIO_Folder_Image {
 	 */
 	public function get_root(): string {
 		$folders = WRIO_Custom_Folders::get_instance();
-		$folder  = $folders instanceof WRIO_Custom_Folders ? $folders->getFolder( (string) $this->folder_uid ) : false;
+		$folder  = $folders->getFolder( (string) $this->folder_uid );
 
 		return $folder instanceof WRIO_Folder ? $folder->get_root() : '';
 	}
 
 	/**
 	 * Делает резервную копию изображения
+	 *
+	 * @return bool|WP_Error
 	 */
 	public function backup() {
 		$backup = WRIOP_Backup::get_instance();
@@ -349,6 +359,8 @@ class WRIO_Folder_Image {
 
 	/**
 	 * Восстанавливает из резервной копии
+	 *
+	 * @return bool|WP_Error
 	 */
 	public function restore() {
 		$backup   = WRIOP_Backup::get_instance();

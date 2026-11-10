@@ -1,4 +1,9 @@
 <?php
+/**
+ * URL helpers for the Robin Image Optimizer addons.
+ *
+ * @package Robin_Image_Optimizer
+ */
 
 // Exit if accessed directly
 if ( ! defined( 'ABSPATH' ) ) {

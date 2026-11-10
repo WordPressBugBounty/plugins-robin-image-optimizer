@@ -255,6 +255,12 @@ class Client {
 			return self::time_limit_error();
 		}
 
+		$memory = self::memory_error( wrio_get_file_size( $path ) );
+
+		if ( $memory ) {
+			return $memory;
+		}
+
 		$boundary = 'wrio' . wp_generate_password( 24, false );
 		$response = $this->http_request(
 			$this->base_url . 'optimize',
@@ -278,21 +284,23 @@ class Client {
 			return $response;
 		}
 
-		$body = json_decode( (string) wp_remote_retrieve_body( $response ), true );
+		$body     = json_decode( (string) wp_remote_retrieve_body( $response ), true );
+		$original = is_array( $body ) && is_array( $body['original'] ?? null ) ? $body['original'] : [];
+		$returned = is_array( $body ) && is_array( $body['outputs'] ?? null ) ? $body['outputs'] : null;
 
-		if ( 200 !== wp_remote_retrieve_response_code( $response ) || ! is_numeric( $body['original']['size'] ?? null ) || ! is_array( $body['outputs'] ?? null ) ) {
+		if ( 200 !== wp_remote_retrieve_response_code( $response ) || ! is_numeric( $original['size'] ?? null ) || null === $returned ) {
 			return self::error( 'dry_run_failed', __( 'The server did not measure the image.', 'robin-image-optimizer' ), [ 'status' => (int) wp_remote_retrieve_response_code( $response ) ] );
 		}
 
 		$sizes = [];
-		foreach ( $body['outputs'] as $output => $result ) {
-			if ( 'ok' === ( $result['status'] ?? '' ) && is_numeric( $result['size'] ?? null ) ) {
+		foreach ( $returned as $output => $result ) {
+			if ( is_array( $result ) && 'ok' === ( $result['status'] ?? '' ) && is_numeric( $result['size'] ?? null ) ) {
 				$sizes[ (string) $output ] = (int) $result['size'];
 			}
 		}
 
 		return [
-			'original' => (int) $body['original']['size'],
+			'original' => (int) $original['size'],
 			'outputs'  => $sizes,
 		];
 	}
@@ -326,12 +334,12 @@ class Client {
 
 		$account = $this->account();
 
-		if ( is_wp_error( $account ) && 'invalid_license' === $account->get_error_data()['code'] ) {
+		if ( is_wp_error( $account ) && 'invalid_license' === ( ( (array) $account->get_error_data() )['code'] ?? '' ) ) {
 			return $account;
 		}
 
 		// No time left to ask: the free limits for this request only. The next request asks again.
-		if ( is_wp_error( $account ) && 'time_limit' === $account->get_error_data()['code'] ) {
+		if ( is_wp_error( $account ) && 'time_limit' === ( ( (array) $account->get_error_data() )['code'] ?? '' ) ) {
 			return self::DEFAULT_LIMITS;
 		}
 
@@ -554,22 +562,24 @@ class Client {
 			$next = [];
 			$wait = 0;
 
-			// One group of max_concurrency requests at a time: a backoff (a 429 or any 5xx) or an unknown license key
-			// stops the groups after it.
-			foreach ( array_chunk( $queue, $limits['max_concurrency'], true ) as $chunk ) {
+			// One group at a time (up to max_concurrency requests that fit in memory): a backoff (a 429 or any 5xx) or an
+			// unknown license key stops the groups after it.
+			for ( $pending = $queue; ! empty( $pending ); ) {
 				$stop = $this->stop_error() ?? ( self::backoff_seconds() > 0 ? self::backoff_error() : null );
 
 				if ( $stop ) {
-					foreach ( $chunk as $entry ) {
+					foreach ( $pending as $entry ) {
 						$errors[ $entry['key'] ] = $errors[ $entry['key'] ] ?? $stop;
 					}
-					continue;
+					break;
 				}
 
-				foreach ( $this->send_many( array_map( fn( $entry ) => $entry['file'], $chunk ), $limits['max_concurrency'] ) as $id => $response ) {
+				foreach ( $this->send_many( array_map( fn( $entry ) => $entry['file'], $pending ), $limits['max_concurrency'] ) as $id => $response ) {
+					unset( $pending[ $id ] );
 					$entry = $queue[ $id ];
 					$key   = $entry['key'];
-					$data  = $this->parse( $response );
+					// A body that did not fit in memory is the result as it is, not a failed connection to retry.
+					$data = is_wp_error( $response ) && 'wrio_v2_memory_limit' === $response->get_error_code() ? $response : $this->parse( $response );
 
 					if ( is_wp_error( $data ) ) {
 						$errors[ $key ] = $data;
@@ -600,16 +610,18 @@ class Client {
 						continue;
 					}
 
+					$original            = is_array( $data['original'] ?? null ) ? $data['original'] : [];
+					$returned            = is_array( $data['outputs'] ?? null ) ? $data['outputs'] : [];
 					$originals[ $key ]   = [
-						'size' => (int) $data['original']['size'],
-						'type' => (string) ( $data['original']['type'] ?? '' ),
+						'size' => (int) ( $original['size'] ?? 0 ),
+						'type' => (string) ( $original['type'] ?? '' ),
 					];
 					$expires[ $key ]     = isset( $data['expires_at'] ) ? (string) $data['expires_at'] : null;
 					$request_ids[ $key ] = (string) ( $data['request_id'] ?? '' );
 					$failed              = [];
 
 					foreach ( $entry['file']['outputs'] as $output ) {
-						$outputs[ $key ][ $output ] = self::output_result( $data['outputs'][ $output ] ?? null );
+						$outputs[ $key ][ $output ] = self::output_result( $returned[ $output ] ?? null );
 
 						if ( 'failed' === $outputs[ $key ][ $output ]['status'] ) {
 							$failed[] = $output;
@@ -673,9 +685,9 @@ class Client {
 	private function retries( $id, array $entry, WP_Error $error ) {
 		$data    = $error->get_error_data();
 		$outputs = $entry['file']['outputs'];
-		$timeout = in_array( $data['status'], self::TIMEOUT_STATUSES, true );
+		$timeout = is_array( $data ) && in_array( $data['status'], self::TIMEOUT_STATUSES, true );
 
-		if ( ! $data['retryable'] || $entry['attempt'] >= self::MAX_ATTEMPTS || ( $timeout && $entry['split'] ) ) {
+		if ( ! is_array( $data ) || ! $data['retryable'] || $entry['attempt'] >= self::MAX_ATTEMPTS || ( $timeout && $entry['split'] ) ) {
 			return [];
 		}
 
@@ -776,8 +788,8 @@ class Client {
 	/**
 	 * Send an HTTP request with one timeout for the whole redirect chain.
 	 *
-	 * @param string               $url  Request URL.
-	 * @param array<string, mixed> $args WordPress HTTP arguments, including timeout.
+	 * @param string                                                                                                   $url  Request URL.
+	 * @param array{method?: string, timeout: int, user-agent: string, headers?: array<string, string>, body?: string} $args WordPress HTTP arguments, including timeout.
 	 *
 	 * @return array<string, mixed>|WP_Error
 	 */
@@ -841,8 +853,7 @@ class Client {
 		}
 
 		if ( $size > $limits['max_file_bytes'] ) {
-			// translators: %s is the largest file size of the plan, for example "10 MB".
-			return self::error( 'file_too_large', sprintf( __( 'The file is larger than %s, the limit of your plan.', 'robin-image-optimizer' ), (string) size_format( $limits['max_file_bytes'] ) ) );
+			return self::error( 'file_too_large', wrio_error_message( 'failed', 'file_too_large', [ 'limit' => $limits['max_file_bytes'] ] ) );
 		}
 
 		// Before getimagesize(): it can read much of a large file.
@@ -856,8 +867,7 @@ class Client {
 		$image = @getimagesize( $path ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- a file that is not an image gets its error from the server.
 
 		if ( is_array( $image ) && $image[0] * $image[1] > $limits['max_pixels'] ) {
-			// translators: %s is the largest number of megapixels of the plan, for example "40".
-			return self::error( 'image_too_large', sprintf( __( 'The image has more than %s megapixels, the limit of your plan.', 'robin-image-optimizer' ), number_format_i18n( $limits['max_pixels'] / 1000000 ) ) );
+			return self::error( 'image_too_large', wrio_error_message( 'failed', 'image_too_large', [ 'megapixels' => $limits['max_pixels'] / 1000000 ] ) );
 		}
 
 		return null;
@@ -867,8 +877,7 @@ class Client {
 	 * The error of a file whose upload body needs more memory than PHP has free, or null. The body holds the file
 	 * about twice (see multipart()).
 	 *
-	 * Checks one file before any body of its group is built, so a group of large files can pass each check and
-	 * still exceed the limit together.
+	 * Memory in use counts the bodies built before: send_many() checks each file again next to the bodies of its group.
 	 *
 	 * @param int $size File size in bytes.
 	 *
@@ -1039,12 +1048,24 @@ class Client {
 			}
 
 			$length = (int) hexdec( bin2hex( substr( $chunk, 0, 4 ) ) );
-			// ponytail: reads each chunk whole; the plan's file limit (10 MB and up) bounds it.
-			$data = $length > 0 ? (string) fread( $handle, $length ) : ''; // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fread
-			$crc  = (string) fread( $handle, 4 ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fread
+			$hash   = hash_init( 'crc32b' );
+			hash_update( $hash, substr( $chunk, 4, 4 ) );
+
+			// In parts of 1 MB: this check runs before the memory check, and one chunk can hold all the image data.
+			for ( $left = $length; $left > 0; $left -= strlen( $part ) ) {
+				$part = (string) stream_get_contents( $handle, min( $left, MB_IN_BYTES ) );
+
+				if ( '' === $part ) {
+					return false;
+				}
+
+				hash_update( $hash, $part );
+			}
+
+			$crc = (string) stream_get_contents( $handle, 4 );
 
 			// A changed byte in the image data: the CRC of its chunk does not match.
-			if ( strlen( $data ) !== $length || 4 !== strlen( $crc ) || sprintf( '%08x', crc32( substr( $chunk, 4, 4 ) . $data ) ) !== bin2hex( $crc ) ) {
+			if ( 4 !== strlen( $crc ) || hash_final( $hash ) !== bin2hex( $crc ) ) {
 				return false;
 			}
 
@@ -1139,8 +1160,8 @@ class Client {
 			return [
 				'status' => 'failed',
 				'error'  => [
-					'code'   => (string) ( $result['error']['code'] ?? 'processing_failed' ),
-					'detail' => (string) ( $result['error']['detail'] ?? '' ),
+					'code'   => is_array( $result['error'] ?? null ) && is_scalar( $result['error']['code'] ?? null ) ? (string) $result['error']['code'] : 'processing_failed',
+					'detail' => is_array( $result['error'] ?? null ) && is_scalar( $result['error']['detail'] ?? null ) ? (string) $result['error']['detail'] : '',
 				],
 			];
 		}
@@ -1159,7 +1180,7 @@ class Client {
 		return [
 			'status' => 'failed',
 			'error'  => [
-				'code'   => (string) $error->get_error_data()['code'],
+				'code'   => (string) ( ( (array) $error->get_error_data() )['code'] ?? '' ),
 				'detail' => $error->get_error_message(),
 			],
 		];
@@ -1197,9 +1218,9 @@ class Client {
 	/**
 	 * Build a client error. Every error of this class has the same data keys.
 	 *
-	 * @param string                                                                                          $code    Problem code from the server, or a client code such as missing_file.
-	 * @param string                                                                                          $message Message for the user.
-	 * @param array{status?: int, request_id?: string, retry_after?: int, retryable?: bool, permanent?: bool} $data    Values for the error data.
+	 * @param string                                                                                                              $code    Problem code from the server, or a client code such as missing_file.
+	 * @param string                                                                                                              $message Message for the user.
+	 * @param array{status?: int, request_id?: string, retry_after?: int, retryable?: bool, permanent?: bool, busy_code?: string} $data    Values for the error data.
 	 *
 	 * @return WP_Error
 	 */
@@ -1222,93 +1243,104 @@ class Client {
 	}
 
 	/**
-	 * Send POST /optimize for each file, $concurrency requests at the same time.
+	 * Send POST /optimize for the first group of $files: up to $concurrency requests at the same time.
 	 *
 	 * The requests go through the same WordPress steps as wp_remote_request(): the http_request_args and
 	 * pre_http_request filters, the WP_HTTP_BLOCK_EXTERNAL block, the http_response filter, the WordPress CA bundle
 	 * and the WP_PROXY_* settings. Then a plugin or a test that answers or changes HTTP requests does the same here.
 	 *
+	 * The bodies of a group stay in memory until its requests end. A file whose body does not fit in the memory left
+	 * next to them waits for the next call, and a file whose body does not fit alone gets the memory_limit error.
+	 *
 	 * @param array<int|string, File> $files       Files to send, by request key.
 	 * @param int<1, max>             $concurrency Requests at the same time.
 	 *
-	 * @return array<int|string, array<string, mixed>|WP_Error> Responses in the wp_remote_request() format.
+	 * @return array<int|string, array<string, mixed>|WP_Error> Responses in the wp_remote_request() format, for the
+	 *                                                          files of the group only. There is at least one.
 	 */
 	private function send_many( array $files, $concurrency ) {
 		$responses = [];
 		$url       = $this->base_url . 'optimize';
+		$timeout   = wrio_get_http_timeout( self::TIMEOUT );
 
-		foreach ( array_chunk( $files, $concurrency, true ) as $chunk ) {
-			$timeout = wrio_get_http_timeout( self::TIMEOUT );
+		if ( 0 === $timeout ) {
+			return array_map( fn() => self::time_limit_error(), $files );
+		}
 
-			if ( 0 === $timeout ) {
-				foreach ( $chunk as $key => $file ) {
-					$responses[ $key ] = self::time_limit_error();
-				}
+		$requests = [];
+
+		foreach ( $files as $key => $file ) {
+			if ( count( $responses ) + count( $requests ) >= $concurrency ) {
+				break;
+			}
+
+			$memory = self::memory_error( wrio_get_file_size( $file['path'] ) );
+
+			if ( $memory && ! empty( $requests ) ) {
+				break;
+			}
+
+			if ( $memory ) {
+				$responses[ $key ] = $memory;
 				continue;
 			}
 
-			wp_raise_memory_limit( 'image' );
+			$boundary = 'wrio' . wp_generate_password( 24, false );
+			$args     = apply_filters(
+				'http_request_args',
+				[
+					'method'          => 'POST',
+					'timeout'         => $timeout,
+					'user-agent'      => $this->user_agent(),
+					'headers'         => array_merge(
+						$this->headers(),
+						[
+							'Content-Type'        => 'multipart/form-data; boundary=' . $boundary,
+							'X-Trigger'           => self::$trigger,
+							'X-Client-Request-Id' => $file['client_id'] ?? wp_generate_uuid4(),
+						]
+					),
+					'body'            => $this->multipart( $file, $boundary ),
+					'sslverify'       => true,
+					'sslcertificates' => ABSPATH . 'wp-includes/certificates/ca-bundle.crt',
+				],
+				$url
+			);
+			$pre      = apply_filters( 'pre_http_request', false, $args, $url );
 
-			$requests = [];
-
-			foreach ( $chunk as $key => $file ) {
-				$boundary = 'wrio' . wp_generate_password( 24, false );
-				$args     = apply_filters(
-					'http_request_args',
-					[
-						'method'          => 'POST',
-						'timeout'         => $timeout,
-						'user-agent'      => $this->user_agent(),
-						'headers'         => array_merge(
-							$this->headers(),
-							[
-								'Content-Type'        => 'multipart/form-data; boundary=' . $boundary,
-								'X-Trigger'           => self::$trigger,
-								'X-Client-Request-Id' => $file['client_id'] ?? wp_generate_uuid4(),
-							]
-						),
-						'body'            => $this->multipart( $file, $boundary ),
-						'sslverify'       => true,
-						'sslcertificates' => ABSPATH . 'wp-includes/certificates/ca-bundle.crt',
-					],
-					$url
-				);
-				$pre      = apply_filters( 'pre_http_request', false, $args, $url );
-
-				if ( false !== $pre ) {
-					$responses[ $key ] = $pre;
-					continue;
-				}
-
-				// As wp_remote_request(): a site that blocks external requests does not send the image and the key.
-				if ( ( new \WP_Http() )->block_request( $url ) ) {
-					$responses[ $key ] = new WP_Error( 'http_request_not_executed', __( 'This site blocks external HTTP requests (WP_HTTP_BLOCK_EXTERNAL).', 'robin-image-optimizer' ) );
-					continue;
-				}
-
-				$requests[ $key ] = [
-					'url'     => $url,
-					'type'    => 'POST',
-					'headers' => $args['headers'],
-					'data'    => $args['body'],
-					'options' => self::transport_options( $url, $args ),
-					'args'    => $args,
-				];
-			}
-
-			if ( empty( $requests ) ) {
+			if ( false !== $pre ) {
+				$responses[ $key ] = $pre;
 				continue;
 			}
 
-			$answers = Requests::request_multiple( array_map( fn( $request ) => array_diff_key( $request, [ 'args' => true ] ), $requests ) );
-
-			foreach ( $answers as $key => $answer ) {
-				$response = $answer instanceof Response
-					? ( new WP_HTTP_Requests_Response( $answer ) )->to_array()
-					: new WP_Error( 'http_request_failed', $answer instanceof \Exception ? $answer->getMessage() : 'Unknown transport error.' );
-
-				$responses[ $key ] = is_wp_error( $response ) ? $response : apply_filters( 'http_response', $response, $requests[ $key ]['args'], $url );
+			// As wp_remote_request(): a site that blocks external requests does not send the image and the key.
+			if ( ( new \WP_Http() )->block_request( $url ) ) {
+				$responses[ $key ] = new WP_Error( 'http_request_not_executed', __( 'This site blocks external HTTP requests (WP_HTTP_BLOCK_EXTERNAL).', 'robin-image-optimizer' ) );
+				continue;
 			}
+
+			$requests[ $key ] = [
+				'url'     => $url,
+				'type'    => 'POST',
+				'headers' => $args['headers'],
+				'data'    => $args['body'],
+				'options' => self::transport_options( $url, $args ),
+				'args'    => $args,
+			];
+		}
+
+		if ( empty( $requests ) ) {
+			return $responses;
+		}
+
+		$answers = Requests::request_multiple( array_map( fn( $request ) => array_diff_key( $request, [ 'args' => true ] ), $requests ) );
+
+		foreach ( $answers as $key => $answer ) {
+			$response = $answer instanceof Response
+				? ( new WP_HTTP_Requests_Response( $answer ) )->to_array()
+				: new WP_Error( 'http_request_failed', $answer instanceof \Exception ? $answer->getMessage() : 'Unknown transport error.' );
+
+			$responses[ $key ] = is_wp_error( $response ) ? $response : apply_filters( 'http_response', $response, $requests[ $key ]['args'], $url );
 		}
 
 		return $responses;
@@ -1406,7 +1438,7 @@ class Client {
 		$body   = json_decode( wp_remote_retrieve_body( $response ), true );
 
 		// GET /account answers with limits, POST /optimize with the original and its outputs.
-		if ( 200 === $status && is_array( $body ) && ( isset( $body['limits'] ) || ( isset( $body['original']['size'] ) && is_array( $body['outputs'] ?? null ) ) ) ) {
+		if ( 200 === $status && is_array( $body ) && ( isset( $body['limits'] ) || ( is_array( $body['original'] ?? null ) && isset( $body['original']['size'] ) && is_array( $body['outputs'] ?? null ) ) ) ) {
 			$body['request_id'] = self::header( $response, 'x-request-id' );
 
 			return $body;
@@ -1414,7 +1446,7 @@ class Client {
 
 		$code        = is_array( $body ) && is_string( $body['code'] ?? null ) ? $body['code'] : '';
 		$detail      = is_array( $body ) && is_string( $body['detail'] ?? null ) ? $body['detail'] : '';
-		$fields      = self::field_errors( $body['errors'] ?? null );
+		$fields      = self::field_errors( is_array( $body ) ? ( $body['errors'] ?? null ) : null );
 		$detail      = trim( $detail . ' ' . $fields );
 		$request_id  = self::header( $response, 'x-request-id' );
 		$retry_after = self::retry_after( self::header( $response, 'retry-after' ) );

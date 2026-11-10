@@ -25,6 +25,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * - When the first full run ends, the reads switch to the new table (reads()).
  *
  * @phpstan-import-type Source from Store
+ * @phpstan-import-type Files from Store
  */
 class Backfill {
 
@@ -378,7 +379,7 @@ class Backfill {
 	 * @param int               $object_id Item ID.
 	 * @param RIO_Process_Queue $model     The old row.
 	 *
-	 * @return array<string, array{path: string}>
+	 * @return Files
 	 */
 	private static function files( $source, $object_id, RIO_Process_Queue $model ) {
 		try {
@@ -404,7 +405,7 @@ class Backfill {
 	/**
 	 * Whether the v2 pipeline wrote rows of an item.
 	 *
-	 * @param array{source: Source, object_id: int} $item The item.
+	 * @param array{source: Source, object_id: int, level?: string, backed_up?: bool} $item The item.
 	 *
 	 * @return bool
 	 */

@@ -76,6 +76,11 @@ class Float_Widget extends Abstract_Module {
 			return false;
 		}
 
+		// The Support Hub replaces this widget for the products that opted into it.
+		if ( ! empty( apply_filters( $product->get_key() . '_support_hub_metadata', array() ) ) ) {
+			return false;
+		}
+
 		$this->float_widget_data = apply_filters( $product->get_key() . '_float_widget_metadata', array() );
 
 		$can_load = ! empty( $this->float_widget_data );

@@ -1,4 +1,9 @@
 <?php
+/**
+ * Multisite support for the Robin Image Optimizer.
+ *
+ * @package Robin_Image_Optimizer
+ */
 
 // Exit if accessed directly
 if ( ! defined( 'ABSPATH' ) ) {
@@ -14,6 +19,8 @@ class WIO_Multisite {
 
 	/**
 	 * Инициализация хуков
+	 *
+	 * @return void
 	 */
 	public function initHooks() {
 		add_action( 'wbcr/rio/multisite_current_blog', [ $this, 'setCurrentBlog' ] );
@@ -22,6 +29,8 @@ class WIO_Multisite {
 
 	/**
 	 * Устанавливает текущий блог в соответствии с выбором пользователя
+	 *
+	 * @return void
 	 */
 	public function setCurrentBlog() {
 		$current_blog_id = WRIO_Plugin::app()->getPopulateOption( 'current_blog', 1 );
@@ -30,6 +39,8 @@ class WIO_Multisite {
 
 	/**
 	 * Сбрасывает текущий блог
+	 *
+	 * @return void
 	 */
 	public function restoreBlog() {
 		restore_current_blog();
@@ -38,9 +49,9 @@ class WIO_Multisite {
 	/**
 	 * Получает список блогов в зависимости от контекста
 	 *
-	 * @param string $context   контекст. Например media-library или nextgen
+	 * @param string $context   контекст. Например media-library или nextgen.
 	 *
-	 * @return array $blogs
+	 * @return array<int, object> Список блогов.
 	 */
 	public static function getBlogs( $context = 'media-library' ) {
 		global $wpdb;

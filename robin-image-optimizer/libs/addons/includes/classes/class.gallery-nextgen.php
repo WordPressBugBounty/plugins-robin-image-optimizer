@@ -1,4 +1,9 @@
 <?php
+/**
+ * NextGEN gallery integration for the optimizer.
+ *
+ * @package Robin_Image_Optimizer
+ */
 
 // Exit if accessed directly
 if ( ! defined( 'ABSPATH' ) ) {
@@ -9,6 +14,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Класс для работы с галереей nextgen
  *
  * @version       1.0
+ *
+ * @phpstan-consistent-constructor
  */
 class WRIO_Nextgen_Gallery {
 
@@ -17,12 +24,14 @@ class WRIO_Nextgen_Gallery {
 	 *
 	 * @since  1.3.0
 	 * @access protected
-	 * @var    object
+	 * @var    static|null
 	 */
 	protected static $_instance;
 
 	/**
-	 * @var array $nextgen_images контейнер для хранения nextgen_images
+	 * Контейнер для хранения nextgen_images.
+	 *
+	 * @var array<int, WRIO_Image_Nextgen>
 	 */
 	private $nextgen_images = [];
 
@@ -58,12 +67,12 @@ class WRIO_Nextgen_Gallery {
 		);
 
 		add_filter( 'wbcr/rio/optimize_template/restore_ajax_action', [ $this, 'restoreAjaxAction' ], 10, 2 );
-		// add_filter( 'wbcr/rio/multisite_blogs', [ $this, 'multisiteBlogs' ], 10, 2 );
-		add_action( 'wbcr/rio/optimize_template/optimized_percent', [ $this, 'optimizedPercent' ], 10, 2 );
 	}
 
 	/**
-	 * @return object|\WRIO_Nextgen_Gallery object Main instance.
+	 * Returns the single instance of the class.
+	 *
+	 * @return static Main instance.
 	 * @since  1.3.0
 	 */
 	public static function get_instance() {
@@ -73,44 +82,16 @@ class WRIO_Nextgen_Gallery {
 
 		return static::$_instance;
 	}
-
 	/**
-	 * Возвращает сайты, на которых установлен NextGen gallery
-	 * Используется в мультисайт режиме
+	 * Хук возвращает ajax action для кнопки переоптимизации.
 	 *
-	 * @param array $blogs сайты
-	 * @param string $type тип
+	 * @param string $action Default ajax action.
+	 * @param string $type   Page type.
 	 *
-	 * @return array сайты, на которых установлен nextgen
-	 */
-	/*
-	public function multisiteBlogs( $blogs, $type ) {
-		if ( 'nextgen' == $type ) {
-			$nextgen_basename = 'nextgen-gallery/nggallery.php';
-			if ( is_plugin_active_for_network( $nextgen_basename ) ) {
-				return $blogs;
-			} else {
-				$nextgen_blogs = [];
-				foreach ( $blogs as $blog ) {
-					switch_to_blog( intval( $blog->blog_id ) );
-					if ( is_plugin_active( $nextgen_basename ) ) {
-						$nextgen_blogs[] = $blog;
-					}
-					restore_current_blog();
-				}
-
-				return $nextgen_blogs;
-			}
-		}
-
-		return $blogs;
-	}*/
-
-	/**
-	 * Хук возвращает ajax action для кнопки переоптимизации
+	 * @return string Ajax action name.
 	 */
 	public function reoptimizeAjaxAction( $action, $type ) {
-		if ( $type == 'nextgen' ) {
+		if ( 'nextgen' === $type ) {
 			return 'wio_ng_reoptimize_image';
 		}
 
@@ -118,10 +99,15 @@ class WRIO_Nextgen_Gallery {
 	}
 
 	/**
-	 * Хук возвращает ajax action для кнопки восстановления
+	 * Хук возвращает ajax action для кнопки восстановления.
+	 *
+	 * @param string $action Default ajax action.
+	 * @param string $type   Page type.
+	 *
+	 * @return string Ajax action name.
 	 */
 	public function restoreAjaxAction( $action, $type ) {
-		if ( $type == 'nextgen' ) {
+		if ( 'nextgen' === $type ) {
 			return 'wio_ng_restore_image';
 		}
 
@@ -129,7 +115,11 @@ class WRIO_Nextgen_Gallery {
 	}
 
 	/**
-	 * Добавляем стили и скрипты в медиабиблиотеку
+	 * Добавляем стили и скрипты в медиабиблиотеку.
+	 *
+	 * @param string $hook Admin page hook suffix.
+	 *
+	 * @return void
 	 */
 	public function enqueueMeadiaScripts( $hook ) {
 		if ( strpos( $hook, 'page_nggallery-manage-gallery' ) === false ) {
@@ -140,7 +130,11 @@ class WRIO_Nextgen_Gallery {
 	}
 
 	/**
-	 * Добавляет колонку оптимизации в галерею nextgen
+	 * Добавляет колонку оптимизации в галерею nextgen.
+	 *
+	 * @param int $count Number of columns.
+	 *
+	 * @return int Number of columns.
 	 */
 	public function addColumns( $count ) {
 		++$count;
@@ -151,14 +145,21 @@ class WRIO_Nextgen_Gallery {
 	}
 
 	/**
-	 * Название колонки оптимизации в галерее
+	 * Название колонки оптимизации в галерее.
+	 *
+	 * @return string
 	 */
 	public function columnTitle() {
 		return __( 'Image optimizer', 'robin-image-optimizer' );
 	}
 
 	/**
-	 * Возвращает содержимое блока оптимизации
+	 * Возвращает содержимое блока оптимизации.
+	 *
+	 * @param string   $output Column content.
+	 * @param stdClass $image  Image row.
+	 *
+	 * @return string
 	 */
 	public function columnContent( $output, $image ) {
 		$output = $this->getMediaColumnContent( $image->pid );
@@ -167,7 +168,11 @@ class WRIO_Nextgen_Gallery {
 	}
 
 	/**
-	 * Возвращает блок оптимизации
+	 * Возвращает блок оптимизации.
+	 *
+	 * @param int $image_id Image ID.
+	 *
+	 * @return string
 	 */
 	public function getMediaColumnContent( $image_id ) {
 
@@ -180,13 +185,13 @@ class WRIO_Nextgen_Gallery {
 	/**
 	 * Просчитывает параметры блока оптимизации
 	 *
-	 * @param int $image_id номер изображения nextgen
+	 * @param int $image_id Номер изображения nextgen.
 	 *
-	 * @return array $params
+	 * @return array<string, mixed> $params
 	 */
 	public function calculateParams( $image_id ) {
 		$nextgen_image        = new WRIO_Image_Nextgen( $image_id );
-		$isOptimized          = $nextgen_image->isOptimized();
+		$is_optimized         = $nextgen_image->isOptimized();
 		$diff_percent         = 0;
 		$diff_percent_all     = 0;
 		$original_main_size   = 0;
@@ -194,11 +199,11 @@ class WRIO_Nextgen_Gallery {
 		$optimized_size       = 0;
 		$original_size        = 0;
 		$optimization_level   = '';
-		$error_msg            = '';
-		$backuped             = '';
-		if ( $isOptimized ) {
+		if ( $is_optimized ) {
 			$optimization_data = $nextgen_image->getOptimizationData();
 			/**
+			 * Extra data of the optimization row.
+			 *
 			 * @var WRIO_Nextgen_Extra_Data $extra_data
 			 */
 			$extra_data           = $optimization_data->get_extra_data();
@@ -209,10 +214,10 @@ class WRIO_Nextgen_Gallery {
 			$original_size        = $optimization_data->get_original_size();
 			$backuped             = $optimization_data->get_is_backed_up();
 			$error_msg            = $extra_data->get_error_msg();
-			if ( $attachment_file_size and $original_main_size ) {
+			if ( $attachment_file_size && $original_main_size ) {
 				$diff_percent = round( ( $original_main_size - $attachment_file_size ) * 100 / $original_main_size );
 			}
-			if ( $optimized_size and $original_size ) {
+			if ( $optimized_size && $original_size ) {
 				$diff_percent_all = round( ( $original_size - $optimized_size ) * 100 / $original_size );
 			}
 		} else {
@@ -223,7 +228,7 @@ class WRIO_Nextgen_Gallery {
 		}
 		$params = [
 			'attachment_id'        => $image_id,
-			'is_optimized'         => $isOptimized,
+			'is_optimized'         => $is_optimized,
 			'attach_dimensions'    => 0,
 			'attachment_file_size' => $attachment_file_size,
 			'optimized_size'       => $optimized_size,
@@ -245,8 +250,8 @@ class WRIO_Nextgen_Gallery {
 	/**
 	 * Возвращает объект nextgen_image
 	 *
-	 * @param int   $image_id
-	 * @param array $image_meta
+	 * @param int            $image_id   Image ID.
+	 * @param stdClass|false $image_meta Image metadata, or false.
 	 *
 	 * @return WRIO_Image_Nextgen
 	 */
@@ -261,8 +266,8 @@ class WRIO_Nextgen_Gallery {
 	/**
 	 * Оптимизирует nextgen_image
 	 *
-	 * @param int    $image_id номер картинки в таблице nextgen
-	 * @param string $level качество
+	 * @param int    $image_id Номер картинки в таблице nextgen.
+	 * @param string $level Качество.
 	 *
 	 * @return array{stop: WP_Error|null}|array{error: WP_Error}|array{errors_count: int, original_size: int, optimized_size: int, optimized_count: int}
 	 */
@@ -284,7 +289,13 @@ class WRIO_Nextgen_Gallery {
 		}
 
 		if ( $nextgen_image->isOptimized() && \WRIO\V2\Optimizer::restores_first( 'nextgen', (int) $image_id, $level, $nextgen_image->getOptimizationData()->get_processing_level() ) ) {
-			$nextgen_image->restore();
+			$restored = $nextgen_image->restore();
+
+			// As in WRIO_Custom_Folders::optimizeImage(): a failed restore keeps the optimized files, and optimizing
+			// them again would save the new level over the old bytes.
+			if ( is_wp_error( $restored ) && 'no_backup' !== $restored->get_error_code() ) {
+				return [ 'error' => $restored ];
+			}
 		}
 
 		return $nextgen_image->optimize( $level );
@@ -293,9 +304,9 @@ class WRIO_Nextgen_Gallery {
 	/**
 	 * Обработка не оптимизированных изображений
 	 *
-	 * @param int $max_process_per_request кол-во аттачментов за 1 запуск
+	 * @param int $max_process_per_request Количество аттачментов за 1 запуск.
 	 *
-	 * @return array|\WP_Error
+	 * @return array<string, mixed>|\WP_Error
 	 */
 	public function processUnoptimizedImages( $max_process_per_request = 5 ) {
 		$backup               = WRIOP_Backup::get_instance();
@@ -326,9 +337,8 @@ class WRIO_Nextgen_Gallery {
 
 		// обработка
 		if ( $gallery_images_count ) {
-			foreach ( array_values( $gallery_images ) as $index => $gallery_image ) {
+			foreach ( $gallery_images as $index => $gallery_image ) {
 				if ( $index > 0 && ! wrio_has_time_left() ) {
-					$gallery_images_count = $index;
 					break;
 				}
 
@@ -337,6 +347,8 @@ class WRIO_Nextgen_Gallery {
 				if ( ! empty( $result['stop'] ) ) {
 					return $result['stop'];
 				}
+
+				++$optimized_count;
 			}
 		}
 
@@ -365,7 +377,11 @@ class WRIO_Nextgen_Gallery {
 	}
 
 	/**
-	 * Хук срабатывает при восстановлении картинок через стандартный интерфейс nextgen
+	 * Хук срабатывает при восстановлении картинок через стандартный интерфейс nextgen.
+	 *
+	 * @param stdClass $image Image row.
+	 *
+	 * @return void
 	 */
 	public function recoverImageHook( $image ) {
 		$image_id      = isset( $image->pid ) ? $image->pid : 0;
@@ -386,7 +402,12 @@ class WRIO_Nextgen_Gallery {
 	}
 
 	/**
-	 * Хук срабатывает при удалении картинки
+	 * Хук срабатывает при удалении картинки.
+	 *
+	 * @param int      $image_id Image ID.
+	 * @param stdClass $image    Image row.
+	 *
+	 * @return void
 	 */
 	public function deleteImageHook( $image_id, $image ) {
 		$nextgen_image = new WRIO_Image_Nextgen( $image_id );
@@ -398,9 +419,7 @@ class WRIO_Nextgen_Gallery {
 				// The picture is deleted; its conversions and backups must not stay behind.
 				$nextgen_image->forget_conversions();
 				$backup = WRIOP_Backup::get_instance();
-				if ( $backup instanceof WRIOP_Backup ) {
-					$backup->deleteNextgenBackups( $nextgen_image );
-				}
+				$backup->deleteNextgenBackups( $nextgen_image );
 				WRIO_Plugin::app()->logger->error( sprintf( 'Failed to restore Nextgen image. Object info: %s', wp_json_encode( $nextgen_image ) ) );
 			} else {
 				$nextgen_image->getOptimizationData()->delete();
@@ -412,7 +431,7 @@ class WRIO_Nextgen_Gallery {
 	/**
 	 * Удаляет данные по оптимизации из таблицы в базе данных
 	 *
-	 * @param int $image_id
+	 * @param int $image_id Image ID.
 	 *
 	 * @return void
 	 */
@@ -431,28 +450,9 @@ class WRIO_Nextgen_Gallery {
 	}
 
 	/**
-	 * Возвращает процент оптимизации
-	 * Фильтр wbcr/rio/optimize_template/optimized_percent
-	 *
-	 * @param int    $percent процент оптимизации
-	 * @param string $type тип страницы
-	 *
-	 * @return int процент оптимизации
-	 */
-	public function optimizedPercent( $percent, $type ) {
-		if ( 'nextgen' == $type ) {
-			$image_statistics = WRIO_Image_Statistic_Nextgen::get_instance();
-
-			return $image_statistics->getOptimizedPercent();
-		}
-
-		return $percent;
-	}
-
-	/**
 	 * Get ID's of unoptimized attachments
 	 *
-	 * @return array
+	 * @return list<mixed>
 	 */
 	public function getUnoptimizedImages() {
 		$image_statistics = WRIO_Image_Statistic_Nextgen::get_instance();
